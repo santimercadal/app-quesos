@@ -1,53 +1,21 @@
-# Paso 2 — Apps Script (Backend)
+# Paso 2 (v2) — Apps Script Actualizado
 
-## Cómo usarlo
+## Cambios respecto a la versión anterior
 
-1. Abrí [script.google.com](https://script.google.com) e iniciá sesión con tu cuenta de Google
-2. Hacé clic en **"Nuevo proyecto"**
-3. Borrá todo el código que aparece por defecto
-4. Pegá **todo el código** que está más abajo
-5. En la línea que dice `const SHEET_ID = 'TU_ID_AQUI'`, reemplazá `TU_ID_AQUI` con el ID de tu Google Sheet  
-   *(El ID está en la URL de la Sheet: `docs.google.com/spreadsheets/d/`**[ESTE_ES_EL_ID]**`/edit`)*
-6. Guardá el proyecto (Ctrl+S) y ponerle un nombre, por ejemplo: `Backend Quesos`
+- La hoja `Ventas` se divide en dos: **`Pedidos`** (cabecera) + **`Ventas`** (ítems)
+- Los pedidos pueden tener múltiples productos
+- Se agrega hoja `Clientes` con nombre, apellido y celular
+- Nuevas funciones: `registrarPedido`, `editarPedido`, `getHistorialCliente`
 
----
+## Pasos para actualizar
 
-## Primer paso: inicializar las hojas
+1. Abrí tu proyecto en [script.google.com](https://script.google.com)
+2. **Borrá todo** el código existente y pegá el nuevo código de abajo
+3. Guardá (Ctrl+S)
+4. Ejecutá **`inicializarHojas`** — va a crear las nuevas hojas y actualizar las existentes
+5. Desplegá nueva versión: **Implementar → Administrar implementaciones → ✏️ Editar → Nueva versión → Implementar**
 
-Antes de desplegar, ejecutá `inicializarHojas` para que se creen las 7 pestañas automáticamente:
-
-1. En el menú superior del editor, donde dice `Seleccionar función`, elegí **`inicializarHojas`**
-2. Hacé clic en el botón ▶ **Ejecutar**
-3. La primera vez te va a pedir permisos — aceptalos todos
-4. Revisá el Log (Ver → Registros) y deberías ver: `✅ Hojas inicializadas correctamente`
-
----
-
-## Desplegar como Web App
-
-1. Hacé clic en **Implementar** → **Nueva implementación**
-2. En "Tipo", elegí **Aplicación web**
-3. Configurá así:
-   - **Descripción**: `Backend Quesos v1`
-   - **Ejecutar como**: `Yo (tu cuenta)`
-   - **Quién tiene acceso**: `Cualquier persona`  
-     *(Esto es necesario para que la app desde GitHub Pages pueda comunicarse)*
-4. Hacé clic en **Implementar**
-5. Copiá la **URL de la aplicación web** que aparece — la vas a necesitar en el Paso 3 (frontend)
-
-> ⚠️ Cada vez que modifiques el script, tenés que ir a **Implementar → Administrar implementaciones → Editar → Nueva versión** para que los cambios tengan efecto.
-
----
-
-## Cómo probarlo
-
-Después de desplegar, pegá esta URL en el navegador reemplazando con tu URL real:
-
-```
-https://script.google.com/macros/s/TU_URL/exec?accion=getProductos
-```
-
-Deberías ver una respuesta JSON como: `{"ok":true,"datos":[]}`
+> La URL del Web App no cambia. Solo se actualiza el código.
 
 ---
 
@@ -57,51 +25,60 @@ Deberías ver una respuesta JSON como: `{"ok":true,"datos":[]}`
 // ==========================================
 // CONFIGURACIÓN
 // ==========================================
-// Reemplazá con el ID de tu Google Sheet
-// Lo encontrás en la URL: docs.google.com/spreadsheets/d/[ESTE_ES_EL_ID]/edit
-const SHEET_ID = 'TU_ID_AQUI';
-
-// Zona horaria del negocio
+const SHEET_ID = '1Zo43UB2Fop1h7EHE1J-kjW6fVJXwyWSkKumt1ID2YNc';
 const ZONA_HORARIA = 'America/Argentina/Buenos_Aires';
 
 
 // ==========================================
-// INICIALIZACIÓN DE HOJAS
+// INICIALIZACIÓN
 // ==========================================
-// Ejecutá esta función UNA SOLA VEZ para crear todas las pestañas con sus encabezados
 
 function inicializarHojas() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
 
   const hojas = [
     { nombre: 'Productos',         encabezados: ['nombre', 'unidad', 'precio', 'precio_costo'] },
-    { nombre: 'Ventas',            encabezados: ['id', 'fecha', 'producto', 'cantidad', 'precio_unitario', 'total', 'forma_pago', 'monto_pagado', 'cliente'] },
-    { nombre: 'Pagos Clientes',    encabezados: ['id', 'fecha', 'cliente', 'monto'] },
+    // Pedidos: cabecera de cada venta (cliente, pago, total)
+    { nombre: 'Pedidos',           encabezados: ['pedido_id', 'fecha', 'cliente', 'forma_pago', 'monto_pagado', 'total', 'descripcion'] },
+    // Ventas: líneas de cada pedido (un producto por fila)
+    { nombre: 'Ventas',            encabezados: ['id', 'pedido_id', 'producto', 'cantidad', 'precio_unitario', 'subtotal'] },
+    { nombre: 'Pagos Clientes',    encabezados: ['id', 'fecha', 'cliente', 'monto', 'nota'] },
     { nombre: 'Compras',           encabezados: ['id', 'fecha', 'proveedor', 'producto_insumo', 'cantidad', 'costo_unitario', 'total', 'forma_pago', 'monto_pagado'] },
     { nombre: 'Pagos Proveedores', encabezados: ['id', 'fecha', 'proveedor', 'monto'] },
-    { nombre: 'Clientes',          encabezados: ['nombre', 'contacto'] },
+    { nombre: 'Clientes',          encabezados: ['nombre', 'apellido', 'celular'] },
     { nombre: 'Proveedores',       encabezados: ['nombre', 'contacto'] },
   ];
 
   hojas.forEach(({ nombre, encabezados }) => {
     let hoja = ss.getSheetByName(nombre);
+
+    // Si la hoja Ventas tiene el esquema viejo (9 columnas), renombrarla como respaldo
+    if (nombre === 'Ventas' && hoja && hoja.getLastRow() > 0) {
+      const primeraCelda = hoja.getRange(1,1).getValue();
+      const segundaCelda = hoja.getRange(1,2).getValue();
+      if (primeraCelda === 'id' && segundaCelda === 'fecha') {
+        // Esquema viejo detectado → respaldar y recrear
+        hoja.setName('Ventas_v1_bak');
+        hoja = null;
+      }
+    }
+
     if (!hoja) {
       hoja = ss.insertSheet(nombre);
     }
-    // Solo escribir encabezados si la hoja está vacía
+
     if (hoja.getLastRow() === 0) {
       hoja.appendRow(encabezados);
-      hoja.getRange(1, 1, 1, encabezados.length)
-        .setFontWeight('bold')
-        .setBackground('#f0f0f0');
+      hoja.getRange(1, 1, 1, encabezados.length).setFontWeight('bold').setBackground('#f0f0f0');
     }
   });
 
-  // Eliminar hojas por defecto vacías (Hoja1, Sheet1, etc.)
+  // Eliminar hojas vacías por defecto
   const nombresNuestros = hojas.map(h => h.nombre);
-  ss.getSheets().forEach(hoja => {
-    if (!nombresNuestros.includes(hoja.getName()) && hoja.getLastRow() <= 1) {
-      try { ss.deleteSheet(hoja); } catch(e) {}
+  ss.getSheets().forEach(h => {
+    const n = h.getName();
+    if (!nombresNuestros.includes(n) && !n.includes('bak') && h.getLastRow() <= 1) {
+      try { ss.deleteSheet(h); } catch(e) {}
     }
   });
 
@@ -111,11 +88,8 @@ function inicializarHojas() {
 
 
 // ==========================================
-// RESPUESTA Y CORS
+// RESPUESTA
 // ==========================================
-// Nota sobre CORS: Apps Script agrega Access-Control-Allow-Origin: * automáticamente.
-// Para evitar el preflight del navegador, el frontend envía POST con Content-Type: text/plain.
-// El cuerpo sigue siendo JSON válido — solo cambia el header para que sea una "simple request".
 
 function crearRespuesta(datos) {
   return ContentService
@@ -125,7 +99,7 @@ function crearRespuesta(datos) {
 
 
 // ==========================================
-// doGet — LEER DATOS
+// doGet — LECTURAS
 // ==========================================
 
 function doGet(e) {
@@ -135,39 +109,20 @@ function doGet(e) {
     let resultado;
 
     switch (accion) {
-      case 'getProductos':
-        resultado = getProductos(ss);
-        break;
-      case 'getClientes':
-        resultado = getClientes(ss);
-        break;
-      case 'getProveedores':
-        resultado = getProveedores(ss);
-        break;
-      case 'getVentasHoy':
-        resultado = getVentasHoy(ss);
-        break;
-      case 'getVentas':
-        resultado = getVentas(ss, e.parameter.desde, e.parameter.hasta);
-        break;
-      case 'getCompras':
-        resultado = getCompras(ss, e.parameter.desde, e.parameter.hasta);
-        break;
-      case 'getGanancia':
-        resultado = getGanancia(ss, e.parameter.desde, e.parameter.hasta);
-        break;
-      case 'getDeudaClientes':
-        resultado = getDeudaClientes(ss);
-        break;
-      case 'getDeudaProveedores':
-        resultado = getDeudaProveedores(ss);
-        break;
-      default:
-        resultado = { error: 'Acción no reconocida: ' + accion };
+      case 'getProductos':        resultado = getProductos(ss); break;
+      case 'getClientes':         resultado = getClientes(ss); break;
+      case 'getProveedores':      resultado = getProveedores(ss); break;
+      case 'getVentasHoy':        resultado = getVentasHoy(ss); break;
+      case 'getVentas':           resultado = getVentas(ss, e.parameter.desde, e.parameter.hasta); break;
+      case 'getCompras':          resultado = getCompras(ss, e.parameter.desde, e.parameter.hasta); break;
+      case 'getGanancia':         resultado = getGanancia(ss, e.parameter.desde, e.parameter.hasta); break;
+      case 'getDeudaClientes':    resultado = getDeudaClientes(ss); break;
+      case 'getDeudaProveedores': resultado = getDeudaProveedores(ss); break;
+      case 'getHistorialCliente': resultado = getHistorialCliente(ss, e.parameter.cliente); break;
+      default: resultado = { error: 'Acción no reconocida: ' + accion };
     }
 
     return crearRespuesta({ ok: true, datos: resultado });
-
   } catch (err) {
     return crearRespuesta({ ok: false, error: err.toString() });
   }
@@ -175,7 +130,7 @@ function doGet(e) {
 
 
 // ==========================================
-// doPost — ESCRIBIR DATOS
+// doPost — ESCRITURAS
 // ==========================================
 
 function doPost(e) {
@@ -186,30 +141,19 @@ function doPost(e) {
     let resultado;
 
     switch (accion) {
-      case 'agregarProducto':
-        resultado = agregarProducto(ss, body.datos);
-        break;
-      case 'editarProducto':
-        resultado = editarProducto(ss, body.datos);
-        break;
-      case 'registrarVenta':
-        resultado = registrarVenta(ss, body.datos);
-        break;
-      case 'registrarCompra':
-        resultado = registrarCompra(ss, body.datos);
-        break;
-      case 'registrarPagoCliente':
-        resultado = registrarPagoCliente(ss, body.datos);
-        break;
-      case 'registrarPagoProveedor':
-        resultado = registrarPagoProveedor(ss, body.datos);
-        break;
-      default:
-        resultado = { error: 'Acción no reconocida: ' + accion };
+      case 'agregarProducto':        resultado = agregarProducto(ss, body.datos); break;
+      case 'editarProducto':         resultado = editarProducto(ss, body.datos); break;
+      case 'registrarPedido':        resultado = registrarPedido(ss, body.datos); break;
+      case 'editarPedido':           resultado = editarPedido(ss, body.datos); break;
+      case 'registrarCompra':        resultado = registrarCompra(ss, body.datos); break;
+      case 'registrarPagoCliente':   resultado = registrarPagoCliente(ss, body.datos); break;
+      case 'registrarPagoProveedor': resultado = registrarPagoProveedor(ss, body.datos); break;
+      case 'agregarCliente':         resultado = agregarCliente(ss, body.datos); break;
+      case 'editarCliente':          resultado = editarCliente(ss, body.datos); break;
+      default: resultado = { error: 'Acción no reconocida: ' + accion };
     }
 
     return crearRespuesta({ ok: true, datos: resultado });
-
   } catch (err) {
     return crearRespuesta({ ok: false, error: err.toString() });
   }
@@ -217,19 +161,17 @@ function doPost(e) {
 
 
 // ==========================================
-// HELPERS INTERNOS
+// HELPERS
 // ==========================================
 
-// Convierte los datos de una hoja en un array de objetos usando la primera fila como claves
 function hojaAObjetos(hoja) {
   const datos = hoja.getDataRange().getValues();
   if (datos.length <= 1) return [];
-  const encabezados = datos[0];
+  const enc = datos[0];
   return datos.slice(1).map(fila => {
     const obj = {};
-    encabezados.forEach((enc, i) => {
-      // Convertir fechas de Google Sheets a string AAAA-MM-DD
-      obj[enc] = fila[i] instanceof Date
+    enc.forEach((k, i) => {
+      obj[k] = fila[i] instanceof Date
         ? Utilities.formatDate(fila[i], ZONA_HORARIA, 'yyyy-MM-dd')
         : fila[i];
     });
@@ -237,32 +179,26 @@ function hojaAObjetos(hoja) {
   });
 }
 
-// Genera el próximo ID correlativo (ej: V001, V002...)
 function generarId(hoja, prefijo) {
-  const lastRow = hoja.getLastRow();
-  if (lastRow <= 1) return prefijo + '001';
-  const ultimoId = hoja.getRange(lastRow, 1).getValue().toString();
-  const num = parseInt(ultimoId.replace(prefijo, '')) + 1;
+  const last = hoja.getLastRow();
+  if (last <= 1) return prefijo + '001';
+  const ultimo = hoja.getRange(last, 1).getValue().toString();
+  const num = parseInt(ultimo.replace(prefijo, '')) + 1;
   return prefijo + String(num).padStart(3, '0');
 }
 
-// Valida que un valor sea número no negativo
 function validarPositivo(valor, nombre) {
-  if (isNaN(valor) || Number(valor) < 0) {
-    throw new Error(nombre + ' debe ser un número positivo');
-  }
+  if (isNaN(valor) || Number(valor) < 0) throw new Error(nombre + ' debe ser número positivo');
 }
 
-// Fecha de hoy como string AAAA-MM-DD en zona horaria Argentina
 function hoyStr() {
   return Utilities.formatDate(new Date(), ZONA_HORARIA, 'yyyy-MM-dd');
 }
 
-// Filtra un array de objetos por rango de fechas
-function filtrarPorFecha(lista, desde, hasta) {
+function filtrarFecha(lista, desde, hasta) {
   return lista.filter(item => {
-    const fecha = item.fecha ? item.fecha.toString().substring(0, 10) : '';
-    return (!desde || fecha >= desde) && (!hasta || fecha <= hasta);
+    const f = (item.fecha || '').toString().substring(0, 10);
+    return (!desde || f >= desde) && (!hasta || f <= hasta);
   });
 }
 
@@ -275,120 +211,174 @@ function getProductos(ss) {
   return hojaAObjetos(ss.getSheetByName('Productos'));
 }
 
-function agregarProducto(ss, datos) {
-  const { nombre, unidad, precio, precio_costo } = datos;
-
-  if (!nombre || nombre.trim() === '') throw new Error('El nombre del producto es obligatorio');
-  if (!['kg', 'unidad'].includes(unidad)) throw new Error('La unidad debe ser "kg" o "unidad"');
-  validarPositivo(Number(precio), 'El precio de venta');
-  validarPositivo(Number(precio_costo), 'El precio de costo');
+function agregarProducto(ss, d) {
+  if (!d.nombre?.trim()) throw new Error('El nombre es obligatorio');
+  if (!['kg','unidad'].includes(d.unidad)) throw new Error('Unidad debe ser kg o unidad');
+  validarPositivo(Number(d.precio), 'El precio');
 
   const hoja = ss.getSheetByName('Productos');
-
-  // Verificar que no exista ya un producto con ese nombre
   const existentes = hojaAObjetos(hoja);
-  if (existentes.some(p => p.nombre.toLowerCase() === nombre.trim().toLowerCase())) {
-    throw new Error('Ya existe un producto con ese nombre. Usá "editarProducto" para modificarlo.');
+  if (existentes.some(p => p.nombre.toLowerCase() === d.nombre.trim().toLowerCase())) {
+    throw new Error('Ya existe ese producto. Usá Editar para modificarlo.');
   }
 
-  hoja.appendRow([nombre.trim(), unidad, Number(precio), Number(precio_costo)]);
-  return { mensaje: 'Producto agregado: ' + nombre.trim() };
+  hoja.appendRow([d.nombre.trim(), d.unidad, Number(d.precio), Number(d.precio_costo) || 0]);
+  return { mensaje: 'Producto agregado: ' + d.nombre };
 }
 
-function editarProducto(ss, datos) {
-  const { nombre, unidad, precio, precio_costo } = datos;
-  if (!nombre) throw new Error('El nombre del producto es obligatorio para editar');
-
+function editarProducto(ss, d) {
+  if (!d.nombre) throw new Error('Nombre obligatorio para editar');
   const hoja = ss.getSheetByName('Productos');
   const filas = hoja.getDataRange().getValues();
-
-  let filaNum = -1;
+  let num = -1;
   for (let i = 1; i < filas.length; i++) {
-    if (filas[i][0].toString().toLowerCase() === nombre.toLowerCase()) {
-      filaNum = i + 1; // Sheets es 1-indexed
-      break;
-    }
+    if (filas[i][0].toString().toLowerCase() === d.nombre.toLowerCase()) { num = i + 1; break; }
   }
+  if (num === -1) throw new Error('Producto no encontrado: ' + d.nombre);
 
-  if (filaNum === -1) throw new Error('Producto no encontrado: ' + nombre);
+  if (d.unidad) hoja.getRange(num, 2).setValue(d.unidad);
+  if (d.precio !== undefined) { validarPositivo(Number(d.precio), 'Precio'); hoja.getRange(num, 3).setValue(Number(d.precio)); }
+  if (d.precio_costo !== undefined) { validarPositivo(Number(d.precio_costo), 'Costo'); hoja.getRange(num, 4).setValue(Number(d.precio_costo)); }
 
-  if (unidad !== undefined) {
-    if (!['kg', 'unidad'].includes(unidad)) throw new Error('La unidad debe ser "kg" o "unidad"');
-    hoja.getRange(filaNum, 2).setValue(unidad);
-  }
-  if (precio !== undefined) {
-    validarPositivo(Number(precio), 'El precio de venta');
-    hoja.getRange(filaNum, 3).setValue(Number(precio));
-  }
-  if (precio_costo !== undefined) {
-    validarPositivo(Number(precio_costo), 'El precio de costo');
-    hoja.getRange(filaNum, 4).setValue(Number(precio_costo));
-  }
-
-  return { mensaje: 'Producto actualizado: ' + nombre };
+  return { mensaje: 'Producto actualizado: ' + d.nombre };
 }
 
 
 // ==========================================
-// VENTAS
+// PEDIDOS (VENTAS MULTI-PRODUCTO)
 // ==========================================
 
-function registrarVenta(ss, datos) {
-  const { fecha, producto, cantidad, precio_unitario, total, forma_pago, monto_pagado, cliente } = datos;
-
-  if (!producto) throw new Error('El producto es obligatorio');
-  validarPositivo(Number(cantidad), 'La cantidad');
-  validarPositivo(Number(precio_unitario), 'El precio unitario');
-  validarPositivo(Number(total), 'El total');
-  validarPositivo(Number(monto_pagado), 'El monto pagado');
-
-  if (Number(monto_pagado) > Number(total)) {
-    throw new Error('El monto pagado no puede ser mayor al total');
-  }
+function registrarPedido(ss, d) {
+  // d = { fecha, cliente, forma_pago, monto_pagado, total, descripcion, items: [{producto, cantidad, precio_unitario, subtotal}] }
+  if (!d.items || d.items.length === 0) throw new Error('El pedido no tiene productos');
+  validarPositivo(Number(d.total), 'El total');
+  validarPositivo(Number(d.monto_pagado), 'El monto pagado');
+  if (Number(d.monto_pagado) > Number(d.total)) throw new Error('El monto pagado no puede superar el total');
 
   const formasValidas = ['efectivo', 'transferencia', 'crédito'];
-  if (!formasValidas.includes(forma_pago)) {
-    throw new Error('Forma de pago inválida. Opciones: efectivo, transferencia, crédito');
+  if (!formasValidas.includes(d.forma_pago)) throw new Error('Forma de pago inválida');
+
+  // Si es crédito, el cliente es obligatorio
+  if (d.forma_pago === 'crédito' && !d.cliente?.trim()) {
+    throw new Error('Para ventas a crédito el cliente es obligatorio');
   }
 
-  const hoja = ss.getSheetByName('Ventas');
-  const id = generarId(hoja, 'V');
+  const hojaPedidos = ss.getSheetByName('Pedidos');
+  const hojaVentas  = ss.getSheetByName('Ventas');
 
-  hoja.appendRow([
-    id,
-    fecha || hoyStr(),
-    producto,
-    Number(cantidad),
-    Number(precio_unitario),
-    Number(total),
-    forma_pago,
-    Number(monto_pagado),
-    cliente || ''
+  const pedido_id = generarId(hojaPedidos, 'P');
+  const fecha = d.fecha || hoyStr();
+
+  // Guardar cabecera en Pedidos
+  hojaPedidos.appendRow([
+    pedido_id,
+    fecha,
+    d.cliente?.trim() || '',
+    d.forma_pago,
+    Number(d.monto_pagado),
+    Number(d.total),
+    d.descripcion || ''
   ]);
 
-  return { id, mensaje: 'Venta registrada correctamente' };
+  // Guardar cada ítem en Ventas
+  d.items.forEach(item => {
+    const id = generarId(hojaVentas, 'V');
+    hojaVentas.appendRow([
+      id,
+      pedido_id,
+      item.producto,
+      Number(item.cantidad),
+      Number(item.precio_unitario),
+      Number(item.subtotal)
+    ]);
+  });
+
+  SpreadsheetApp.flush();
+  return { pedido_id, mensaje: 'Pedido registrado: ' + pedido_id };
 }
 
+function editarPedido(ss, d) {
+  // d = { pedido_id, fecha?, cliente?, forma_pago?, monto_pagado?, items?: [{id, subtotal, cantidad}] }
+  if (!d.pedido_id) throw new Error('pedido_id obligatorio');
+
+  const hojaPedidos = ss.getSheetByName('Pedidos');
+  const filasPed = hojaPedidos.getDataRange().getValues();
+  let numPed = -1;
+  for (let i = 1; i < filasPed.length; i++) {
+    if (filasPed[i][0] === d.pedido_id) { numPed = i + 1; break; }
+  }
+  if (numPed === -1) throw new Error('Pedido no encontrado: ' + d.pedido_id);
+
+  if (d.fecha)        hojaPedidos.getRange(numPed, 2).setValue(d.fecha);
+  if (d.cliente !== undefined) hojaPedidos.getRange(numPed, 3).setValue(d.cliente);
+  if (d.forma_pago)   hojaPedidos.getRange(numPed, 4).setValue(d.forma_pago);
+  if (d.monto_pagado !== undefined) {
+    validarPositivo(Number(d.monto_pagado), 'Monto pagado');
+    const total = Number(filasPed[numPed - 1][5]);
+    if (Number(d.monto_pagado) > total) throw new Error('Monto pagado no puede superar el total (' + total + ')');
+    hojaPedidos.getRange(numPed, 5).setValue(Number(d.monto_pagado));
+  }
+
+  // Editar ítems si se enviaron
+  if (d.items && d.items.length > 0) {
+    const hojaVentas = ss.getSheetByName('Ventas');
+    const filasVentas = hojaVentas.getDataRange().getValues();
+
+    d.items.forEach(item => {
+      for (let i = 1; i < filasVentas.length; i++) {
+        if (filasVentas[i][0] === item.id) {
+          if (item.subtotal !== undefined) hojaVentas.getRange(i+1, 6).setValue(Number(item.subtotal));
+          if (item.cantidad !== undefined) hojaVentas.getRange(i+1, 4).setValue(Number(item.cantidad));
+          break;
+        }
+      }
+    });
+
+    // Recalcular total del pedido
+    const itemsDelPedido = hojaAObjetos(hojaVentas).filter(v => v.pedido_id === d.pedido_id);
+    const nuevoTotal = itemsDelPedido.reduce((s, v) => s + Number(v.subtotal), 0);
+    hojaPedidos.getRange(numPed, 6).setValue(nuevoTotal);
+
+    // Recalcular descripcion
+    const nuevaDesc = itemsDelPedido.map(v => v.producto).join(', ');
+    hojaPedidos.getRange(numPed, 7).setValue(nuevaDesc);
+  }
+
+  SpreadsheetApp.flush();
+  return { mensaje: 'Pedido actualizado: ' + d.pedido_id };
+}
+
+
+// ==========================================
+// LECTURAS DE VENTAS
+// ==========================================
+
 function getVentasHoy(ss) {
-  const todas = hojaAObjetos(ss.getSheetByName('Ventas'));
   const hoy = hoyStr();
-  const ventasHoy = todas.filter(v => v.fecha === hoy);
+  const pedidos = hojaAObjetos(ss.getSheetByName('Pedidos')).filter(p => p.fecha === hoy);
+  const todasVentas = hojaAObjetos(ss.getSheetByName('Ventas'));
+
+  const resultado = pedidos.map(p => ({
+    ...p,
+    items: todasVentas.filter(v => v.pedido_id === p.pedido_id)
+  }));
 
   return {
-    ventas: ventasHoy,
-    total_ventas: ventasHoy.reduce((s, v) => s + Number(v.total), 0),
-    total_cobrado: ventasHoy.reduce((s, v) => s + Number(v.monto_pagado), 0),
-    cantidad: ventasHoy.length
+    pedidos: resultado.reverse(), // más reciente primero
+    total_ventas: pedidos.reduce((s, p) => s + Number(p.total), 0),
+    total_cobrado: pedidos.reduce((s, p) => s + Number(p.monto_pagado), 0),
+    cantidad: pedidos.length
   };
 }
 
 function getVentas(ss, desde, hasta) {
-  const todas = hojaAObjetos(ss.getSheetByName('Ventas'));
-  const filtradas = filtrarPorFecha(todas, desde, hasta);
+  const pedidos = filtrarFecha(hojaAObjetos(ss.getSheetByName('Pedidos')), desde, hasta);
+  const todasVentas = hojaAObjetos(ss.getSheetByName('Ventas'));
+
   return {
-    ventas: filtradas,
-    total: filtradas.reduce((s, v) => s + Number(v.total), 0),
-    cantidad: filtradas.length
+    pedidos: pedidos.map(p => ({ ...p, items: todasVentas.filter(v => v.pedido_id === p.pedido_id) })),
+    total: pedidos.reduce((s, p) => s + Number(p.total), 0),
+    cantidad: pedidos.length
   };
 }
 
@@ -398,36 +388,57 @@ function getVentas(ss, desde, hasta) {
 // ==========================================
 
 function getClientes(ss) {
-  // Clientes de la hoja Clientes
-  const deHoja = hojaAObjetos(ss.getSheetByName('Clientes')).map(c => ({
-    nombre: c.nombre,
-    contacto: c.contacto || ''
-  }));
+  const deHoja = hojaAObjetos(ss.getSheetByName('Clientes'));
+  // También incluir clientes que aparecen en pedidos
+  const dePedidos = hojaAObjetos(ss.getSheetByName('Pedidos'))
+    .map(p => p.cliente)
+    .filter(c => c && !deHoja.some(cl => cl.nombre === c));
 
-  // Clientes que aparecen en ventas pero no están en la hoja
-  const nombresEnHoja = new Set(deHoja.map(c => c.nombre.toLowerCase()));
-  const ventas = hojaAObjetos(ss.getSheetByName('Ventas'));
-  const deVentas = [...new Set(ventas.map(v => v.cliente).filter(c => c && !nombresEnHoja.has(c.toLowerCase())))]
-    .map(nombre => ({ nombre, contacto: '' }));
+  const nombresExtra = [...new Set(dePedidos)].map(n => ({ nombre: n, apellido: '', celular: '' }));
+  return [...deHoja, ...nombresExtra].sort((a, b) => a.nombre.localeCompare(b.nombre));
+}
 
-  return [...deHoja, ...deVentas].sort((a, b) => a.nombre.localeCompare(b.nombre));
+function agregarCliente(ss, d) {
+  if (!d.nombre?.trim()) throw new Error('El nombre es obligatorio');
+  const hoja = ss.getSheetByName('Clientes');
+  const existentes = hojaAObjetos(hoja);
+  if (existentes.some(c => c.nombre.toLowerCase() === d.nombre.trim().toLowerCase())) {
+    throw new Error('Ya existe un cliente con ese nombre');
+  }
+  hoja.appendRow([d.nombre.trim(), d.apellido?.trim() || '', d.celular?.trim() || '']);
+  return { mensaje: 'Cliente agregado: ' + d.nombre };
+}
+
+function editarCliente(ss, d) {
+  if (!d.nombre) throw new Error('Nombre obligatorio');
+  const hoja = ss.getSheetByName('Clientes');
+  const filas = hoja.getDataRange().getValues();
+  let num = -1;
+  for (let i = 1; i < filas.length; i++) {
+    if (filas[i][0].toLowerCase() === d.nombre.toLowerCase()) { num = i + 1; break; }
+  }
+  if (num === -1) throw new Error('Cliente no encontrado: ' + d.nombre);
+  if (d.apellido !== undefined) hoja.getRange(num, 2).setValue(d.apellido);
+  if (d.celular  !== undefined) hoja.getRange(num, 3).setValue(d.celular);
+  return { mensaje: 'Cliente actualizado' };
 }
 
 function getDeudaClientes(ss) {
-  const ventas = hojaAObjetos(ss.getSheetByName('Ventas'));
-  const pagos = hojaAObjetos(ss.getSheetByName('Pagos Clientes'));
+  const pedidos = hojaAObjetos(ss.getSheetByName('Pedidos'));
+  const pagos   = hojaAObjetos(ss.getSheetByName('Pagos Clientes'));
 
   const saldos = {};
 
-  ventas.forEach(v => {
-    const c = v.cliente || '(sin nombre)';
+  pedidos.forEach(p => {
+    if (!p.cliente) return;
+    const c = p.cliente;
     if (!saldos[c]) saldos[c] = { total_ventas: 0, pagado_ventas: 0, abonos: 0 };
-    saldos[c].total_ventas += Number(v.total);
-    saldos[c].pagado_ventas += Number(v.monto_pagado);
+    saldos[c].total_ventas  += Number(p.total);
+    saldos[c].pagado_ventas += Number(p.monto_pagado);
   });
 
   pagos.forEach(p => {
-    const c = p.cliente || '(sin nombre)';
+    const c = p.cliente;
     if (!saldos[c]) saldos[c] = { total_ventas: 0, pagado_ventas: 0, abonos: 0 };
     saldos[c].abonos += Number(p.monto);
   });
@@ -438,73 +449,64 @@ function getDeudaClientes(ss) {
       deuda: s.total_ventas - s.pagado_ventas - s.abonos,
       total_ventas: s.total_ventas
     }))
-    .filter(c => c.deuda > 0.01) // Ignorar diferencias de centavos
+    .filter(c => c.deuda > 0.01)
     .sort((a, b) => b.deuda - a.deuda);
 }
 
-function registrarPagoCliente(ss, datos) {
-  const { cliente, monto, fecha } = datos;
-  if (!cliente) throw new Error('El cliente es obligatorio');
-  validarPositivo(Number(monto), 'El monto');
-  if (Number(monto) === 0) throw new Error('El monto debe ser mayor a cero');
+function getHistorialCliente(ss, cliente) {
+  if (!cliente) throw new Error('Cliente obligatorio');
+
+  const pedidos = hojaAObjetos(ss.getSheetByName('Pedidos')).filter(p => p.cliente === cliente);
+  const ventas  = hojaAObjetos(ss.getSheetByName('Ventas'));
+  const pagos   = hojaAObjetos(ss.getSheetByName('Pagos Clientes')).filter(p => p.cliente === cliente);
+
+  // Armar línea de tiempo unificada
+  const movimientos = [
+    ...pedidos.map(p => ({
+      tipo: 'compra',
+      fecha: p.fecha,
+      id: p.pedido_id,
+      descripcion: p.descripcion || pedidos.map(v => v.producto).join(', '),
+      debe: Number(p.total),
+      haber: Number(p.monto_pagado), // lo pagado al momento de la venta
+    })),
+    ...pagos.map(p => ({
+      tipo: 'abono',
+      fecha: p.fecha,
+      id: p.id,
+      descripcion: p.nota || 'Abono',
+      debe: 0,
+      haber: Number(p.monto),
+    }))
+  ].sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+  // Calcular saldo acumulado
+  let saldo = 0;
+  movimientos.forEach(m => {
+    saldo += m.debe - m.haber;
+    m.saldo = saldo;
+  });
+
+  // Para cada pedido, incluir sus ítems
+  const conItems = movimientos.map(m => {
+    if (m.tipo === 'compra') {
+      m.items = ventas.filter(v => v.pedido_id === m.id);
+    }
+    return m;
+  });
+
+  return { cliente, movimientos: conItems, saldo_total: saldo };
+}
+
+function registrarPagoCliente(ss, d) {
+  if (!d.cliente) throw new Error('Cliente obligatorio');
+  validarPositivo(Number(d.monto), 'El monto');
+  if (Number(d.monto) === 0) throw new Error('El monto debe ser mayor a cero');
 
   const hoja = ss.getSheetByName('Pagos Clientes');
   const id = generarId(hoja, 'PC');
-
-  hoja.appendRow([id, fecha || hoyStr(), cliente, Number(monto)]);
-  return { id, mensaje: 'Abono de cliente registrado' };
-}
-
-
-// ==========================================
-// COMPRAS
-// ==========================================
-
-function registrarCompra(ss, datos) {
-  const { fecha, proveedor, producto_insumo, cantidad, costo_unitario, total, forma_pago, monto_pagado } = datos;
-
-  if (!proveedor) throw new Error('El proveedor es obligatorio');
-  if (!producto_insumo) throw new Error('El producto/insumo es obligatorio');
-  validarPositivo(Number(cantidad), 'La cantidad');
-  validarPositivo(Number(costo_unitario), 'El costo unitario');
-  validarPositivo(Number(total), 'El total');
-  validarPositivo(Number(monto_pagado), 'El monto pagado');
-
-  if (Number(monto_pagado) > Number(total)) {
-    throw new Error('El monto pagado no puede ser mayor al total');
-  }
-
-  const formasValidas = ['efectivo', 'transferencia', 'crédito'];
-  if (!formasValidas.includes(forma_pago)) {
-    throw new Error('Forma de pago inválida. Opciones: efectivo, transferencia, crédito');
-  }
-
-  const hoja = ss.getSheetByName('Compras');
-  const id = generarId(hoja, 'C');
-
-  hoja.appendRow([
-    id,
-    fecha || hoyStr(),
-    proveedor,
-    producto_insumo,
-    Number(cantidad),
-    Number(costo_unitario),
-    Number(total),
-    forma_pago,
-    Number(monto_pagado)
-  ]);
-
-  return { id, mensaje: 'Compra registrada correctamente' };
-}
-
-function getCompras(ss, desde, hasta) {
-  const todas = hojaAObjetos(ss.getSheetByName('Compras'));
-  const filtradas = filtrarPorFecha(todas, desde, hasta);
-  return {
-    compras: filtradas,
-    total: filtradas.reduce((s, c) => s + Number(c.total), 0),
-    cantidad: filtradas.length
-  };
+  hoja.appendRow([id, d.fecha || hoyStr(), d.cliente, Number(d.monto), d.nota || '']);
+  return { id, mensaje: 'Abono registrado' };
 }
 
 
@@ -513,59 +515,69 @@ function getCompras(ss, desde, hasta) {
 // ==========================================
 
 function getProveedores(ss) {
-  const deHoja = hojaAObjetos(ss.getSheetByName('Proveedores')).map(p => ({
-    nombre: p.nombre,
-    contacto: p.contacto || ''
-  }));
-
-  const nombresEnHoja = new Set(deHoja.map(p => p.nombre.toLowerCase()));
-  const compras = hojaAObjetos(ss.getSheetByName('Compras'));
-  const deCompras = [...new Set(compras.map(c => c.proveedor).filter(p => p && !nombresEnHoja.has(p.toLowerCase())))]
-    .map(nombre => ({ nombre, contacto: '' }));
-
+  const deHoja = hojaAObjetos(ss.getSheetByName('Proveedores')).map(p => ({ nombre: p.nombre, contacto: p.contacto || '' }));
+  const nombresHoja = new Set(deHoja.map(p => p.nombre.toLowerCase()));
+  const deCompras = [...new Set(hojaAObjetos(ss.getSheetByName('Compras')).map(c => c.proveedor).filter(p => p && !nombresHoja.has(p.toLowerCase())))]
+    .map(n => ({ nombre: n, contacto: '' }));
   return [...deHoja, ...deCompras].sort((a, b) => a.nombre.localeCompare(b.nombre));
 }
 
 function getDeudaProveedores(ss) {
   const compras = hojaAObjetos(ss.getSheetByName('Compras'));
-  const pagos = hojaAObjetos(ss.getSheetByName('Pagos Proveedores'));
-
-  const saldos = {};
+  const pagos   = hojaAObjetos(ss.getSheetByName('Pagos Proveedores'));
+  const saldos  = {};
 
   compras.forEach(c => {
     const p = c.proveedor || '(sin nombre)';
-    if (!saldos[p]) saldos[p] = { total_compras: 0, pagado_compras: 0, abonos: 0 };
-    saldos[p].total_compras += Number(c.total);
-    saldos[p].pagado_compras += Number(c.monto_pagado);
+    if (!saldos[p]) saldos[p] = { total: 0, pagado: 0, abonos: 0 };
+    saldos[p].total  += Number(c.total);
+    saldos[p].pagado += Number(c.monto_pagado);
   });
 
   pagos.forEach(p => {
     const prov = p.proveedor || '(sin nombre)';
-    if (!saldos[prov]) saldos[prov] = { total_compras: 0, pagado_compras: 0, abonos: 0 };
+    if (!saldos[prov]) saldos[prov] = { total: 0, pagado: 0, abonos: 0 };
     saldos[prov].abonos += Number(p.monto);
   });
 
   return Object.entries(saldos)
-    .map(([proveedor, s]) => ({
-      proveedor,
-      deuda: s.total_compras - s.pagado_compras - s.abonos,
-      total_compras: s.total_compras
-    }))
+    .map(([proveedor, s]) => ({ proveedor, deuda: s.total - s.pagado - s.abonos, total_compras: s.total }))
     .filter(p => p.deuda > 0.01)
     .sort((a, b) => b.deuda - a.deuda);
 }
 
-function registrarPagoProveedor(ss, datos) {
-  const { proveedor, monto, fecha } = datos;
-  if (!proveedor) throw new Error('El proveedor es obligatorio');
-  validarPositivo(Number(monto), 'El monto');
-  if (Number(monto) === 0) throw new Error('El monto debe ser mayor a cero');
-
+function registrarPagoProveedor(ss, d) {
+  if (!d.proveedor) throw new Error('Proveedor obligatorio');
+  validarPositivo(Number(d.monto), 'El monto');
   const hoja = ss.getSheetByName('Pagos Proveedores');
   const id = generarId(hoja, 'PP');
-
-  hoja.appendRow([id, fecha || hoyStr(), proveedor, Number(monto)]);
+  hoja.appendRow([id, d.fecha || hoyStr(), d.proveedor, Number(d.monto)]);
   return { id, mensaje: 'Pago a proveedor registrado' };
+}
+
+
+// ==========================================
+// COMPRAS
+// ==========================================
+
+function registrarCompra(ss, d) {
+  if (!d.proveedor)       throw new Error('Proveedor obligatorio');
+  if (!d.producto_insumo) throw new Error('Producto/insumo obligatorio');
+  validarPositivo(Number(d.cantidad), 'Cantidad');
+  validarPositivo(Number(d.total), 'Total');
+  validarPositivo(Number(d.monto_pagado), 'Monto pagado');
+  if (Number(d.monto_pagado) > Number(d.total)) throw new Error('Monto pagado no puede superar el total');
+
+  const hoja = ss.getSheetByName('Compras');
+  const id = generarId(hoja, 'C');
+  hoja.appendRow([id, d.fecha || hoyStr(), d.proveedor, d.producto_insumo,
+    Number(d.cantidad), Number(d.costo_unitario), Number(d.total), d.forma_pago, Number(d.monto_pagado)]);
+  return { id, mensaje: 'Compra registrada' };
+}
+
+function getCompras(ss, desde, hasta) {
+  const todas = filtrarFecha(hojaAObjetos(ss.getSheetByName('Compras')), desde, hasta);
+  return { compras: todas, total: todas.reduce((s, c) => s + Number(c.total), 0), cantidad: todas.length };
 }
 
 
@@ -574,22 +586,20 @@ function registrarPagoProveedor(ss, datos) {
 // ==========================================
 
 function getGanancia(ss, desde, hasta) {
-  const resultVentas = getVentas(ss, desde, hasta);
-  const resultCompras = getCompras(ss, desde, hasta);
+  const pedidos = filtrarFecha(hojaAObjetos(ss.getSheetByName('Pedidos')), desde, hasta);
+  const compras = filtrarFecha(hojaAObjetos(ss.getSheetByName('Compras')), desde, hasta);
 
-  const totalVentas = resultVentas.total;
-  const totalCompras = resultCompras.total;
+  const totalVentas  = pedidos.reduce((s, p) => s + Number(p.total), 0);
+  const totalCompras = compras.reduce((s, c) => s + Number(c.total), 0);
 
   return {
     desde: desde || 'inicio',
     hasta: hasta || hoyStr(),
-    total_ventas: totalVentas,
+    total_ventas:  totalVentas,
     total_compras: totalCompras,
-    // Ganancia = ingresos por ventas MENOS gastos en compras del período
-    // No es margen por producto — es resultado global del período
     ganancia: totalVentas - totalCompras,
-    cantidad_ventas: resultVentas.cantidad,
-    cantidad_compras: resultCompras.cantidad
+    cantidad_ventas:  pedidos.length,
+    cantidad_compras: compras.length
   };
 }
 ```
@@ -598,10 +608,8 @@ function getGanancia(ss, desde, hasta) {
 
 ## Cómo probarlo
 
-Después de desplegar, abrí esta URL en el navegador (con tu URL real):
+Después de redesplegar, abrí:
 ```
-https://script.google.com/macros/s/TU_URL_AQUI/exec?accion=getProductos
+https://script.google.com/macros/s/AKfycbyFQZz8DgsMEfJlCYgOYZrdIK8PvTIIMBgXgCSFxRfjkVd_v1GtMNoWaIjXdVRQRumzlg/exec?accion=getProductos
 ```
-Deberías ver: `{"ok":true,"datos":[]}`
-
-Si ves eso, el backend está funcionando. Avisame y pasamos al **Paso 3: el frontend**.
+Deberías ver los productos que ya cargaste.
