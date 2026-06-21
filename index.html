@@ -4,9 +4,11 @@
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
   <meta name="theme-color" content="#1b4332"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
   <meta name="apple-mobile-web-app-title" content="Quesos"/>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧀</text></svg>"/>
   <title>App Quesos</title>
   <link rel="manifest" href="manifest.json"/>
   <style>
@@ -264,6 +266,11 @@
     </div>
   </div>
   <button class="btn btn-p" id="btn-compra" onclick="guardarCompra()">Guardar Compra</button>
+  <!-- Historial de compras recientes -->
+  <div style="margin-top:24px">
+    <div class="titulo-sec" style="font-size:15px;margin-bottom:8px">Últimas compras</div>
+    <div id="hist-compras-lista"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
+  </div>
 </div>
 
 <!-- DEUDAS UNIFICADAS (clientes + proveedores) -->
@@ -448,6 +455,19 @@
     <div class="fila" style="gap:10px;margin-top:8px">
       <button class="btn btn-s" onclick="cerrarModal('modal-abono');document.getElementById('modal-ledger').classList.add('visible')">Cancelar</button>
       <button class="btn btn-p" onclick="guardarAbono()">Guardar abono</button>
+    </div>
+  </div>
+</div>
+
+<!-- TICKET COMPRA -->
+<div class="modal-fondo" id="modal-ticket-compra">
+  <div class="modal">
+    <div style="text-align:center;font-size:32px;margin-bottom:4px">📦</div>
+    <div class="modal-titulo" style="text-align:center">Compra registrada</div>
+    <div id="ticket-compra-body" style="margin:12px 0;font-size:15px"></div>
+    <div class="fila" style="gap:10px;margin-top:8px">
+      <button class="btn btn-s" style="flex:1" onclick="cerrarModal('modal-ticket-compra');irA('inicio')">Ir al inicio</button>
+      <button class="btn btn-p" style="flex:1" onclick="cerrarModal('modal-ticket-compra')">Nueva compra</button>
     </div>
   </div>
 </div>
@@ -644,27 +664,48 @@ async function cargarInicio(){
     document.getElementById('total-por-cobrar').textContent=porCobrar>0?$$(porCobrar):'✅ Al día';
     document.getElementById('total-por-pagar').textContent=porPagar>0?$$(porPagar):'✅ Al día';
     const lista=document.getElementById('ventas-hoy-lista');
-    if(!d.pedidos||!d.pedidos.length){
-      lista.innerHTML='<div class="vacio"><span class="ico">🧀</span>Sin ventas hoy todavía</div>';return;
+    const hayVentas=d.pedidos&&d.pedidos.length>0;
+    const hayAbonos=d.pagos_clientes&&d.pagos_clientes.length>0;
+    if(!hayVentas&&!hayAbonos){
+      lista.innerHTML='<div class="vacio"><span class="ico">🧀</span>Sin movimientos hoy todavía</div>';return;
     }
-    lista.innerHTML=
-    d.pedidos.map(p=>{
-      const badge=p.forma_pago==='efectivo'?'badge-efectivo':p.forma_pago==='transferencia'?'badge-trans':'badge-credito';
-      const deudaOriginal=Number(p.total)-Number(p.monto_pagado);
-      return `<div class="item">
-        <div class="item-head">
-          <div class="item-info" style="flex:1">
-            <div class="item-nombre">${p.cliente||'(sin nombre)'} <span class="badge ${badge}">${p.forma_pago}</span></div>
-            <div class="item-det">${p.descripcion||''}</div>
-            ${deudaOriginal>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente al vender: ${$$(deudaOriginal)} · Ver saldo real en "Clientes que deben"</div>`:''}
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-            <div class="item-val">${$$(p.total)}</div>
-            <button class="btn btn-s btn-sm" onclick='abrirEdicionPedido(${JSON.stringify(p)})'>Editar</button>
-          </div>
-        </div>
-      </div>`;
-    }).join('');
+
+    // Ventas del día
+    const htmlVentas=hayVentas
+      ? `<div style="font-size:12px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px">🛒 Ventas</div>`+
+        d.pedidos.map(p=>{
+          const badge=p.forma_pago==='efectivo'?'badge-efectivo':p.forma_pago==='transferencia'?'badge-trans':'badge-credito';
+          const deudaOriginal=Number(p.total)-Number(p.monto_pagado);
+          return `<div class="item">
+            <div class="item-head">
+              <div class="item-info" style="flex:1">
+                <div class="item-nombre">${p.cliente||'(sin nombre)'} <span class="badge ${badge}">${p.forma_pago}</span></div>
+                <div class="item-det">${p.descripcion||''}</div>
+                ${deudaOriginal>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deudaOriginal)}</div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                <div class="item-val">${$$(p.total)}</div>
+                <button class="btn btn-s btn-sm" onclick='abrirEdicionPedido(${JSON.stringify(p)})'>Editar</button>
+              </div>
+            </div>
+          </div>`;
+        }).join('')
+      : '';
+
+    // Abonos recibidos del día
+    const htmlAbonos=hayAbonos
+      ? `<div style="font-size:12px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px">💰 Pagos recibidos</div>`+
+        d.pagos_clientes.map(pago=>`
+          <div class="item">
+            <div class="item-info" style="flex:1">
+              <div class="item-nombre">${escH(pago.cliente)}</div>
+              <div class="item-det">${pago.nota||'Abono de deuda'}</div>
+            </div>
+            <div class="item-val" style="color:var(--verde-c)">+${$$(pago.monto)}</div>
+          </div>`).join('')
+      : '';
+
+    lista.innerHTML=htmlVentas+htmlAbonos;
   }catch(e){
     document.getElementById('total-hoy').textContent='—';
     document.getElementById('cobrado-hoy').textContent='Sin conexión · '+e.message;
@@ -887,6 +928,30 @@ async function cargarDatosCompra(){
     selProv.innerHTML='<option value="">Sin proveedor</option>'+
       provs.map(p=>`<option value="${p.nombre}">${p.nombre}${p.contacto?' · '+p.contacto:''}</option>`).join('');
   }catch(e){}
+  cargarHistorialCompras();
+}
+
+async function cargarHistorialCompras(){
+  const lista=document.getElementById('hist-compras-lista');
+  if(!lista) return;
+  lista.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  try{
+    const r=await apiGet('getCompras',{desde:'2000-01-01',hasta:'2099-12-31'});
+    const compras=(r.compras||[]).slice().reverse().slice(0,15); // últimas 15
+    if(!compras.length){lista.innerHTML='<div class="vacio"><span class="ico">📦</span>Sin compras registradas</div>';return;}
+    lista.innerHTML=compras.map(c=>{
+      const deuda=Number(c.total)-Number(c.monto_pagado);
+      const badge=c.forma_pago==='efectivo'?'badge-efectivo':c.forma_pago==='transferencia'?'badge-trans':'badge-credito';
+      return `<div class="item">
+        <div class="item-info" style="flex:1">
+          <div class="item-nombre">${escH(c.proveedor)} <span class="badge ${badge}">${c.forma_pago||''}</span></div>
+          <div class="item-det">${escH(c.producto_insumo)} · ${c.cantidad} kg · ${fmtFecha(c.fecha)}</div>
+          ${deuda>0?`<div class="item-det" style="color:var(--rojo)">Pendiente: ${$$(deuda)}</div>`:''}
+        </div>
+        <div class="item-val">${$$(c.total)}</div>
+      </div>`;
+    }).join('');
+  }catch(e){lista.innerHTML='<div class="vacio"><span class="ico">❌</span>Error al cargar</div>';}
 }
 
 function alElegirProdCompra(){
@@ -936,7 +1001,25 @@ async function guardarCompra(){
   toast('Guardando...','guardando');
   try{
     await apiPost('registrarCompra',{fecha,proveedor,producto_insumo,cantidad,costo_unitario,total,forma_pago,monto_pagado});
-    ocultarToast(); toast('✅ Compra guardada','exito');
+    ocultarToast();
+    // Mostrar ticket de confirmación
+    const deuda=total-monto_pagado;
+    const badge=forma_pago==='efectivo'?'badge-efectivo':forma_pago==='transferencia'?'badge-trans':'badge-credito';
+    document.getElementById('ticket-compra-body').innerHTML=`
+      <div class="item" style="background:var(--gris-c);border-radius:10px;padding:12px;margin-bottom:10px">
+        <div style="font-size:13px;color:var(--gris);margin-bottom:6px">${fmtFecha(fecha)}</div>
+        <div style="font-weight:600;font-size:16px;margin-bottom:2px">${escH(proveedor)}</div>
+        <div style="color:var(--gris);margin-bottom:8px">${escH(producto_insumo)} · ${cantidad} kg</div>
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span class="badge ${badge}">${forma_pago}</span>
+          <span style="font-size:18px;font-weight:700">${$$(total)}</span>
+        </div>
+        ${monto_pagado>0&&monto_pagado<total?`<div style="font-size:13px;color:var(--gris);margin-top:6px">Pagado: ${$$(monto_pagado)} · <span style="color:var(--rojo)">Pendiente: ${$$(deuda)}</span></div>`:''}
+        ${monto_pagado===0?`<div style="font-size:13px;color:var(--rojo);margin-top:6px">⚠️ Pendiente total: ${$$(total)}</div>`:''}
+        ${monto_pagado>=total?`<div style="font-size:13px;color:var(--verde-c);margin-top:6px">✅ Pagado en su totalidad</div>`:''}
+      </div>`;
+    document.getElementById('modal-ticket-compra').classList.add('visible');
+    // Limpiar formulario
     ['c-cantidad','c-total','c-costo','c-pagado'].forEach(id=>document.getElementById(id).value='');
     document.getElementById('c-producto').selectedIndex=0;
     document.getElementById('c-proveedor').selectedIndex=0;
@@ -945,7 +1028,7 @@ async function guardarCompra(){
     document.getElementById('c-prov-hint').textContent='Se pre-llena según el producto elegido';
     document.getElementById('c-pago').value='efectivo';
     document.getElementById('c-fecha').value=hoy();
-    irA('inicio');
+    cargarHistorialCompras();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
   finally{btn.disabled=false;btn.innerHTML='Guardar Compra';}
 }
@@ -953,21 +1036,20 @@ async function guardarCompra(){
 // ==========================================
 // DEUDAS UNIFICADAS (tabs clientes / proveedores)
 // ==========================================
-let _deudaCliCache=null, _deudaProvCache=null;
-function invalidarCacheDeudas(){ _deudaCliCache=null; _deudaProvCache=null; }
+function invalidarCacheDeudas(){ /* sin cache, siempre carga fresco */ }
 
 async function cargarDeudas(tab){
   cambiarTabDeuda(tab);
-  // Cargar ambas en paralelo la primera vez
-  if(!_deudaCliCache && !_deudaProvCache){
-    const [cli,prov]=await Promise.all([
-      apiGet('getDeudaClientes').catch(()=>[]),
-      apiGet('getDeudaProveedores').catch(()=>[])
-    ]);
-    _deudaCliCache=cli; _deudaProvCache=prov;
-  }
-  renderDeudaClientes(_deudaCliCache||[]);
-  renderDeudaProveedores(_deudaProvCache||[]);
+  // Mostrar loading en ambos contenedores
+  document.getElementById('cont-clientes-deuda').innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  document.getElementById('cont-proveedores').innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  // Cargar ambas en paralelo siempre (sin cache para garantizar datos frescos)
+  const [cli,prov]=await Promise.all([
+    apiGet('getDeudaClientes').catch(()=>[]),
+    apiGet('getDeudaProveedores').catch(()=>[])
+  ]);
+  renderDeudaClientes(cli);
+  renderDeudaProveedores(prov);
 }
 
 function cambiarTabDeuda(tab){
@@ -1000,11 +1082,7 @@ function renderDeudaClientes(lista){
       </div>`).join('');
 }
 
-// Alias para compatibilidad con llamadas existentes
-async function cargarDeudaClientes(){
-  _deudaCliCache=null;
-  await cargarDeudas('clientes');
-}
+async function cargarDeudaClientes(){ await cargarDeudas('clientes'); }
 
 async function abrirLedger(cliente, deudaActual){
   document.getElementById('ledger-titulo').textContent='Cuenta: '+cliente;
@@ -1122,10 +1200,7 @@ function renderDeudaProveedores(lista){
       </div>`).join('');
 }
 
-async function cargarDeudaProveedores(){
-  _deudaProvCache=null;
-  await cargarDeudas('proveedores');
-}
+async function cargarDeudaProveedores(){ await cargarDeudas('proveedores'); }
 
 function abrirAbonoProv(prov, deuda){
   document.getElementById('ab-prov').value=prov;

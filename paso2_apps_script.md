@@ -375,10 +375,16 @@ function getVentasHoy(ss) {
     items: todasVentas.filter(v => v.pedido_id === p.pedido_id)
   }));
 
+  // Pagos recibidos de clientes hoy (abonos de deudas)
+  const pagosHoy = hojaAObjetos(ss.getSheetByName('Pagos Clientes')).filter(p => p.fecha === hoy);
+  const totalAbonos = pagosHoy.reduce((s, p) => s + Number(p.monto), 0);
+
   return {
     pedidos: resultado.reverse(), // más reciente primero
     total_ventas: pedidos.reduce((s, p) => s + Number(p.total), 0),
-    total_cobrado: pedidos.reduce((s, p) => s + Number(p.monto_pagado), 0),
+    total_cobrado: pedidos.reduce((s, p) => s + Number(p.monto_pagado), 0) + totalAbonos,
+    pagos_clientes: pagosHoy.reverse(), // abonos de hoy
+    total_abonos: totalAbonos,
     cantidad: pedidos.length
   };
 }
