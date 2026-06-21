@@ -153,6 +153,7 @@ function doPost(e) {
       case 'eliminarCliente':        resultado = eliminarCliente(ss, body.datos); break;
       case 'agregarProveedor':       resultado = agregarProveedor(ss, body.datos); break;
       case 'editarProveedor':        resultado = editarProveedor(ss, body.datos); break;
+      case 'eliminarProveedor':      resultado = eliminarProveedor(ss, body.datos); break;
       default: resultado = { error: 'Acción no reconocida: ' + accion };
     }
 
@@ -183,11 +184,23 @@ function hojaAObjetos(hoja) {
 }
 
 function generarId(hoja, prefijo) {
-  const last = hoja.getLastRow();
-  if (last <= 1) return prefijo + '001';
-  const ultimo = hoja.getRange(last, 1).getValue().toString();
-  const num = parseInt(ultimo.replace(prefijo, '')) + 1;
-  return prefijo + String(num).padStart(3, '0');
+  // Usamos LockService para evitar IDs duplicados en requests concurrentes
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000); // espera hasta 15s si hay otro request en curso
+  try {
+    const filas = hoja.getDataRange().getValues();
+    let maxNum = 0;
+    for (let i = 1; i < filas.length; i++) {
+      const id = String(filas[i][0]);
+      if (id.startsWith(prefijo)) {
+        const num = parseInt(id.slice(prefijo.length));
+        if (!isNaN(num) && num > maxNum) maxNum = num;
+      }
+    }
+    return prefijo + String(maxNum + 1).padStart(3, '0');
+  } finally {
+    lock.releaseLock();
+  }
 }
 
 function validarPositivo(valor, nombre) {
@@ -468,6 +481,19 @@ function editarProveedor(ss, d) {
   if (num === -1) throw new Error('Proveedor no encontrado: ' + d.nombre);
   if (d.contacto !== undefined) hoja.getRange(num, 2).setValue(d.contacto);
   return { mensaje: 'Proveedor actualizado' };
+}
+
+function eliminarProveedor(ss, d) {
+  if (!d.nombre) throw new Error('Nombre obligatorio');
+  const hoja = ss.getSheetByName('Proveedores');
+  const filas = hoja.getDataRange().getValues();
+  for (let i = 1; i < filas.length; i++) {
+    if (filas[i][0].toLowerCase() === d.nombre.toLowerCase()) {
+      hoja.deleteRow(i + 1);
+      return { mensaje: 'Proveedor eliminado: ' + d.nombre };
+    }
+  }
+  throw new Error('Proveedor no encontrado: ' + d.nombre);
 }
 
 function getDeudaClientes(ss) {

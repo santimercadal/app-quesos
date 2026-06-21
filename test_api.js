@@ -358,6 +358,9 @@ seccion('12 · VALIDACIONES DE PROVEEDORES');
 deberiaFallar('agregarProveedor sin nombre', await POST('agregarProveedor', { nombre: '', contacto: '123' }));
 deberiaFallar('editarProveedor inexistente', await POST('editarProveedor', { nombre: '__NoExiste99__', contacto: '123' }));
 
+// Limpiar si quedó de corrida anterior
+await POST('eliminarProveedor', { nombre: '__ProvDup__' }).catch(() => {});
+
 // Agregar y duplicado
 const rProv1 = await POST('agregarProveedor', { nombre: '__ProvDup__', contacto: '000' });
 check('agregarProveedor válido', rProv1.ok);
@@ -366,6 +369,11 @@ deberiaFallar('agregarProveedor duplicado', await POST('agregarProveedor', { nom
 // Editar
 const rProvEdit = await POST('editarProveedor', { nombre: '__ProvDup__', contacto: '999' });
 check('editarProveedor → OK', rProvEdit.ok);
+
+// Eliminar proveedor de test
+const rProvDel = await POST('eliminarProveedor', { nombre: '__ProvDup__' });
+check('eliminarProveedor → OK', rProvDel.ok);
+deberiaFallar('eliminarProveedor inexistente', await POST('eliminarProveedor', { nombre: '__ProvDup__' }));
 
 // ════════════════════════════════════════════════════════════
 // RESUMEN FINAL
@@ -387,8 +395,9 @@ if (fail > 0) {
 }
 
 console.log('\n%c  Datos de prueba que quedaron en la hoja:', 'color:#6c757d;font-size:11px');
-console.log('%c  • Compra de __IntProv__ (integridad)', 'color:#6c757d;font-size:11px');
-console.log('%c  • Proveedor __ProvDup__ (limpiarlo manualmente si querés)', 'color:#6c757d;font-size:11px');
-console.log('%c  • Los pedidos de concurrencia (P###) quedaron en Pedidos', 'color:#6c757d;font-size:11px');
+console.log('%c  • Compra de __IntProv__ (sección 9 — integridad)', 'color:#6c757d;font-size:11px');
+console.log('%c  • Pedidos de concurrencia P### (sección 10)', 'color:#6c757d;font-size:11px');
+console.log('%c  • Clientes __IntTest__ y __ConcurrenteN__ fueron limpiados automáticamente', 'color:#6c757d;font-size:11px');
+console.log('%c  • Proveedor __ProvDup__ fue limpiado automáticamente', 'color:#6c757d;font-size:11px');
 
 })();
