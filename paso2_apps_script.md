@@ -191,7 +191,12 @@ function generarId(hoja, prefijo) {
 }
 
 function validarPositivo(valor, nombre) {
-  if (isNaN(valor) || Number(valor) < 0) throw new Error(nombre + ' debe ser número positivo');
+  if (isNaN(valor) || Number(valor) <= 0) throw new Error(nombre + ' debe ser número positivo');
+}
+
+// Permite cero (para monto_pagado, precio_costo, etc.)
+function validarNoNegativo(valor, nombre) {
+  if (isNaN(valor) || Number(valor) < 0) throw new Error(nombre + ' no puede ser negativo');
 }
 
 function hoyStr() {
@@ -256,7 +261,7 @@ function registrarPedido(ss, d) {
   // d = { fecha, cliente, forma_pago, monto_pagado, total, descripcion, items: [{producto, cantidad, precio_unitario, subtotal}] }
   if (!d.items || d.items.length === 0) throw new Error('El pedido no tiene productos');
   validarPositivo(Number(d.total), 'El total');
-  validarPositivo(Number(d.monto_pagado), 'El monto pagado');
+  validarNoNegativo(Number(d.monto_pagado), 'El monto pagado');
   if (Number(d.monto_pagado) > Number(d.total)) throw new Error('El monto pagado no puede superar el total');
 
   const formasValidas = ['efectivo', 'transferencia', 'crédito'];
@@ -317,7 +322,7 @@ function editarPedido(ss, d) {
   if (d.cliente !== undefined) hojaPedidos.getRange(numPed, 3).setValue(d.cliente);
   if (d.forma_pago)   hojaPedidos.getRange(numPed, 4).setValue(d.forma_pago);
   if (d.monto_pagado !== undefined) {
-    validarPositivo(Number(d.monto_pagado), 'Monto pagado');
+    validarNoNegativo(Number(d.monto_pagado), 'Monto pagado');
     const total = Number(filasPed[numPed - 1][5]);
     if (Number(d.monto_pagado) > total) throw new Error('Monto pagado no puede superar el total (' + total + ')');
     hojaPedidos.getRange(numPed, 5).setValue(Number(d.monto_pagado));
@@ -607,7 +612,7 @@ function registrarCompra(ss, d) {
   if (!d.producto_insumo) throw new Error('Producto/insumo obligatorio');
   validarPositivo(Number(d.cantidad), 'Cantidad');
   validarPositivo(Number(d.total), 'Total');
-  validarPositivo(Number(d.monto_pagado), 'Monto pagado');
+  validarNoNegativo(Number(d.monto_pagado), 'Monto pagado');
   if (Number(d.monto_pagado) > Number(d.total)) throw new Error('Monto pagado no puede superar el total');
 
   const hoja = ss.getSheetByName('Compras');
