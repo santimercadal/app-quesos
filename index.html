@@ -16,9 +16,26 @@
       --rojo:#e63946;--rojo-s:#fde8ea;--amarillo:#f4a261;
       --gris:#6c757d;--gris-c:#f1f3f4;--blanco:#fff;--texto:#212529;
       --radio:12px;--sombra:0 2px 8px rgba(0,0,0,.10);
+      --borde:#e0e0e0;--modal-bg:#fff;--header-bg:#1b4332;
     }
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--gris-c);color:var(--texto);min-height:100vh;padding-bottom:72px}
-    .header{background:var(--verde);color:var(--blanco);padding:16px;text-align:center;font-size:18px;font-weight:600;position:sticky;top:0;z-index:100}
+    body.dark{
+      --verde-s:#1a3028;--verde-c:#52b788;--verde:#52b788;
+      --rojo:#ff7b7b;--rojo-s:#3a1a1a;--amarillo:#f4a261;
+      --gris:#adb5bd;--gris-c:#252525;--blanco:#1e1e1e;--texto:#e8e8e8;
+      --sombra:0 2px 8px rgba(0,0,0,.4);--borde:#404040;
+      --modal-bg:#1e1e1e;--header-bg:#0f2419;
+      background:#131313;
+    }
+    body.dark input,body.dark select{background:#2a2a2a;color:#e8e8e8;border-color:#404040}
+    body.dark .nav-bar{background:#1e1e1e;border-top-color:#333}
+    body.dark .modal{background:var(--modal-bg)}
+    body.dark .carrito-item{background:#2a2a2a}
+    body.dark .tab{background:#1e1e1e;border-color:#404040;color:#adb5bd}
+    body.dark .tab.activo{background:var(--verde-s);border-color:var(--verde-c)}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--gris-c);color:var(--texto);min-height:100vh;padding-bottom:72px;transition:background .2s,color .2s}
+    .header{background:var(--header-bg);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;position:sticky;top:0;z-index:100}
+    .header-title{flex:1;text-align:center}
+    .btn-modo{background:none;border:none;color:#fff;font-size:22px;cursor:pointer;padding:4px;line-height:1}
     .pantalla{display:none;padding:16px;max-width:600px;margin:0 auto}
     .pantalla.activa{display:block}
     /* NAV */
@@ -38,7 +55,7 @@
     /* FORM */
     .campo{margin-bottom:14px}
     label{display:block;font-size:12px;font-weight:600;color:var(--gris);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
-    input,select{width:100%;padding:14px;border:2px solid #e0e0e0;border-radius:var(--radio);font-size:16px;color:var(--texto);background:var(--blanco);-webkit-appearance:none;appearance:none}
+    input,select{width:100%;padding:14px;border:2px solid var(--borde);border-radius:var(--radio);font-size:16px;color:var(--texto);background:var(--blanco);-webkit-appearance:none;appearance:none;transition:background .2s,color .2s,border-color .2s}
     input:focus,select:focus{outline:none;border-color:var(--verde-c)}
     select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%236c757d' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
     .campo-auto input{background:var(--gris-c);font-weight:700;color:var(--verde)}
@@ -113,7 +130,11 @@
 </head>
 <body>
 
-<div class="header" id="header">App Quesos 🧀</div>
+<div class="header" id="header">
+  <div style="width:36px"></div>
+  <div class="header-title" id="header-title">App Quesos 🧀</div>
+  <button class="btn-modo" id="btn-modo" onclick="toggleModo()" title="Modo oscuro">🌙</button>
+</div>
 
 <!-- ====== PANTALLAS ====== -->
 
@@ -189,12 +210,17 @@
   <div class="card">
     <div class="campo">
       <label>Proveedor</label>
-      <input type="text" id="c-proveedor" list="lista-proveedores" placeholder="Nombre del proveedor" autocomplete="off"/>
-      <datalist id="lista-proveedores"></datalist>
+      <select id="c-proveedor">
+        <option value="">Sin proveedor</option>
+      </select>
+      <div class="hint gris" id="c-prov-hint">Se pre-llena según el producto elegido</div>
     </div>
     <div class="campo">
       <label>Producto / Insumo</label>
-      <input type="text" id="c-producto" placeholder="Ej: Leche cruda, Packaging..."/>
+      <select id="c-producto" onchange="alElegirProdCompra()">
+        <option value="">Elegí un producto</option>
+      </select>
+      <div class="hint gris" id="c-prod-hint"></div>
     </div>
     <div class="fila">
       <div class="campo">
@@ -251,8 +277,18 @@
   <div class="grilla">
     <button class="btn-grande" onclick="irA('productos')"><span class="ico">🧀</span>Productos</button>
     <button class="btn-grande" onclick="irA('clientes')"><span class="ico">👤</span>Clientes</button>
+    <button class="btn-grande" onclick="irA('proveedores-mgt')"><span class="ico">🏭</span>Proveedores</button>
     <button class="btn-grande" onclick="irA('reportes')"><span class="ico">📊</span>Reportes</button>
   </div>
+</div>
+
+<!-- GESTIÓN PROVEEDORES -->
+<div class="pantalla" id="pantalla-proveedores-mgt">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+    <div class="titulo-sec" style="margin:0">Proveedores</div>
+    <button class="btn btn-p btn-sm" onclick="abrirModalProveedor(null)">+ Agregar</button>
+  </div>
+  <div id="cont-proveedores-mgt"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
 </div>
 
 <!-- PRODUCTOS -->
@@ -437,6 +473,10 @@
       <label>Unidad</label>
       <select id="p-unidad"><option value="kg">Kilogramo (kg)</option><option value="unidad">Por unidad</option></select>
     </div>
+    <div class="campo">
+      <label>Proveedor</label>
+      <select id="p-proveedor"><option value="">Sin proveedor asignado</option></select>
+    </div>
     <div class="fila">
       <div class="campo"><label>Precio venta</label><input type="number" id="p-precio" min="0" step="1" placeholder="0" oninput="mostrarMargen()"/></div>
       <div class="campo"><label>Precio costo</label><input type="number" id="p-costo" min="0" step="1" placeholder="0" oninput="mostrarMargen()"/></div>
@@ -445,6 +485,20 @@
     <div class="fila" style="gap:10px">
       <button class="btn btn-s" onclick="cerrarModal('modal-producto')">Cancelar</button>
       <button class="btn btn-p" onclick="guardarProducto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- PROVEEDOR -->
+<div class="modal-fondo" id="modal-proveedor">
+  <div class="modal">
+    <div class="modal-titulo" id="titulo-modal-prov">Agregar proveedor</div>
+    <input type="hidden" id="prov-modo" value="agregar"/>
+    <div class="campo"><label>Nombre</label><input type="text" id="prov-nombre" placeholder="Ej: Lácteos del Sur"/></div>
+    <div class="campo"><label>Contacto / Teléfono (opcional)</label><input type="text" id="prov-contacto" placeholder="Ej: 11 5555-1234"/></div>
+    <div class="fila" style="gap:10px;margin-top:8px">
+      <button class="btn btn-s" onclick="cerrarModal('modal-proveedor')">Cancelar</button>
+      <button class="btn btn-p" onclick="guardarProveedor()">Guardar</button>
     </div>
   </div>
 </div>
@@ -460,6 +514,11 @@
     <div class="fila" style="gap:10px;margin-top:8px">
       <button class="btn btn-s" onclick="cerrarModal('modal-cliente')">Cancelar</button>
       <button class="btn btn-p" onclick="guardarCliente()">Guardar</button>
+    </div>
+    <div id="cli-eliminar-zona" style="display:none;margin-top:12px">
+      <div class="sep"></div>
+      <button class="btn btn-r" onclick="confirmarEliminarCliente()" style="margin-top:12px">🗑️ Eliminar cliente</button>
+      <div class="nota">⚠️ Las ventas anteriores a este cliente no se borran, solo se elimina del listado.</div>
     </div>
   </div>
 </div>
@@ -537,13 +596,13 @@ function escH(s){return String(s).replace(/'/g,"\\'")}
 // ==========================================
 // NAVEGACIÓN
 // ==========================================
-const TITULOS={inicio:'App Quesos 🧀',venta:'Nueva Venta',compra:'Nueva Compra','clientes-deuda':'Clientes que deben',proveedores:'Le debemos a...',mas:'Más opciones',productos:'Productos',clientes:'Clientes',reportes:'Reportes'};
-const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra','clientes-deuda':'nav-deudas',proveedores:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas',reportes:'nav-mas'};
+const TITULOS={inicio:'App Quesos 🧀',venta:'Nueva Venta',compra:'Nueva Compra','clientes-deuda':'Clientes que deben',proveedores:'Le debemos a...',mas:'Más opciones',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes'};
+const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra','clientes-deuda':'nav-deudas',proveedores:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas','proveedores-mgt':'nav-mas',reportes:'nav-mas'};
 
 function irA(p){
   document.querySelectorAll('.pantalla').forEach(x=>x.classList.remove('activa'));
   document.getElementById('pantalla-'+p).classList.add('activa');
-  document.getElementById('header').textContent=TITULOS[p]||'App Quesos';
+  document.getElementById('header-title').textContent=TITULOS[p]||'App Quesos';
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('activo'));
   const n=NAV_MAP[p]; if(n) document.getElementById(n).classList.add('activo');
   window.scrollTo(0,0);
@@ -554,6 +613,7 @@ function irA(p){
   if(p==='proveedores') cargarDeudaProveedores();
   if(p==='productos') cargarProductos();
   if(p==='clientes') cargarClientes();
+  if(p==='proveedores-mgt') cargarProveedoresMgt();
   if(p==='reportes') cargarReporte();
 }
 
@@ -576,7 +636,7 @@ async function cargarInicio(){
     if(!d.pedidos||!d.pedidos.length){
       lista.innerHTML='<div class="vacio"><span class="ico">🧀</span>Sin ventas hoy todavía</div>';return;
     }
-    lista.innerHTML='<div style="font-size:12px;font-weight:600;color:var(--gris);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Ventas de hoy</div>'+
+    lista.innerHTML=
     d.pedidos.map(p=>{
       const badge=p.forma_pago==='efectivo'?'badge-efectivo':p.forma_pago==='transferencia'?'badge-trans':'badge-credito';
       const deudaOriginal=Number(p.total)-Number(p.monto_pagado);
@@ -806,9 +866,32 @@ async function confirmarEdicion(){
 async function cargarDatosCompra(){
   document.getElementById('c-fecha').value=hoy();
   try{
-    const provs=await apiGet('getProveedores');
-    document.getElementById('lista-proveedores').innerHTML=provs.map(p=>`<option value="${p.nombre}">`).join('');
+    const [prods, provs]=await Promise.all([apiGet('getProductos'),apiGet('getProveedores')]);
+    // Llenar select de productos
+    const selProd=document.getElementById('c-producto');
+    selProd.innerHTML='<option value="">Elegí un producto</option>'+
+      prods.map(p=>`<option value="${p.nombre}" data-prov="${p.proveedor||''}">${p.nombre}</option>`).join('');
+    // Llenar select de proveedores
+    const selProv=document.getElementById('c-proveedor');
+    selProv.innerHTML='<option value="">Sin proveedor</option>'+
+      provs.map(p=>`<option value="${p.nombre}">${p.nombre}${p.contacto?' · '+p.contacto:''}</option>`).join('');
   }catch(e){}
+}
+
+function alElegirProdCompra(){
+  const sel=document.getElementById('c-producto');
+  const opt=sel.options[sel.selectedIndex];
+  const prov=opt?.dataset?.prov||'';
+  document.getElementById('c-prod-hint').textContent=opt?.value?`Precio costo ref: ver productos`:'';
+  if(prov){
+    const selProv=document.getElementById('c-proveedor');
+    for(let i=0;i<selProv.options.length;i++){
+      if(selProv.options[i].value===prov){selProv.selectedIndex=i;break;}
+    }
+    document.getElementById('c-prov-hint').textContent='Pre-llenado desde el producto';
+  }else{
+    document.getElementById('c-prov-hint').textContent='Este producto no tiene proveedor asignado';
+  }
 }
 function calcCompra(){
   const cant=parseFloat(document.getElementById('c-cantidad').value)||0;
@@ -825,8 +908,8 @@ function alCambiarPagoCompra(){
 }
 async function guardarCompra(){
   const btn=document.getElementById('btn-compra');
-  const proveedor=document.getElementById('c-proveedor').value.trim();
-  const producto_insumo=document.getElementById('c-producto').value.trim();
+  const proveedor=document.getElementById('c-proveedor').value;
+  const producto_insumo=document.getElementById('c-producto').value;
   const cantidad=parseFloat(document.getElementById('c-cantidad').value);
   const total=parseFloat(document.getElementById('c-total').value);
   const costo_unitario=parseFloat(document.getElementById('c-costo').value)||0;
@@ -843,8 +926,12 @@ async function guardarCompra(){
   try{
     await apiPost('registrarCompra',{fecha,proveedor,producto_insumo,cantidad,costo_unitario,total,forma_pago,monto_pagado});
     ocultarToast(); toast('✅ Compra guardada','exito');
-    ['c-proveedor','c-producto','c-cantidad','c-total','c-costo','c-pagado'].forEach(id=>document.getElementById(id).value='');
+    ['c-cantidad','c-total','c-costo','c-pagado'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('c-producto').selectedIndex=0;
+    document.getElementById('c-proveedor').selectedIndex=0;
     document.getElementById('c-costo-hint').textContent='';
+    document.getElementById('c-prod-hint').textContent='';
+    document.getElementById('c-prov-hint').textContent='Se pre-llena según el producto elegido';
     document.getElementById('c-pago').value='efectivo';
     document.getElementById('c-fecha').value=hoy();
     irA('inicio');
@@ -1037,6 +1124,7 @@ async function cargarProductos(){
         <div class="item-info" style="flex:1">
           <div class="item-nombre">${p.nombre}</div>
           <div class="item-det">Costo: ${$$(p.precio_costo)} · ${p.unidad}${margen?' · Margen: '+margen:''}</div>
+          ${p.proveedor?`<div class="item-det" style="color:var(--verde-c)">🏭 ${p.proveedor}</div>`:''}
         </div>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
           <div class="item-val">${$$(p.precio)}</div>
@@ -1047,7 +1135,7 @@ async function cargarProductos(){
   }catch(e){cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';}
 }
 
-function abrirModalProducto(p){
+async function abrirModalProducto(p){
   const editar=p!==null;
   document.getElementById('titulo-modal-prod').textContent=editar?'Editar producto':'Agregar producto';
   document.getElementById('p-modo').value=editar?'editar':'agregar';
@@ -1058,6 +1146,13 @@ function abrirModalProducto(p){
   document.getElementById('p-precio').value=editar?p.precio:'';
   document.getElementById('p-costo').value=editar?p.precio_costo:'';
   document.getElementById('p-margen').textContent='';
+  // Llenar select de proveedores
+  try{
+    const provs=await apiGet('getProveedores');
+    document.getElementById('p-proveedor').innerHTML=
+      '<option value="">Sin proveedor asignado</option>'+
+      provs.map(pv=>`<option value="${pv.nombre}" ${editar&&p.proveedor===pv.nombre?'selected':''}>${pv.nombre}</option>`).join('');
+  }catch(e){}
   if(editar) mostrarMargen();
   document.getElementById('modal-producto').classList.add('visible');
 }
@@ -1079,11 +1174,12 @@ async function guardarProducto(){
   const unidad=document.getElementById('p-unidad').value;
   const precio=parseFloat(document.getElementById('p-precio').value);
   const costo=parseFloat(document.getElementById('p-costo').value)||0;
+  const proveedor=document.getElementById('p-proveedor').value;
   if(!nombre){toast('El nombre es obligatorio','error');return;}
   if(!(precio>0)){toast('El precio de venta debe ser mayor a 0','error');return;}
   toast('Guardando...','guardando');
   try{
-    await apiPost(modo==='agregar'?'agregarProducto':'editarProducto',{nombre,unidad,precio,precio_costo:costo});
+    await apiPost(modo==='agregar'?'agregarProducto':'editarProducto',{nombre,unidad,precio,precio_costo:costo,proveedor});
     cerrarModal('modal-producto'); ocultarToast(); toast('✅ Producto guardado','exito');
     cargarProductos();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
@@ -1118,7 +1214,20 @@ function abrirModalCliente(c){
   document.getElementById('cli-nombre').style.background=editar?'var(--gris-c)':'';
   document.getElementById('cli-apellido').value=editar?c.apellido:'';
   document.getElementById('cli-celular').value=editar?c.celular:'';
+  document.getElementById('cli-eliminar-zona').style.display=editar?'block':'none';
   document.getElementById('modal-cliente').classList.add('visible');
+}
+
+async function confirmarEliminarCliente(){
+  const nombre=document.getElementById('cli-nombre').value;
+  if(!confirm(`¿Eliminar a ${nombre} del listado de clientes?\n\nSus ventas anteriores no se borran.`)) return;
+  toast('Eliminando...','guardando');
+  try{
+    await apiPost('eliminarCliente',{nombre});
+    cerrarModal('modal-cliente'); ocultarToast();
+    toast('✅ Cliente eliminado','exito');
+    cargarClientes();
+  }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
 
 async function guardarCliente(){
@@ -1220,6 +1329,59 @@ document.querySelectorAll('.modal-fondo').forEach(f=>{
 });
 
 // ==========================================
+// GESTIÓN PROVEEDORES
+// ==========================================
+async function cargarProveedoresMgt(){
+  const cont=document.getElementById('cont-proveedores-mgt');
+  cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  try{
+    const lista=await apiGet('getProveedores');
+    if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🏭</span>No hay proveedores todavía.</div>';return;}
+    cont.innerHTML=lista.map(p=>`
+      <div class="item">
+        <div class="item-info" style="flex:1">
+          <div class="item-nombre">${p.nombre}</div>
+          <div class="item-det">${p.contacto||'Sin contacto'}</div>
+        </div>
+        <button class="btn btn-s btn-sm" onclick='abrirModalProveedor(${JSON.stringify(p)})'>Editar</button>
+      </div>`).join('');
+  }catch(e){cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';}
+}
+
+function abrirModalProveedor(p){
+  const editar=p!==null;
+  document.getElementById('titulo-modal-prov').textContent=editar?'Editar proveedor':'Agregar proveedor';
+  document.getElementById('prov-modo').value=editar?'editar':'agregar';
+  document.getElementById('prov-nombre').value=editar?p.nombre:'';
+  document.getElementById('prov-nombre').readOnly=editar;
+  document.getElementById('prov-nombre').style.background=editar?'var(--gris-c)':'';
+  document.getElementById('prov-contacto').value=editar?p.contacto:'';
+  document.getElementById('modal-proveedor').classList.add('visible');
+}
+
+async function guardarProveedor(){
+  const modo=document.getElementById('prov-modo').value;
+  const nombre=document.getElementById('prov-nombre').value.trim();
+  const contacto=document.getElementById('prov-contacto').value.trim();
+  if(!nombre){toast('El nombre es obligatorio','error');return;}
+  toast('Guardando...','guardando');
+  try{
+    await apiPost(modo==='agregar'?'agregarProveedor':'editarProveedor',{nombre,contacto});
+    cerrarModal('modal-proveedor'); ocultarToast(); toast('✅ Proveedor guardado','exito');
+    cargarProveedoresMgt();
+  }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
+}
+
+// ==========================================
+// DARK MODE
+// ==========================================
+function toggleModo(){
+  const dark=document.body.classList.toggle('dark');
+  document.getElementById('btn-modo').textContent=dark?'☀️':'🌙';
+  localStorage.setItem('quesos-dark',dark?'1':'0');
+}
+
+// ==========================================
 // INIT
 // ==========================================
 function init(){
@@ -1229,6 +1391,11 @@ function init(){
   cargarDatosVenta();
   cargarDatosCompra();
   cargarInicio();
+  // Restaurar modo oscuro si estaba activo
+  if(localStorage.getItem('quesos-dark')==='1'){
+    document.body.classList.add('dark');
+    document.getElementById('btn-modo').textContent='☀️';
+  }
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 }
 init();

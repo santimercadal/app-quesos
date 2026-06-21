@@ -37,7 +37,7 @@ function inicializarHojas() {
   const ss = SpreadsheetApp.openById(SHEET_ID);
 
   const hojas = [
-    { nombre: 'Productos',         encabezados: ['nombre', 'unidad', 'precio', 'precio_costo'] },
+    { nombre: 'Productos',         encabezados: ['nombre', 'unidad', 'precio', 'precio_costo', 'proveedor'] },
     // Pedidos: cabecera de cada venta (cliente, pago, total)
     { nombre: 'Pedidos',           encabezados: ['pedido_id', 'fecha', 'cliente', 'forma_pago', 'monto_pagado', 'total', 'descripcion'] },
     // Ventas: líneas de cada pedido (un producto por fila)
@@ -150,6 +150,9 @@ function doPost(e) {
       case 'registrarPagoProveedor': resultado = registrarPagoProveedor(ss, body.datos); break;
       case 'agregarCliente':         resultado = agregarCliente(ss, body.datos); break;
       case 'editarCliente':          resultado = editarCliente(ss, body.datos); break;
+      case 'eliminarCliente':        resultado = eliminarCliente(ss, body.datos); break;
+      case 'agregarProveedor':       resultado = agregarProveedor(ss, body.datos); break;
+      case 'editarProveedor':        resultado = editarProveedor(ss, body.datos); break;
       default: resultado = { error: 'Acción no reconocida: ' + accion };
     }
 
@@ -222,7 +225,7 @@ function agregarProducto(ss, d) {
     throw new Error('Ya existe ese producto. Usá Editar para modificarlo.');
   }
 
-  hoja.appendRow([d.nombre.trim(), d.unidad, Number(d.precio), Number(d.precio_costo) || 0]);
+  hoja.appendRow([d.nombre.trim(), d.unidad, Number(d.precio), Number(d.precio_costo) || 0, d.proveedor?.trim() || '']);
   return { mensaje: 'Producto agregado: ' + d.nombre };
 }
 
@@ -239,6 +242,7 @@ function editarProducto(ss, d) {
   if (d.unidad) hoja.getRange(num, 2).setValue(d.unidad);
   if (d.precio !== undefined) { validarPositivo(Number(d.precio), 'Precio'); hoja.getRange(num, 3).setValue(Number(d.precio)); }
   if (d.precio_costo !== undefined) { validarPositivo(Number(d.precio_costo), 'Costo'); hoja.getRange(num, 4).setValue(Number(d.precio_costo)); }
+  if (d.proveedor !== undefined) hoja.getRange(num, 5).setValue(d.proveedor?.trim() || '');
 
   return { mensaje: 'Producto actualizado: ' + d.nombre };
 }
@@ -421,6 +425,44 @@ function editarCliente(ss, d) {
   if (d.apellido !== undefined) hoja.getRange(num, 2).setValue(d.apellido);
   if (d.celular  !== undefined) hoja.getRange(num, 3).setValue(d.celular);
   return { mensaje: 'Cliente actualizado' };
+}
+
+function eliminarCliente(ss, d) {
+  // Nota: los pedidos previos conservan el nombre del cliente como texto, no se pierden datos.
+  if (!d.nombre) throw new Error('Nombre obligatorio');
+  const hoja = ss.getSheetByName('Clientes');
+  const filas = hoja.getDataRange().getValues();
+  for (let i = 1; i < filas.length; i++) {
+    if (filas[i][0].toLowerCase() === d.nombre.toLowerCase()) {
+      hoja.deleteRow(i + 1);
+      return { mensaje: 'Cliente eliminado: ' + d.nombre };
+    }
+  }
+  throw new Error('Cliente no encontrado: ' + d.nombre);
+}
+
+function agregarProveedor(ss, d) {
+  if (!d.nombre?.trim()) throw new Error('El nombre es obligatorio');
+  const hoja = ss.getSheetByName('Proveedores');
+  const existentes = hojaAObjetos(hoja);
+  if (existentes.some(p => p.nombre.toLowerCase() === d.nombre.trim().toLowerCase())) {
+    throw new Error('Ya existe ese proveedor');
+  }
+  hoja.appendRow([d.nombre.trim(), d.contacto?.trim() || '']);
+  return { mensaje: 'Proveedor agregado: ' + d.nombre };
+}
+
+function editarProveedor(ss, d) {
+  if (!d.nombre) throw new Error('Nombre obligatorio');
+  const hoja = ss.getSheetByName('Proveedores');
+  const filas = hoja.getDataRange().getValues();
+  let num = -1;
+  for (let i = 1; i < filas.length; i++) {
+    if (filas[i][0].toLowerCase() === d.nombre.toLowerCase()) { num = i + 1; break; }
+  }
+  if (num === -1) throw new Error('Proveedor no encontrado: ' + d.nombre);
+  if (d.contacto !== undefined) hoja.getRange(num, 2).setValue(d.contacto);
+  return { mensaje: 'Proveedor actualizado' };
 }
 
 function getDeudaClientes(ss) {
