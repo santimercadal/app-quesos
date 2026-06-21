@@ -47,6 +47,8 @@ function inicializarHojas() {
     { nombre: 'Pagos Proveedores', encabezados: ['id', 'fecha', 'proveedor', 'monto'] },
     { nombre: 'Clientes',          encabezados: ['nombre', 'apellido', 'celular'] },
     { nombre: 'Proveedores',       encabezados: ['nombre', 'contacto'] },
+    // Devoluciones: registro inmutable de mercadería devuelta (a proveedores o de clientes)
+    { nombre: 'Devoluciones',      encabezados: ['id', 'fecha', 'tipo', 'contraparte', 'referencia_id', 'producto', 'cantidad', 'monto', 'motivo', 'resolucion'] },
   ];
 
   hojas.forEach(({ nombre, encabezados }) => {
@@ -118,7 +120,9 @@ function doGet(e) {
       case 'getGanancia':         resultado = getGanancia(ss, e.parameter.desde, e.parameter.hasta); break;
       case 'getDeudaClientes':    resultado = getDeudaClientes(ss); break;
       case 'getDeudaProveedores': resultado = getDeudaProveedores(ss); break;
-      case 'getHistorialCliente': resultado = getHistorialCliente(ss, e.parameter.cliente); break;
+      case 'getHistorialCliente':   resultado = getHistorialCliente(ss, e.parameter.cliente); break;
+      case 'getHistorialProveedor': resultado = getHistorialProveedor(ss, e.parameter.proveedor); break;
+      case 'getDevoluciones':       resultado = getDevoluciones(ss, e.parameter.desde, e.parameter.hasta, e.parameter.tipo); break;
       default: resultado = { error: 'Acción no reconocida: ' + accion };
     }
 
@@ -154,6 +158,8 @@ function doPost(e) {
       case 'agregarProveedor':       resultado = agregarProveedor(ss, body.datos); break;
       case 'editarProveedor':        resultado = editarProveedor(ss, body.datos); break;
       case 'eliminarProveedor':      resultado = eliminarProveedor(ss, body.datos); break;
+      case 'registrarDevolucion':    resultado = registrarDevolucion(ss, body.datos); break;
+      case 'resolverDevolucion':     resultado = resolverDevolucion(ss, body.datos); break;
       default: resultado = { error: 'Acción no reconocida: ' + accion };
     }
 
@@ -493,30 +499,40 @@ function eliminarProveedor(ss, d) {
 }
 
 function getDeudaClientes(ss) {
-  const pedidos = hojaAObjetos(ss.getSheetByName('Pedidos'));
-  const pagos   = hojaAObjetos(ss.getSheetByName('Pagos Clientes'));
+  const pedidos      = hojaAObjetos(ss.getSheetByName('Pedidos'));
+  const pagos        = hojaAObjetos(ss.getSheetByName('Pagos Clientes'));
+  const devoluciones = hojaAObjetos(ss.getSheetByName('Devoluciones'))
+                         .filter(d => d.tipo === 'cliente');
 
   const saldos = {};
 
   pedidos.forEach(p => {
     if (!p.cliente) return;
     const c = p.cliente;
-    if (!saldos[c]) saldos[c] = { total_ventas: 0, pagado_ventas: 0, abonos: 0 };
+    if (!saldos[c]) saldos[c] = { total_ventas: 0, pagado_ventas: 0, abonos: 0, devoluciones: 0 };
     saldos[c].total_ventas  += Number(p.total);
     saldos[c].pagado_ventas += Number(p.monto_pagado);
   });
 
   pagos.forEach(p => {
     const c = p.cliente;
-    if (!saldos[c]) saldos[c] = { total_ventas: 0, pagado_ventas: 0, abonos: 0 };
+    if (!saldos[c]) saldos[c] = { total_ventas: 0, pagado_ventas: 0, abonos: 0, devoluciones: 0 };
     saldos[c].abonos += Number(p.monto);
+  });
+
+  // Las devoluciones de clientes reducen lo que nos deben
+  devoluciones.forEach(d => {
+    const c = d.contraparte;
+    if (!saldos[c]) saldos[c] = { total_ventas: 0, pagado_ventas: 0, abonos: 0, devoluciones: 0 };
+    saldos[c].devoluciones += Number(d.monto);
   });
 
   return Object.entries(saldos)
     .map(([cliente, s]) => ({
       cliente,
-      deuda: s.total_ventas - s.pagado_ventas - s.abonos,
-      total_ventas: s.total_ventas
+      deuda:        s.total_ventas - s.pagado_ventas - s.abonos - s.devoluciones,
+      total_ventas: s.total_ventas,
+      devoluciones: s.devoluciones
     }))
     .filter(c => c.deuda > 0.01)
     .sort((a, b) => b.deuda - a.deuda);
@@ -592,25 +608,39 @@ function getProveedores(ss) {
 }
 
 function getDeudaProveedores(ss) {
-  const compras = hojaAObjetos(ss.getSheetByName('Compras'));
-  const pagos   = hojaAObjetos(ss.getSheetByName('Pagos Proveedores'));
-  const saldos  = {};
+  const compras      = hojaAObjetos(ss.getSheetByName('Compras'));
+  const pagos        = hojaAObjetos(ss.getSheetByName('Pagos Proveedores'));
+  const devoluciones = hojaAObjetos(ss.getSheetByName('Devoluciones'))
+                         .filter(d => d.tipo === 'proveedor');
+  const saldos = {};
 
   compras.forEach(c => {
     const p = c.proveedor || '(sin nombre)';
-    if (!saldos[p]) saldos[p] = { total: 0, pagado: 0, abonos: 0 };
+    if (!saldos[p]) saldos[p] = { total: 0, pagado: 0, abonos: 0, devoluciones: 0 };
     saldos[p].total  += Number(c.total);
     saldos[p].pagado += Number(c.monto_pagado);
   });
 
   pagos.forEach(p => {
     const prov = p.proveedor || '(sin nombre)';
-    if (!saldos[prov]) saldos[prov] = { total: 0, pagado: 0, abonos: 0 };
+    if (!saldos[prov]) saldos[prov] = { total: 0, pagado: 0, abonos: 0, devoluciones: 0 };
     saldos[prov].abonos += Number(p.monto);
   });
 
+  // Las devoluciones a proveedores reducen lo que les debemos
+  devoluciones.forEach(d => {
+    const prov = d.contraparte || '(sin nombre)';
+    if (!saldos[prov]) saldos[prov] = { total: 0, pagado: 0, abonos: 0, devoluciones: 0 };
+    saldos[prov].devoluciones += Number(d.monto);
+  });
+
   return Object.entries(saldos)
-    .map(([proveedor, s]) => ({ proveedor, deuda: s.total - s.pagado - s.abonos, total_compras: s.total }))
+    .map(([proveedor, s]) => ({
+      proveedor,
+      deuda:        s.total - s.pagado - s.abonos - s.devoluciones,
+      total_compras: s.total,
+      devoluciones: s.devoluciones
+    }))
     .filter(p => p.deuda > 0.01)
     .sort((a, b) => b.deuda - a.deuda);
 }
@@ -655,20 +685,158 @@ function getCompras(ss, desde, hasta) {
 // ==========================================
 
 function getGanancia(ss, desde, hasta) {
-  const pedidos = filtrarFecha(hojaAObjetos(ss.getSheetByName('Pedidos')), desde, hasta);
-  const compras = filtrarFecha(hojaAObjetos(ss.getSheetByName('Compras')), desde, hasta);
+  const pedidos      = filtrarFecha(hojaAObjetos(ss.getSheetByName('Pedidos')), desde, hasta);
+  const compras      = filtrarFecha(hojaAObjetos(ss.getSheetByName('Compras')), desde, hasta);
+  const devoluciones = filtrarFecha(hojaAObjetos(ss.getSheetByName('Devoluciones')), desde, hasta);
 
-  const totalVentas  = pedidos.reduce((s, p) => s + Number(p.total), 0);
-  const totalCompras = compras.reduce((s, c) => s + Number(c.total), 0);
+  const totalVentas       = pedidos.reduce((s, p) => s + Number(p.total), 0);
+  const totalCompras      = compras.reduce((s, c) => s + Number(c.total), 0);
+  const devAProveedores   = devoluciones.filter(d => d.tipo === 'proveedor').reduce((s, d) => s + Number(d.monto), 0);
+  const devDeClientes     = devoluciones.filter(d => d.tipo === 'cliente').reduce((s, d) => s + Number(d.monto), 0);
+
+  // Ganancia neta: ventas − devoluciones de clientes − (compras − devoluciones a proveedores)
+  const ventasNetas  = totalVentas - devDeClientes;
+  const comprasNetas = totalCompras - devAProveedores;
 
   return {
     desde: desde || 'inicio',
     hasta: hasta || hoyStr(),
-    total_ventas:  totalVentas,
-    total_compras: totalCompras,
-    ganancia: totalVentas - totalCompras,
-    cantidad_ventas:  pedidos.length,
-    cantidad_compras: compras.length
+    total_ventas:         totalVentas,
+    total_compras:        totalCompras,
+    dev_a_proveedores:    devAProveedores,
+    dev_de_clientes:      devDeClientes,
+    ventas_netas:         ventasNetas,
+    compras_netas:        comprasNetas,
+    ganancia:             ventasNetas - comprasNetas,
+    cantidad_ventas:      pedidos.length,
+    cantidad_compras:     compras.length
+  };
+}
+
+// ==========================================
+// DEVOLUCIONES
+// ==========================================
+
+function registrarDevolucion(ss, d) {
+  // Validaciones
+  if (!d.tipo || !['proveedor', 'cliente'].includes(d.tipo))
+    throw new Error('Tipo debe ser "proveedor" o "cliente"');
+  if (!d.contraparte?.trim())
+    throw new Error('Nombre del proveedor/cliente obligatorio');
+  if (!d.producto?.trim())
+    throw new Error('Producto obligatorio');
+  validarPositivo(Number(d.cantidad), 'Cantidad');
+  validarPositivo(Number(d.monto), 'Monto');
+  if (!d.motivo?.trim())
+    throw new Error('Motivo obligatorio');
+
+  const resoluciones = ['pendiente', 'acreditado', 'devuelto_dinero'];
+  const resolucion = d.resolucion || 'pendiente';
+  if (!resoluciones.includes(resolucion))
+    throw new Error('Resolución inválida. Usá: pendiente, acreditado o devuelto_dinero');
+
+  const hoja = ss.getSheetByName('Devoluciones');
+  const id = generarId(hoja, 'DEV');
+
+  hoja.appendRow([
+    id,
+    d.fecha || hoyStr(),
+    d.tipo,
+    d.contraparte.trim(),
+    d.referencia_id?.trim() || '',   // ID de compra o pedido origen (opcional)
+    d.producto.trim(),
+    Number(d.cantidad),
+    Number(d.monto),
+    d.motivo.trim(),
+    resolucion
+  ]);
+
+  SpreadsheetApp.flush();
+  return { id, mensaje: `Devolución registrada: ${id}` };
+}
+
+function resolverDevolucion(ss, d) {
+  // Permite actualizar la resolución de una devolución existente
+  if (!d.id) throw new Error('ID de devolución obligatorio');
+  const resoluciones = ['pendiente', 'acreditado', 'devuelto_dinero'];
+  if (!resoluciones.includes(d.resolucion))
+    throw new Error('Resolución inválida. Usá: pendiente, acreditado o devuelto_dinero');
+
+  const hoja = ss.getSheetByName('Devoluciones');
+  const filas = hoja.getDataRange().getValues();
+  for (let i = 1; i < filas.length; i++) {
+    if (filas[i][0] === d.id) {
+      hoja.getRange(i + 1, 10).setValue(d.resolucion); // columna resolucion
+      SpreadsheetApp.flush();
+      return { mensaje: `Devolución ${d.id} marcada como: ${d.resolucion}` };
+    }
+  }
+  throw new Error('Devolución no encontrada: ' + d.id);
+}
+
+function getDevoluciones(ss, desde, hasta, tipo) {
+  let devs = filtrarFecha(hojaAObjetos(ss.getSheetByName('Devoluciones')), desde, hasta);
+  if (tipo) devs = devs.filter(d => d.tipo === tipo);
+  devs = devs.reverse(); // más reciente primero
+
+  const totalPendiente  = devs.filter(d => d.resolucion === 'pendiente').reduce((s, d) => s + Number(d.monto), 0);
+  const totalAcreditado = devs.filter(d => d.resolucion !== 'pendiente').reduce((s, d) => s + Number(d.monto), 0);
+
+  return {
+    devoluciones: devs,
+    total_pendiente:  totalPendiente,
+    total_acreditado: totalAcreditado,
+    cantidad: devs.length
+  };
+}
+
+function getHistorialProveedor(ss, proveedor) {
+  if (!proveedor) throw new Error('Proveedor obligatorio');
+
+  const compras      = hojaAObjetos(ss.getSheetByName('Compras')).filter(c => c.proveedor === proveedor);
+  const pagos        = hojaAObjetos(ss.getSheetByName('Pagos Proveedores')).filter(p => p.proveedor === proveedor);
+  const devoluciones = hojaAObjetos(ss.getSheetByName('Devoluciones'))
+                         .filter(d => d.tipo === 'proveedor' && d.contraparte === proveedor);
+
+  const movimientos = [
+    ...compras.map(c => ({
+      tipo: 'compra',
+      fecha: c.fecha,
+      id: c.id,
+      descripcion: `${c.producto_insumo} · ${c.cantidad} kg`,
+      debe: Number(c.total),
+      haber: Number(c.monto_pagado),
+      forma_pago: c.forma_pago
+    })),
+    ...pagos.map(p => ({
+      tipo: 'pago',
+      fecha: p.fecha,
+      id: p.id,
+      descripcion: 'Pago realizado',
+      debe: 0,
+      haber: Number(p.monto)
+    })),
+    ...devoluciones.map(d => ({
+      tipo: 'devolucion',
+      fecha: d.fecha,
+      id: d.id,
+      descripcion: `Devolución: ${d.producto} · ${d.cantidad} · ${d.motivo}`,
+      debe: 0,
+      haber: Number(d.monto),
+      resolucion: d.resolucion
+    }))
+  ].sort((a, b) => a.fecha.localeCompare(b.fecha));
+
+  let saldo = 0;
+  movimientos.forEach(m => {
+    saldo += m.debe - m.haber;
+    m.saldo = saldo;
+  });
+
+  return {
+    proveedor,
+    movimientos: movimientos.reverse(),
+    saldo_total: saldo
   };
 }
 ```

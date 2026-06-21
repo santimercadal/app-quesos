@@ -292,7 +292,25 @@
     <button class="btn-grande" onclick="irA('clientes')"><span class="ico">👤</span>Clientes</button>
     <button class="btn-grande" onclick="irA('proveedores-mgt')"><span class="ico">🏭</span>Proveedores</button>
     <button class="btn-grande" onclick="irA('reportes')"><span class="ico">📊</span>Reportes</button>
+    <button class="btn-grande" onclick="abrirModalDevolucion()"><span class="ico">↩️</span>Registrar devolución</button>
+    <button class="btn-grande" onclick="irA('devoluciones')"><span class="ico">📋</span>Historial devoluciones</button>
   </div>
+</div>
+
+<!-- HISTORIAL DEVOLUCIONES -->
+<div class="pantalla" id="pantalla-devoluciones">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <div class="titulo-sec" style="margin:0">Devoluciones</div>
+    <button class="btn btn-p btn-sm" onclick="abrirModalDevolucion()">+ Nueva</button>
+  </div>
+  <!-- Filtro por tipo -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:14px">
+    <button id="fdev-todos" class="btn btn-p" onclick="filtrarDevoluciones('todos')" style="border-radius:10px;font-size:13px">Todas</button>
+    <button id="fdev-proveedor" class="btn btn-s" onclick="filtrarDevoluciones('proveedor')" style="border-radius:10px;font-size:13px">Proveedores</button>
+    <button id="fdev-cliente" class="btn btn-s" onclick="filtrarDevoluciones('cliente')" style="border-radius:10px;font-size:13px">Clientes</button>
+  </div>
+  <div id="resumen-devoluciones" style="margin-bottom:12px"></div>
+  <div id="lista-devoluciones"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
 </div>
 
 <!-- GESTIÓN PROVEEDORES -->
@@ -455,6 +473,73 @@
     <div class="fila" style="gap:10px;margin-top:8px">
       <button class="btn btn-s" onclick="cerrarModal('modal-abono');document.getElementById('modal-ledger').classList.add('visible')">Cancelar</button>
       <button class="btn btn-p" onclick="guardarAbono()">Guardar abono</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DEVOLUCIÓN -->
+<div class="modal-fondo" id="modal-devolucion">
+  <div class="modal">
+    <div style="text-align:center;font-size:28px;margin-bottom:4px">↩️</div>
+    <div class="modal-titulo" style="text-align:center">Registrar devolución</div>
+
+    <div class="campo">
+      <label>Tipo</label>
+      <select id="dev-tipo" onchange="actualizarModalDev()">
+        <option value="proveedor">A proveedor (mercadería que devolvemos)</option>
+        <option value="cliente">De cliente (mercadería que nos devuelven)</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label id="dev-contraparte-label">Proveedor</label>
+      <select id="dev-contraparte"></select>
+    </div>
+    <div class="campo">
+      <label>Referencia (ID de compra/pedido)</label>
+      <input type="text" id="dev-referencia" placeholder="Ej: C-20260621-143052-4729 (opcional)"/>
+      <div class="hint gris">Podés dejarlo vacío si no recordás el ID exacto</div>
+    </div>
+    <div class="campo">
+      <label>Producto</label>
+      <select id="dev-producto"></select>
+    </div>
+    <div class="fila">
+      <div class="campo">
+        <label>Cantidad (kg/unid)</label>
+        <input type="number" id="dev-cantidad" min="0.01" step="0.01" placeholder="Ej: 5"/>
+      </div>
+      <div class="campo">
+        <label>Monto ($)</label>
+        <input type="number" id="dev-monto" min="1" step="1" placeholder="Ej: 3000"/>
+      </div>
+    </div>
+    <div class="campo">
+      <label>Motivo</label>
+      <select id="dev-motivo-sel" onchange="toggleMotivoCustom()">
+        <option value="Mercadería en mal estado">Mercadería en mal estado</option>
+        <option value="Error en la cantidad enviada">Error en la cantidad enviada</option>
+        <option value="Producto vencido">Producto vencido</option>
+        <option value="Calidad no corresponde">Calidad no corresponde</option>
+        <option value="Error de pedido">Error de pedido</option>
+        <option value="otro">Otro (describir)...</option>
+      </select>
+      <input type="text" id="dev-motivo-custom" placeholder="Describí el motivo..." style="display:none;margin-top:8px"/>
+    </div>
+    <div class="campo">
+      <label>Estado de la resolución</label>
+      <select id="dev-resolucion">
+        <option value="pendiente">⏳ Pendiente — todavía no se resolvió</option>
+        <option value="acreditado">✅ Acreditado — nos descontaron de la deuda</option>
+        <option value="devuelto_dinero">💰 Devolvieron el dinero</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label>Fecha</label>
+      <input type="date" id="dev-fecha"/>
+    </div>
+    <div class="fila" style="gap:10px;margin-top:8px">
+      <button class="btn btn-s" onclick="cerrarModal('modal-devolucion')">Cancelar</button>
+      <button class="btn btn-p" onclick="guardarDevolucion()">Registrar devolución</button>
     </div>
   </div>
 </div>
@@ -626,8 +711,8 @@ function escH(s){return String(s).replace(/'/g,"\\'")}
 // ==========================================
 // NAVEGACIÓN
 // ==========================================
-const TITULOS={inicio:'App Quesos 🧀',venta:'Nueva Venta',compra:'Nueva Compra',deudas:'Deudas',mas:'Más opciones',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes'};
-const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas','proveedores-mgt':'nav-mas',reportes:'nav-mas'};
+const TITULOS={inicio:'App Quesos 🧀',venta:'Nueva Venta',compra:'Nueva Compra',deudas:'Deudas',mas:'Más opciones',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes',devoluciones:'Devoluciones'};
+const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas','proveedores-mgt':'nav-mas',reportes:'nav-mas',devoluciones:'nav-mas'};
 
 function irA(p, tab){
   document.querySelectorAll('.pantalla').forEach(x=>x.classList.remove('activa'));
@@ -644,6 +729,7 @@ function irA(p, tab){
   if(p==='clientes') cargarClientes();
   if(p==='proveedores-mgt') cargarProveedoresMgt();
   if(p==='reportes') cargarReporte();
+  if(p==='devoluciones') cargarDevoluciones('todos');
 }
 
 // ==========================================
@@ -947,6 +1033,7 @@ async function cargarHistorialCompras(){
           <div class="item-nombre">${escH(c.proveedor)} <span class="badge ${badge}">${c.forma_pago||''}</span></div>
           <div class="item-det">${escH(c.producto_insumo)} · ${c.cantidad} kg · ${fmtFecha(c.fecha)}</div>
           ${deuda>0?`<div class="item-det" style="color:var(--rojo)">Pendiente: ${$$(deuda)}</div>`:''}
+          <button class="btn btn-s btn-sm" style="margin-top:6px" onclick="abrirModalDevolucion('${escH(c.id)}','proveedor')">↩️ Devolver</button>
         </div>
         <div class="item-val">${$$(c.total)}</div>
       </div>`;
@@ -1589,6 +1676,176 @@ async function guardarProveedor(){
     cerrarModal('modal-proveedor'); ocultarToast(); toast('✅ Proveedor guardado','exito');
     cargarProveedoresMgt();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
+}
+
+// ==========================================
+// ==========================================
+// DEVOLUCIONES
+// ==========================================
+let _devolucionesCache = null; // cache de la última carga
+
+async function abrirModalDevolucion(refId='', tipo='proveedor'){
+  document.getElementById('dev-tipo').value = tipo;
+  document.getElementById('dev-referencia').value = refId;
+  document.getElementById('dev-fecha').value = hoy();
+  document.getElementById('dev-resolucion').value = 'pendiente';
+  document.getElementById('dev-motivo-sel').selectedIndex = 0;
+  document.getElementById('dev-motivo-custom').style.display = 'none';
+  document.getElementById('dev-cantidad').value = '';
+  document.getElementById('dev-monto').value = '';
+  // Llenar selects de contrapartes y productos
+  try {
+    const [prods, clis, provs] = await Promise.all([
+      apiGet('getProductos'),
+      apiGet('getClientes'),
+      apiGet('getProveedores')
+    ]);
+    const selProd = document.getElementById('dev-producto');
+    selProd.innerHTML = prods.map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('');
+    actualizarModalDev(clis, provs);
+  } catch(e) {}
+  document.getElementById('modal-devolucion').classList.add('visible');
+}
+
+function actualizarModalDev(clis, provs){
+  const tipo = document.getElementById('dev-tipo').value;
+  const label = document.getElementById('dev-contraparte-label');
+  const sel = document.getElementById('dev-contraparte');
+  if(tipo === 'proveedor'){
+    label.textContent = 'Proveedor';
+    if(provs) sel.innerHTML = provs.map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('');
+  } else {
+    label.textContent = 'Cliente';
+    if(clis) sel.innerHTML = clis.map(c => `<option value="${c.nombre}">${c.nombre}${c.apellido?' '+c.apellido:''}</option>`).join('');
+  }
+}
+
+function toggleMotivoCustom(){
+  const sel = document.getElementById('dev-motivo-sel');
+  document.getElementById('dev-motivo-custom').style.display = sel.value === 'otro' ? 'block' : 'none';
+}
+
+async function guardarDevolucion(){
+  const tipo        = document.getElementById('dev-tipo').value;
+  const contraparte = document.getElementById('dev-contraparte').value;
+  const referencia  = document.getElementById('dev-referencia').value.trim();
+  const producto    = document.getElementById('dev-producto').value;
+  const cantidad    = parseFloat(document.getElementById('dev-cantidad').value);
+  const monto       = parseFloat(document.getElementById('dev-monto').value);
+  const motivoSel   = document.getElementById('dev-motivo-sel').value;
+  const motivoCust  = document.getElementById('dev-motivo-custom').value.trim();
+  const motivo      = motivoSel === 'otro' ? motivoCust : motivoSel;
+  const resolucion  = document.getElementById('dev-resolucion').value;
+  const fecha       = document.getElementById('dev-fecha').value || hoy();
+
+  if(!contraparte){ toast('Seleccioná un '+(tipo==='proveedor'?'proveedor':'cliente'),'error'); return; }
+  if(!producto){ toast('Seleccioná el producto', 'error'); return; }
+  if(!(cantidad > 0)){ toast('Ingresá la cantidad', 'error'); return; }
+  if(!(monto > 0)){ toast('Ingresá el monto', 'error'); return; }
+  if(!motivo){ toast('Describí el motivo', 'error'); return; }
+
+  toast('Guardando...','guardando');
+  try {
+    const r = await apiPost('registrarDevolucion', {
+      tipo, contraparte, referencia_id: referencia,
+      producto, cantidad, monto, motivo, resolucion, fecha
+    });
+    cerrarModal('modal-devolucion');
+    ocultarToast();
+    toast(`↩️ Devolución registrada (${r.id})`, 'exito');
+    _devolucionesCache = null;
+    invalidarCacheDeudas();
+    // Recargar historial si está visible
+    if(document.getElementById('pantalla-devoluciones').classList.contains('activa')){
+      cargarDevoluciones('todos');
+    }
+  } catch(e){ ocultarToast(); toast('❌ '+e.message,'error'); }
+}
+
+async function resolverDevolucion(id, resolucion){
+  try {
+    await apiPost('resolverDevolucion', { id, resolucion });
+    toast('✅ Estado actualizado','exito');
+    _devolucionesCache = null;
+    cargarDevoluciones(_filtroDevActual || 'todos');
+  } catch(e){ toast('❌ '+e.message,'error'); }
+}
+
+let _filtroDevActual = 'todos';
+let _todasDevoluciones = [];
+
+async function cargarDevoluciones(filtro){
+  _filtroDevActual = filtro;
+  const lista = document.getElementById('lista-devoluciones');
+  lista.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+
+  try {
+    const r = await apiGet('getDevoluciones', { desde:'2000-01-01', hasta:'2099-12-31' });
+    _todasDevoluciones = r.devoluciones || [];
+    filtrarDevoluciones(filtro);
+  } catch(e){ lista.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>'; }
+}
+
+function filtrarDevoluciones(filtro){
+  _filtroDevActual = filtro;
+  // Actualizar tabs
+  ['todos','proveedor','cliente'].forEach(f => {
+    const btn = document.getElementById('fdev-'+f);
+    if(btn) btn.className = 'btn '+(f===filtro?'btn-p':'btn-s');
+  });
+
+  const devs = filtro === 'todos' ? _todasDevoluciones
+               : _todasDevoluciones.filter(d => d.tipo === filtro);
+
+  const lista = document.getElementById('lista-devoluciones');
+  const resumen = document.getElementById('resumen-devoluciones');
+
+  const pendientes = devs.filter(d => d.resolucion === 'pendiente');
+  const resueltas  = devs.filter(d => d.resolucion !== 'pendiente');
+  const totalPend  = pendientes.reduce((s,d) => s+Number(d.monto), 0);
+  const totalRes   = resueltas.reduce((s,d) => s+Number(d.monto), 0);
+
+  resumen.innerHTML = devs.length === 0 ? '' :
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+       <div class="card" style="margin:0;padding:10px">
+         <div class="card-titulo" style="font-size:11px">⏳ Pendiente</div>
+         <div style="font-weight:700;font-size:18px;color:var(--rojo)">${$$(totalPend)}</div>
+         <div style="font-size:11px;color:var(--gris)">${pendientes.length} devolución/es</div>
+       </div>
+       <div class="card" style="margin:0;padding:10px">
+         <div class="card-titulo" style="font-size:11px">✅ Resuelto</div>
+         <div style="font-weight:700;font-size:18px;color:var(--verde-c)">${$$(totalRes)}</div>
+         <div style="font-size:11px;color:var(--gris)">${resueltas.length} devolución/es</div>
+       </div>
+     </div>`;
+
+  if(!devs.length){
+    lista.innerHTML='<div class="vacio"><span class="ico">↩️</span>Sin devoluciones en este período</div>';
+    return;
+  }
+
+  const iconTipo = { proveedor:'🏭', cliente:'👤' };
+  const labelRes = { pendiente:'⏳ Pendiente', acreditado:'✅ Acreditado', devuelto_dinero:'💰 Dinero devuelto' };
+  const colorRes = { pendiente:'var(--rojo)', acreditado:'var(--verde-c)', devuelto_dinero:'var(--verde-c)' };
+
+  lista.innerHTML = devs.map(d => `
+    <div class="item">
+      <div style="font-size:22px;margin-right:10px;flex-shrink:0">${iconTipo[d.tipo]||'↩️'}</div>
+      <div style="flex:1;min-width:0">
+        <div class="item-nombre">${escH(d.contraparte)}</div>
+        <div class="item-det">${escH(d.producto)} · ${d.cantidad} · ${fmtFecha(d.fecha)}</div>
+        <div class="item-det" style="color:var(--gris)">${escH(d.motivo)}</div>
+        ${d.referencia_id?`<div class="item-det" style="font-size:11px;color:var(--gris)">Ref: ${escH(d.referencia_id)}</div>`:''}
+        <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+          <span style="font-size:12px;color:${colorRes[d.resolucion]||'var(--gris)'};font-weight:600">${labelRes[d.resolucion]||d.resolucion}</span>
+          ${d.resolucion==='pendiente'?`
+            <button class="btn btn-s btn-sm" onclick="resolverDevolucion('${escH(d.id)}','acreditado')">Acreditado</button>
+            <button class="btn btn-s btn-sm" onclick="resolverDevolucion('${escH(d.id)}','devuelto_dinero')">Devolvieron $$</button>
+          `:''}
+        </div>
+      </div>
+      <div class="item-val" style="color:var(--rojo);flex-shrink:0">${$$(d.monto)}</div>
+    </div>`).join('');
 }
 
 // ==========================================
