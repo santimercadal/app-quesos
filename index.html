@@ -140,16 +140,25 @@
 
 <!-- INICIO -->
 <div class="pantalla activa" id="pantalla-inicio">
-  <div class="card">
-    <div class="card-titulo">Ventas de hoy</div>
-    <div class="card-valor" id="total-hoy">—</div>
-    <div id="cobrado-hoy" style="font-size:14px;color:var(--gris);margin-top:4px"></div>
+  <!-- Tarjetas resumen -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px">
+    <div class="card" style="margin:0">
+      <div class="card-titulo">Ventas de hoy</div>
+      <div class="card-valor" id="total-hoy">—</div>
+      <div id="cobrado-hoy" style="font-size:13px;color:var(--gris);margin-top:4px"></div>
+    </div>
+    <div class="card" style="margin:0">
+      <div class="card-titulo">Por cobrar</div>
+      <div class="card-valor" id="total-por-cobrar" style="color:var(--verde-c)">—</div>
+      <div class="card-titulo" style="margin-top:10px">Por pagar</div>
+      <div class="card-valor" id="total-por-pagar" style="color:var(--rojo);font-size:1.4rem">—</div>
+    </div>
   </div>
   <div class="grilla">
     <button class="btn-grande" onclick="irA('venta')"><span class="ico">🛒</span>Nueva venta</button>
     <button class="btn-grande" onclick="irA('compra')"><span class="ico">📦</span>Nueva compra</button>
-    <button class="btn-grande" onclick="irA('clientes-deuda')"><span class="ico">👥</span>Clientes que deben</button>
-    <button class="btn-grande" onclick="irA('proveedores')"><span class="ico">🏭</span>Le debemos a...</button>
+    <button class="btn-grande" onclick="irA('deudas')"><span class="ico">👥</span>Clientes que deben</button>
+    <button class="btn-grande" onclick="irA('deudas','proveedores')"><span class="ico">🏭</span>Le debemos a...</button>
   </div>
   <div id="ventas-hoy-lista"></div>
 </div>
@@ -257,18 +266,15 @@
   <button class="btn btn-p" id="btn-compra" onclick="guardarCompra()">Guardar Compra</button>
 </div>
 
-<!-- CLIENTES QUE DEBEN -->
-<div class="pantalla" id="pantalla-clientes-deuda">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-    <div class="titulo-sec" style="margin:0">Clientes que deben</div>
+<!-- DEUDAS UNIFICADAS (clientes + proveedores) -->
+<div class="pantalla" id="pantalla-deudas">
+  <!-- Tabs -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+    <button id="tab-clientes" class="btn btn-p" onclick="cambiarTabDeuda('clientes')" style="border-radius:10px">👥 Clientes</button>
+    <button id="tab-proveedores" class="btn btn-s" onclick="cambiarTabDeuda('proveedores')" style="border-radius:10px">🏭 Proveedores</button>
   </div>
   <div id="cont-clientes-deuda"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
-</div>
-
-<!-- LE DEBEMOS A PROVEEDORES -->
-<div class="pantalla" id="pantalla-proveedores">
-  <div class="titulo-sec">Le debemos a proveedores</div>
-  <div id="cont-proveedores"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
+  <div id="cont-proveedores" style="display:none"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
 </div>
 
 <!-- MÁS -->
@@ -338,7 +344,7 @@
   <button class="nav-btn" id="nav-compra" onclick="irA('compra')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Comprar
   </button>
-  <button class="nav-btn" id="nav-deudas" onclick="irA('clientes-deuda')">
+  <button class="nav-btn" id="nav-deudas" onclick="irA('deudas')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Deudas
   </button>
   <button class="nav-btn" id="nav-mas" onclick="irA('mas')">
@@ -481,7 +487,11 @@
       <div class="campo"><label>Precio venta</label><input type="number" id="p-precio" min="0" step="1" placeholder="0" oninput="mostrarMargen()"/></div>
       <div class="campo"><label>Precio costo</label><input type="number" id="p-costo" min="0" step="1" placeholder="0" oninput="mostrarMargen()"/></div>
     </div>
-    <div id="p-margen" style="font-size:13px;color:var(--gris);margin-bottom:12px;text-align:right;min-height:18px"></div>
+    <div id="p-margen" style="font-size:13px;color:var(--gris);margin-bottom:8px;text-align:right;min-height:18px"></div>
+    <!-- Aviso que aparece solo al editar precio -->
+    <div id="p-aviso-precio" style="display:none;background:var(--verde-s);border-left:3px solid var(--verde-c);border-radius:6px;padding:8px 12px;font-size:13px;color:var(--gris);margin-bottom:12px">
+      ⚠️ Este precio se aplicará a las <strong>próximas ventas</strong>. Las ventas y deudas ya registradas <strong>no cambian</strong>.
+    </div>
     <div class="fila" style="gap:10px">
       <button class="btn btn-s" onclick="cerrarModal('modal-producto')">Cancelar</button>
       <button class="btn btn-p" onclick="guardarProducto()">Guardar</button>
@@ -596,10 +606,10 @@ function escH(s){return String(s).replace(/'/g,"\\'")}
 // ==========================================
 // NAVEGACIÓN
 // ==========================================
-const TITULOS={inicio:'App Quesos 🧀',venta:'Nueva Venta',compra:'Nueva Compra','clientes-deuda':'Clientes que deben',proveedores:'Le debemos a...',mas:'Más opciones',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes'};
-const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra','clientes-deuda':'nav-deudas',proveedores:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas','proveedores-mgt':'nav-mas',reportes:'nav-mas'};
+const TITULOS={inicio:'App Quesos 🧀',venta:'Nueva Venta',compra:'Nueva Compra',deudas:'Deudas',mas:'Más opciones',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes'};
+const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas','proveedores-mgt':'nav-mas',reportes:'nav-mas'};
 
-function irA(p){
+function irA(p, tab){
   document.querySelectorAll('.pantalla').forEach(x=>x.classList.remove('activa'));
   document.getElementById('pantalla-'+p).classList.add('activa');
   document.getElementById('header-title').textContent=TITULOS[p]||'App Quesos';
@@ -609,8 +619,7 @@ function irA(p){
   if(p==='inicio') cargarInicio();
   if(p==='venta') cargarDatosVenta();
   if(p==='compra') cargarDatosCompra();
-  if(p==='clientes-deuda') cargarDeudaClientes();
-  if(p==='proveedores') cargarDeudaProveedores();
+  if(p==='deudas') cargarDeudas(tab||'clientes');
   if(p==='productos') cargarProductos();
   if(p==='clientes') cargarClientes();
   if(p==='proveedores-mgt') cargarProveedoresMgt();
@@ -622,16 +631,18 @@ function irA(p){
 // ==========================================
 async function cargarInicio(){
   try{
-    // Cargar ventas de hoy y deuda real en paralelo
-    const [d, deudas] = await Promise.all([
+    // Cargar ventas de hoy, deuda clientes y deuda proveedores en paralelo
+    const [d, deudaCli, deudaProv] = await Promise.all([
       apiGet('getVentasHoy'),
-      apiGet('getDeudaClientes').catch(()=>[])
+      apiGet('getDeudaClientes').catch(()=>[]),
+      apiGet('getDeudaProveedores').catch(()=>[])
     ]);
     document.getElementById('total-hoy').textContent=$$(d.total_ventas);
-    const deudaTotal=deudas.reduce((s,x)=>s+x.deuda,0);
-    document.getElementById('cobrado-hoy').textContent=
-      `Cobrado hoy: ${$$(d.total_cobrado)}`+
-      (deudaTotal>0?` · Por cobrar (total clientes): ${$$(deudaTotal)}`:'');
+    document.getElementById('cobrado-hoy').textContent=`Cobrado hoy: ${$$(d.total_cobrado)}`;
+    const porCobrar=deudaCli.reduce((s,x)=>s+x.deuda,0);
+    const porPagar=deudaProv.reduce((s,x)=>s+x.deuda,0);
+    document.getElementById('total-por-cobrar').textContent=porCobrar>0?$$(porCobrar):'✅ Al día';
+    document.getElementById('total-por-pagar').textContent=porPagar>0?$$(porPagar):'✅ Al día';
     const lista=document.getElementById('ventas-hoy-lista');
     if(!d.pedidos||!d.pedidos.length){
       lista.innerHTML='<div class="vacio"><span class="ico">🧀</span>Sin ventas hoy todavía</div>';return;
@@ -940,32 +951,59 @@ async function guardarCompra(){
 }
 
 // ==========================================
-// DEUDA CLIENTES (con ledger)
+// DEUDAS UNIFICADAS (tabs clientes / proveedores)
 // ==========================================
-async function cargarDeudaClientes(){
+let _deudaCliCache=null, _deudaProvCache=null;
+function invalidarCacheDeudas(){ _deudaCliCache=null; _deudaProvCache=null; }
+
+async function cargarDeudas(tab){
+  cambiarTabDeuda(tab);
+  // Cargar ambas en paralelo la primera vez
+  if(!_deudaCliCache && !_deudaProvCache){
+    const [cli,prov]=await Promise.all([
+      apiGet('getDeudaClientes').catch(()=>[]),
+      apiGet('getDeudaProveedores').catch(()=>[])
+    ]);
+    _deudaCliCache=cli; _deudaProvCache=prov;
+  }
+  renderDeudaClientes(_deudaCliCache||[]);
+  renderDeudaProveedores(_deudaProvCache||[]);
+}
+
+function cambiarTabDeuda(tab){
+  const esCli=tab==='clientes';
+  document.getElementById('cont-clientes-deuda').style.display=esCli?'block':'none';
+  document.getElementById('cont-proveedores').style.display=esCli?'none':'block';
+  document.getElementById('tab-clientes').className='btn '+(esCli?'btn-p':'btn-s');
+  document.getElementById('tab-proveedores').className='btn '+(esCli?'btn-s':'btn-p');
+}
+
+function renderDeudaClientes(lista){
   const cont=document.getElementById('cont-clientes-deuda');
-  cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
-  try{
-    const lista=await apiGet('getDeudaClientes');
-    if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🎉</span>¡Ningún cliente debe nada!</div>';return;}
-    const total=lista.reduce((s,d)=>s+d.deuda,0);
-    cont.innerHTML=
-      `<div class="card" style="background:var(--verde-s);margin-bottom:16px">
-         <div class="card-titulo">Total por cobrar</div>
-         <div class="card-valor">${$$(total)}</div>
-       </div>`+
-      lista.map(d=>`
-        <div class="item" style="cursor:pointer" onclick="abrirLedger('${escH(d.cliente)}',${d.deuda})">
-          <div class="item-info" style="flex:1">
-            <div class="item-nombre">${d.cliente}</div>
-            <div class="item-det">Total histórico: ${$$(d.total_ventas)}</div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-            <div class="item-val rojo">${$$(d.deuda)}</div>
-            <div style="font-size:12px;color:var(--gris)">Ver cuenta →</div>
-          </div>
-        </div>`).join('');
-  }catch(e){cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';}
+  if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🎉</span>¡Ningún cliente debe nada!</div>';return;}
+  const total=lista.reduce((s,d)=>s+d.deuda,0);
+  cont.innerHTML=
+    `<div class="card" style="background:var(--verde-s);margin-bottom:16px">
+       <div class="card-titulo">Total por cobrar</div>
+       <div class="card-valor">${$$(total)}</div>
+     </div>`+
+    lista.map(d=>`
+      <div class="item" style="cursor:pointer" onclick="abrirLedger('${escH(d.cliente)}',${d.deuda})">
+        <div class="item-info" style="flex:1">
+          <div class="item-nombre">${d.cliente}</div>
+          <div class="item-det">Total histórico: ${$$(d.total_ventas)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <div class="item-val rojo">${$$(d.deuda)}</div>
+          <div style="font-size:12px;color:var(--gris)">Ver cuenta →</div>
+        </div>
+      </div>`).join('');
+}
+
+// Alias para compatibilidad con llamadas existentes
+async function cargarDeudaClientes(){
+  _deudaCliCache=null;
+  await cargarDeudas('clientes');
 }
 
 async function abrirLedger(cliente, deudaActual){
@@ -1055,37 +1093,38 @@ async function guardarAbono(){
     await apiPost('registrarPagoCliente',{cliente,monto,fecha,nota});
     cerrarModal('modal-abono');
     ocultarToast(); toast('✅ Abono registrado','exito');
-    cargarDeudaClientes();
+    invalidarCacheDeudas(); cargarDeudaClientes();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
 
 // ==========================================
 // DEUDA PROVEEDORES
 // ==========================================
-async function cargarDeudaProveedores(){
+function renderDeudaProveedores(lista){
   const cont=document.getElementById('cont-proveedores');
-  cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
-  try{
-    const lista=await apiGet('getDeudaProveedores');
-    if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🎉</span>¡No debemos nada a proveedores!</div>';return;}
-    const total=lista.reduce((s,d)=>s+d.deuda,0);
-    cont.innerHTML=
-      `<div class="card" style="background:var(--rojo-s);margin-bottom:16px">
-         <div class="card-titulo">Total por pagar</div>
-         <div class="card-valor" style="color:var(--rojo)">${$$(total)}</div>
-       </div>`+
-      lista.map(d=>`
-        <div class="item">
-          <div class="item-info" style="flex:1">
-            <div class="item-nombre">${d.proveedor}</div>
-            <div class="item-det">Total compras: ${$$(d.total_compras)}</div>
-          </div>
-          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-            <div class="item-val rojo">${$$(d.deuda)}</div>
-            <button class="btn btn-p btn-sm" onclick="abrirAbonoProv('${escH(d.proveedor)}',${d.deuda})">Registrar pago</button>
-          </div>
-        </div>`).join('');
-  }catch(e){cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';}
+  if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🎉</span>¡No debemos nada a proveedores!</div>';return;}
+  const total=lista.reduce((s,d)=>s+d.deuda,0);
+  cont.innerHTML=
+    `<div class="card" style="background:var(--rojo-s);margin-bottom:16px">
+       <div class="card-titulo">Total por pagar</div>
+       <div class="card-valor" style="color:var(--rojo)">${$$(total)}</div>
+     </div>`+
+    lista.map(d=>`
+      <div class="item">
+        <div class="item-info" style="flex:1">
+          <div class="item-nombre">${d.proveedor}</div>
+          <div class="item-det">Total compras: ${$$(d.total_compras)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <div class="item-val rojo">${$$(d.deuda)}</div>
+          <button class="btn btn-p btn-sm" onclick="abrirAbonoProv('${escH(d.proveedor)}',${d.deuda})">Registrar pago</button>
+        </div>
+      </div>`).join('');
+}
+
+async function cargarDeudaProveedores(){
+  _deudaProvCache=null;
+  await cargarDeudas('proveedores');
 }
 
 function abrirAbonoProv(prov, deuda){
@@ -1105,7 +1144,7 @@ async function guardarAbonoProv(){
     await apiPost('registrarPagoProveedor',{proveedor,monto,fecha});
     cerrarModal('modal-abono-prov');
     ocultarToast(); toast('✅ Pago registrado','exito');
-    cargarDeudaProveedores();
+    invalidarCacheDeudas(); cargarDeudaProveedores();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
 
@@ -1154,6 +1193,8 @@ async function abrirModalProducto(p){
       provs.map(pv=>`<option value="${pv.nombre}" ${editar&&p.proveedor===pv.nombre?'selected':''}>${pv.nombre}</option>`).join('');
   }catch(e){}
   if(editar) mostrarMargen();
+  // Mostrar aviso de precio solo al editar
+  document.getElementById('p-aviso-precio').style.display = editar ? 'block' : 'none';
   document.getElementById('modal-producto').classList.add('visible');
 }
 

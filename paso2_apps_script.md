@@ -184,23 +184,13 @@ function hojaAObjetos(hoja) {
 }
 
 function generarId(hoja, prefijo) {
-  // Usamos LockService para evitar IDs duplicados en requests concurrentes
-  const lock = LockService.getScriptLock();
-  lock.waitLock(15000); // espera hasta 15s si hay otro request en curso
-  try {
-    const filas = hoja.getDataRange().getValues();
-    let maxNum = 0;
-    for (let i = 1; i < filas.length; i++) {
-      const id = String(filas[i][0]);
-      if (id.startsWith(prefijo)) {
-        const num = parseInt(id.slice(prefijo.length));
-        if (!isNaN(num) && num > maxNum) maxNum = num;
-      }
-    }
-    return prefijo + String(maxNum + 1).padStart(3, '0');
-  } finally {
-    lock.releaseLock();
-  }
+  // ID basado en timestamp + random para evitar colisiones en requests concurrentes
+  // Formato: P-20260621-143052-4729
+  const ahora = new Date();
+  const fecha = Utilities.formatDate(ahora, ZONA_HORARIA, 'yyyyMMdd');
+  const hora  = Utilities.formatDate(ahora, ZONA_HORARIA, 'HHmmss');
+  const rand  = Math.floor(Math.random() * 9000) + 1000; // 4 dígitos
+  return prefijo + '-' + fecha + '-' + hora + '-' + rand;
 }
 
 function validarPositivo(valor, nombre) {

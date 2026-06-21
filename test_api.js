@@ -310,7 +310,7 @@ if (PROD) {
   const ids_unicos = new Set(ids).size === ids.length;
 
   check('Los 5 pedidos concurrentes se guardaron', todos_ok, `${pedidosConcurrentes.filter(r=>r.ok).length}/5 OK`);
-  check('Los 5 IDs son únicos (sin colisiones)', ids_unicos, `IDs: ${ids.join(', ')}`);
+  check('Los 5 IDs son únicos (sin colisiones)', ids_unicos && ids.length === 5, `IDs: ${ids.join(', ')}`);
 
   if (!ids_unicos) {
     console.error('  ⚠️  CRÍTICO: hay IDs duplicados. Problema de concurrencia en generarId()');
