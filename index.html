@@ -198,17 +198,18 @@
     </div>
     <div class="fila">
       <div class="campo">
-        <label>Cantidad(KG)</label>
-        <input type="number" id="c-cantidad" min="0.01" step="0.01" placeholder="1" oninput="calcCompra()"/>
+        <label>Peso / Cantidad</label>
+        <input type="number" id="c-cantidad" min="0.01" step="0.01" placeholder="Ej: 10" oninput="calcCompra()"/>
       </div>
       <div class="campo">
-        <label>Costo unitario</label>
-        <input type="number" id="c-costo" min="0" step="1" placeholder="0" oninput="calcCompra()"/>
+        <label>Precio total ($)</label>
+        <input type="number" id="c-total" min="0" step="1" placeholder="Ej: 5000" oninput="calcCompra()"/>
       </div>
     </div>
     <div class="campo campo-auto">
-      <label>Total</label>
-      <input type="number" id="c-total" readonly placeholder="0"/>
+      <label>Costo unitario (auto)</label>
+      <input type="number" id="c-costo" readonly placeholder="0"/>
+      <div class="hint gris" id="c-costo-hint"></div>
     </div>
     <div class="campo">
       <label>Forma de pago</label>
@@ -561,24 +562,30 @@ function irA(p){
 // ==========================================
 async function cargarInicio(){
   try{
-    const d=await apiGet('getVentasHoy');
+    // Cargar ventas de hoy y deuda real en paralelo
+    const [d, deudas] = await Promise.all([
+      apiGet('getVentasHoy'),
+      apiGet('getDeudaClientes').catch(()=>[])
+    ]);
     document.getElementById('total-hoy').textContent=$$(d.total_ventas);
-    const pend=d.total_ventas-d.total_cobrado;
-    document.getElementById('cobrado-hoy').textContent=`Cobrado: ${$$(d.total_cobrado)}`+(pend>0?` · Pendiente: ${$$(pend)}`:'');
+    const deudaTotal=deudas.reduce((s,x)=>s+x.deuda,0);
+    document.getElementById('cobrado-hoy').textContent=
+      `Cobrado hoy: ${$$(d.total_cobrado)}`+
+      (deudaTotal>0?` · Por cobrar (total clientes): ${$$(deudaTotal)}`:'');
     const lista=document.getElementById('ventas-hoy-lista');
     if(!d.pedidos||!d.pedidos.length){
       lista.innerHTML='<div class="vacio"><span class="ico">🧀</span>Sin ventas hoy todavía</div>';return;
     }
     lista.innerHTML='<div style="font-size:12px;font-weight:600;color:var(--gris);margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px">Ventas de hoy</div>'+
     d.pedidos.map(p=>{
-      const debe=Number(p.total)-Number(p.monto_pagado);
       const badge=p.forma_pago==='efectivo'?'badge-efectivo':p.forma_pago==='transferencia'?'badge-trans':'badge-credito';
+      const deudaOriginal=Number(p.total)-Number(p.monto_pagado);
       return `<div class="item">
         <div class="item-head">
           <div class="item-info" style="flex:1">
             <div class="item-nombre">${p.cliente||'(sin nombre)'} <span class="badge ${badge}">${p.forma_pago}</span></div>
             <div class="item-det">${p.descripcion||''}</div>
-            ${debe>0?`<div class="item-det" style="color:var(--rojo);font-weight:600">Debe: ${$$(debe)}</div>`:''}
+            ${deudaOriginal>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente al vender: ${$$(deudaOriginal)} · Ver saldo real en "Clientes que deben"</div>`:''}
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
             <div class="item-val">${$$(p.total)}</div>
@@ -805,9 +812,10 @@ async function cargarDatosCompra(){
 }
 function calcCompra(){
   const cant=parseFloat(document.getElementById('c-cantidad').value)||0;
-  const costo=parseFloat(document.getElementById('c-costo').value)||0;
-  const total=cant*costo;
-  document.getElementById('c-total').value=total>0?Math.round(total):'';
+  const total=parseFloat(document.getElementById('c-total').value)||0;
+  const costo=cant>0&&total>0?total/cant:0;
+  document.getElementById('c-costo').value=costo>0?costo.toFixed(2):'';
+  document.getElementById('c-costo-hint').textContent=costo>0?`$${costo.toFixed(2)} por unidad/kg`:'';
   alCambiarPagoCompra();
 }
 function alCambiarPagoCompra(){
@@ -820,22 +828,23 @@ async function guardarCompra(){
   const proveedor=document.getElementById('c-proveedor').value.trim();
   const producto_insumo=document.getElementById('c-producto').value.trim();
   const cantidad=parseFloat(document.getElementById('c-cantidad').value);
-  const costo_unitario=parseFloat(document.getElementById('c-costo').value);
   const total=parseFloat(document.getElementById('c-total').value);
+  const costo_unitario=parseFloat(document.getElementById('c-costo').value)||0;
   const forma_pago=document.getElementById('c-pago').value;
   const monto_pagado=parseFloat(document.getElementById('c-pagado').value)||0;
   const fecha=document.getElementById('c-fecha').value||hoy();
   if(!proveedor){toast('Ingresá el proveedor','error');return;}
   if(!producto_insumo){toast('Ingresá el producto o insumo','error');return;}
-  if(!(cantidad>0)){toast('Cantidad inválida','error');return;}
-  if(!(total>0)){toast('Total inválido','error');return;}
+  if(!(cantidad>0)){toast('Ingresá el peso o cantidad','error');return;}
+  if(!(total>0)){toast('Ingresá el precio total','error');return;}
   if(monto_pagado>total){toast('Monto pagado no puede superar el total','error');return;}
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Guardando...';
   toast('Guardando...','guardando');
   try{
     await apiPost('registrarCompra',{fecha,proveedor,producto_insumo,cantidad,costo_unitario,total,forma_pago,monto_pagado});
     ocultarToast(); toast('✅ Compra guardada','exito');
-    ['c-proveedor','c-producto','c-cantidad','c-costo','c-total','c-pagado'].forEach(id=>document.getElementById(id).value='');
+    ['c-proveedor','c-producto','c-cantidad','c-total','c-costo','c-pagado'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('c-costo-hint').textContent='';
     document.getElementById('c-pago').value='efectivo';
     document.getElementById('c-fecha').value=hoy();
     irA('inicio');
@@ -881,24 +890,49 @@ async function abrirLedger(cliente, deudaActual){
   document.getElementById('modal-ledger').classList.add('visible');
   try{
     const h=await apiGet('getHistorialCliente',{cliente});
-    const rows=h.movimientos.map(m=>`
-      <div class="ledger-row">
-        <div style="flex:1">
-          <div style="font-weight:500">${fmtFecha(m.fecha)}</div>
-          <div style="font-size:12px;color:var(--gris)">${m.descripcion}${m.tipo==='compra'&&m.id?` · ${m.id}`:''}</div>
+    const rows=h.movimientos.map((m,idx)=>{
+      const itemsHtml=m.tipo==='compra'&&m.items&&m.items.length?
+        `<div id="ledger-items-${idx}" style="display:none;background:var(--gris-c);border-radius:8px;padding:8px;margin:4px 0 8px;font-size:12px">
+          ${m.items.map(it=>`
+            <div style="display:flex;justify-content:space-between;padding:3px 0">
+              <span>${it.producto} · ${Number(it.cantidad).toFixed(2)} ${it.unidad||''}</span>
+              <strong>${$$(it.subtotal)}</strong>
+            </div>`).join('')}
+          <div style="font-size:11px;color:var(--gris);margin-top:4px">${m.forma_pago||''} · Pagó al momento: ${$$(m.haber)}</div>
+        </div>`:''
+      ;
+      return `<div>
+        <div class="ledger-row" ${m.tipo==='compra'&&m.items?.length?`style="cursor:pointer" onclick="toggleLedgerItems(${idx})"`:''}">
+          <div style="flex:1">
+            <div style="font-weight:500">${fmtFecha(m.fecha)} ${m.tipo==='compra'&&m.items?.length?'<span style="font-size:11px;color:var(--gris)">▶ ver detalle</span>':''}</div>
+            <div style="font-size:12px;color:var(--gris)">${m.descripcion}${m.tipo==='compra'&&m.id?` · ${m.id}`:''}</div>
+          </div>
+          ${m.tipo==='compra'?`
+            <div style="text-align:right">
+              <div class="ledger-debe">+${$$(m.debe)}</div>
+              ${m.haber>0?`<div class="ledger-haber" style="font-size:12px">pagó ${$$(m.haber)}</div>`:''}
+            </div>`:`<div class="ledger-haber">-${$$(m.haber)}</div>`}
+          <div class="ledger-saldo" style="width:80px;text-align:right;${m.saldo>0?'color:var(--rojo)':'color:var(--verde-c)'}">${$$(m.saldo)}</div>
         </div>
-        ${m.tipo==='compra'?`
-          <div style="text-align:right">
-            <div class="ledger-debe">+${$$(m.debe)}</div>
-            ${m.haber>0?`<div class="ledger-haber" style="font-size:12px">pagó ${$$(m.haber)}</div>`:''}
-          </div>`:`<div class="ledger-haber">-${$$(m.haber)}</div>`}
-        <div class="ledger-saldo" style="width:80px;text-align:right;${m.saldo>0?'color:var(--rojo)':'color:var(--verde-c)'}">${$$(m.saldo)}</div>
-      </div>`).join('');
+        ${itemsHtml}
+      </div>`;
+    }).join('');
     const header=`<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gris);font-weight:600;padding:0 0 8px;text-transform:uppercase;letter-spacing:.4px"><span>Movimiento</span><span style="width:80px;text-align:right">Saldo</span></div>`;
     document.getElementById('ledger-tabla').innerHTML=rows?header+rows:'<div class="vacio"><span class="ico">📋</span>Sin movimientos</div>';
     document.getElementById('ledger-saldo').textContent=$$(h.saldo_total);
     document.getElementById('btn-liquidar-todo').textContent='Liquidar todo ('+$$(h.saldo_total)+')';
   }catch(e){document.getElementById('ledger-tabla').innerHTML='<div class="vacio">Error: '+e.message+'</div>';}
+}
+
+function toggleLedgerItems(idx){
+  const el=document.getElementById('ledger-items-'+idx);
+  if(!el) return;
+  const abierto=el.style.display!=='none';
+  el.style.display=abierto?'none':'block';
+  // Actualizar el triángulo
+  const rows=document.querySelectorAll('#ledger-tabla .ledger-row');
+  const span=rows[idx]?.querySelector('span[style*="font-size:11px"]');
+  if(span) span.textContent=abierto?'▶ ver detalle':'▼ ocultar';
 }
 
 function liquidarTodo(){
