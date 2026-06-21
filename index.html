@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
-  <meta name="theme-color" content="#1b4332"/>
+  <meta name="theme-color" content="#00A4EF"/>
   <meta name="mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-capable" content="yes"/>
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
@@ -14,26 +14,55 @@
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
     :root{
-      --verde:#1b4332;--verde-m:#2d6a4f;--verde-c:#40916c;--verde-s:#d8f3dc;
-      --rojo:#e63946;--rojo-s:#fde8ea;--amarillo:#f4a261;
-      --gris:#6c757d;--gris-c:#f1f3f4;--blanco:#fff;--texto:#212529;
-      --radio:12px;--sombra:0 2px 8px rgba(0,0,0,.10);
-      --borde:#e0e0e0;--modal-bg:#fff;--header-bg:#1b4332;
+      /* Paleta Microsoft */
+      --azul:#00A4EF;   /* celeste primario — header, botones, nav activo */
+      --azul-m:#0078d4; /* azul medio — hover */
+      --azul-c:#00A4EF; /* acento activo */
+      --azul-s:#e6f4fd; /* fondo celeste suave */
+      --verde:#7FBA00;  /* verde — valores positivos, ganancias */
+      --verde-c:#7FBA00;
+      --verde-s:#edf5d9;
+      --rojo:#F25022;   /* rojo-naranja MS — deudas, errores */
+      --rojo-s:#fde8e3;
+      --amarillo:#FFB900; /* amarillo MS — alertas, cargando */
+      --gris:#737373;   /* gris MS — texto secundario, íconos */
+      --gris-c:#f4f4f4; /* fondo página */
+      --blanco:#ffffff;
+      --texto:#212529;
+      --radio:12px;
+      --sombra:0 2px 8px rgba(0,0,0,.10);
+      --borde:#e0e0e0;
+      --modal-bg:#fff;
+      --header-bg:#00A4EF;
     }
     body.dark{
-      --verde-s:#1a3028;--verde-c:#52b788;--verde:#52b788;
-      --rojo:#ff7b7b;--rojo-s:#3a1a1a;--amarillo:#f4a261;
-      --gris:#adb5bd;--gris-c:#252525;--blanco:#1e1e1e;--texto:#e8e8e8;
-      --sombra:0 2px 8px rgba(0,0,0,.4);--borde:#404040;
-      --modal-bg:#1e1e1e;--header-bg:#0f2419;
-      background:#131313;
+      /* Modo oscuro: grises basados en #737373 */
+      --azul:#29b3f8;
+      --azul-m:#0090d4;
+      --azul-c:#29b3f8;
+      --azul-s:#1a2d3d;
+      --verde:#8cc63f;
+      --verde-c:#8cc63f;
+      --verde-s:#243310;
+      --rojo:#ff6b47;
+      --rojo-s:#3a1a10;
+      --amarillo:#ffc53d;
+      --gris:#b0b0b0;
+      --gris-c:#4a4a4a;
+      --blanco:#3a3a3a;
+      --texto:#e8e8e8;
+      --sombra:0 2px 8px rgba(0,0,0,.45);
+      --borde:#555555;
+      --modal-bg:#3a3a3a;
+      --header-bg:#424242;
+      background:#2d2d2d;
     }
-    body.dark input,body.dark select{background:#2a2a2a;color:#e8e8e8;border-color:#404040}
-    body.dark .nav-bar{background:#1e1e1e;border-top-color:#333}
+    body.dark input,body.dark select{background:#4a4a4a;color:#e8e8e8;border-color:#606060}
+    body.dark .nav-bar{background:#3a3a3a;border-top-color:#555}
     body.dark .modal{background:var(--modal-bg)}
-    body.dark .carrito-item{background:#2a2a2a}
-    body.dark .tab{background:#1e1e1e;border-color:#404040;color:#adb5bd}
-    body.dark .tab.activo{background:var(--verde-s);border-color:var(--verde-c)}
+    body.dark .carrito-item{background:#4a4a4a}
+    body.dark .tab{background:#3a3a3a;border-color:#555;color:#b0b0b0}
+    body.dark .tab.activo{background:var(--azul-s);border-color:var(--azul-c)}
     body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--gris-c);color:var(--texto);min-height:100vh;padding-bottom:72px;transition:background .2s,color .2s}
     .header{background:var(--header-bg);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600;position:sticky;top:0;z-index:100}
     .header-title{flex:1;text-align:center}
@@ -43,25 +72,25 @@
     /* NAV */
     .nav-bar{position:fixed;bottom:0;left:0;right:0;background:var(--blanco);border-top:1px solid #ddd;display:flex;z-index:200;box-shadow:0 -2px 8px rgba(0,0,0,.08)}
     .nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 4px;border:none;background:none;cursor:pointer;color:var(--gris);font-size:10px;gap:3px}
-    .nav-btn.activo{color:var(--verde-c)}
+    .nav-btn.activo{color:var(--azul-c)}
     .nav-btn svg{width:22px;height:22px}
     /* CARDS */
     .card{background:var(--blanco);border-radius:var(--radio);padding:16px;margin-bottom:12px;box-shadow:var(--sombra)}
     .card-titulo{font-size:12px;color:var(--gris);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
-    .card-valor{font-size:32px;font-weight:700;color:var(--verde)}
+    .card-valor{font-size:32px;font-weight:700;color:var(--azul)}
     /* GRILLA */
     .grilla{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-    .btn-grande{background:var(--blanco);border:none;border-radius:var(--radio);padding:20px 12px;text-align:center;cursor:pointer;box-shadow:var(--sombra);font-size:14px;font-weight:600;color:var(--verde)}
+    .btn-grande{background:var(--blanco);border:none;border-radius:var(--radio);padding:20px 12px;text-align:center;cursor:pointer;box-shadow:var(--sombra);font-size:14px;font-weight:600;color:var(--azul)}
     .btn-grande:active{opacity:.8}
     .btn-grande .ico{font-size:28px;display:block;margin-bottom:6px}
     /* FORM */
     .campo{margin-bottom:14px}
     label{display:block;font-size:12px;font-weight:600;color:var(--gris);margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}
     input,select{width:100%;padding:14px;border:2px solid var(--borde);border-radius:var(--radio);font-size:16px;color:var(--texto);background:var(--blanco);-webkit-appearance:none;appearance:none;transition:background .2s,color .2s,border-color .2s}
-    input:focus,select:focus{outline:none;border-color:var(--verde-c)}
+    input:focus,select:focus{outline:none;border-color:var(--azul-c)}
     select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%236c757d' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
-    .campo-auto input{background:var(--gris-c);font-weight:700;color:var(--verde)}
-    .hint{font-size:13px;color:var(--verde-c);margin-top:4px;font-weight:500}
+    .campo-auto input{background:var(--gris-c);font-weight:700;color:var(--azul)}
+    .hint{font-size:13px;color:var(--azul-c);margin-top:4px;font-weight:500}
     .hint.gris{color:var(--gris)}
     .fila{display:flex;gap:10px}
     .fila .campo{flex:1}
@@ -69,7 +98,7 @@
     .btn{width:100%;padding:16px;border:none;border-radius:var(--radio);font-size:16px;font-weight:700;cursor:pointer;letter-spacing:.3px}
     .btn:active{opacity:.85}
     .btn:disabled{opacity:.5;cursor:not-allowed}
-    .btn-p{background:var(--verde-c);color:var(--blanco)}
+    .btn-p{background:var(--azul-c);color:var(--blanco)}
     .btn-s{background:var(--gris-c);color:var(--texto)}
     .btn-r{background:var(--rojo);color:var(--blanco)}
     .btn-sm{padding:8px 14px;font-size:13px;width:auto}
@@ -78,21 +107,21 @@
     .item-head{display:flex;justify-content:space-between;align-items:flex-start}
     .item-nombre{font-weight:600;font-size:15px;margin-bottom:2px}
     .item-det{font-size:13px;color:var(--gris)}
-    .item-val{font-size:18px;font-weight:700;color:var(--verde);white-space:nowrap;margin-left:8px}
+    .item-val{font-size:18px;font-weight:700;color:var(--azul);white-space:nowrap;margin-left:8px}
     .item-val.rojo{color:var(--rojo)}
     /* TITULO */
-    .titulo-sec{font-size:20px;font-weight:700;color:var(--verde);margin-bottom:16px}
+    .titulo-sec{font-size:20px;font-weight:700;color:var(--azul);margin-bottom:16px}
     /* TABS */
     .tabs{display:flex;gap:8px;margin-bottom:16px}
     .tab{flex:1;padding:10px;border:2px solid #e0e0e0;border-radius:var(--radio);background:var(--blanco);cursor:pointer;font-size:13px;font-weight:600;color:var(--gris);text-align:center}
-    .tab.activo{border-color:var(--verde-c);background:var(--verde-s);color:var(--verde)}
+    .tab.activo{border-color:var(--azul-c);background:var(--azul-s);color:var(--azul)}
     /* REPORTE */
     .rep-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
     .rep-card{background:var(--blanco);border-radius:var(--radio);padding:14px;box-shadow:var(--sombra);text-align:center}
     .rep-card .rt{font-size:12px;color:var(--gris);margin-bottom:4px}
-    .rep-card .rv{font-size:20px;font-weight:700;color:var(--verde)}
+    .rep-card .rv{font-size:20px;font-weight:700;color:var(--azul)}
     .rep-card .rv.rojo{color:var(--rojo)}
-    .rep-card.grande{grid-column:1/-1;background:var(--verde-s)}
+    .rep-card.grande{grid-column:1/-1;background:var(--azul-s)}
     .rep-card.grande .rv{font-size:28px}
     .nota{font-size:12px;color:var(--gris);text-align:center;font-style:italic;padding:8px}
     /* VACÍO */
@@ -101,7 +130,7 @@
     /* TOAST */
     #toast{position:fixed;bottom:82px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--texto);color:var(--blanco);padding:12px 20px;border-radius:24px;font-size:14px;font-weight:500;opacity:0;transition:opacity .25s,transform .25s;z-index:500;white-space:nowrap;max-width:90vw;pointer-events:none}
     #toast.visible{opacity:1;transform:translateX(-50%) translateY(0)}
-    #toast.exito{background:var(--verde-c)}
+    #toast.exito{background:var(--azul-c)}
     #toast.error{background:var(--rojo)}
     #toast.guardando{background:var(--amarillo);color:var(--texto)}
     /* MODAL */
@@ -118,15 +147,15 @@
     .ledger-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #eee;font-size:14px}
     .ledger-row:last-child{border-bottom:none}
     .ledger-debe{color:var(--rojo);font-weight:600}
-    .ledger-haber{color:var(--verde-c);font-weight:600}
+    .ledger-haber{color:var(--verde-c);font-weight:600}  /* verde para ingresos */
     .ledger-saldo{font-weight:700}
     /* SEPARADOR */
     .sep{height:1px;background:#eee;margin:12px 0}
     /* BADGE */
     .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
-    .badge-credito{background:#fff3cd;color:#856404}
-    .badge-efectivo{background:var(--verde-s);color:var(--verde)}
-    .badge-trans{background:#e8f4fd;color:#0066cc}
+    .badge-credito{background:#fff4cc;color:#8a6000}    /* amarillo MS */
+    .badge-efectivo{background:var(--verde-s);color:#5a8500} /* verde MS */
+    .badge-trans{background:var(--azul-s);color:var(--azul-m)} /* celeste MS */
     @media(max-width:360px){.nav-btn{font-size:9px}.card-valor{font-size:26px}}
   </style>
 </head>
@@ -151,7 +180,7 @@
     </div>
     <div class="card" style="margin:0">
       <div class="card-titulo">Por cobrar</div>
-      <div class="card-valor" id="total-por-cobrar" style="color:var(--verde-c)">—</div>
+      <div class="card-valor" id="total-por-cobrar" style="color:var(--verde-c);font-size:1.6rem">—</div>
       <div class="card-titulo" style="margin-top:10px">Por pagar</div>
       <div class="card-valor" id="total-por-pagar" style="color:var(--rojo);font-size:1.4rem">—</div>
     </div>
@@ -206,9 +235,9 @@
       <input type="date" id="v-fecha"/>
     </div>
 
-    <div style="background:var(--verde-s);border-radius:var(--radio);padding:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-      <span style="font-size:14px;color:var(--verde);font-weight:600">TOTAL DEL PEDIDO</span>
-      <span style="font-size:24px;font-weight:700;color:var(--verde)" id="v-total-display">$0</span>
+    <div style="background:var(--azul-s);border-radius:var(--radio);padding:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <span style="font-size:14px;color:var(--azul);font-weight:600">TOTAL DEL PEDIDO</span>
+      <span style="font-size:24px;font-weight:700;color:var(--azul)" id="v-total-display">$0</span>
     </div>
   </div>
 
@@ -286,14 +315,31 @@
 
 <!-- MÁS -->
 <div class="pantalla" id="pantalla-mas">
-  <div class="titulo-sec">Más opciones</div>
+  <!-- Gestión -->
+  <div style="font-size:11px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Gestión</div>
+  <div class="grilla" style="margin-bottom:4px">
+    <button class="btn-grande" onclick="irA('productos')">
+      <span class="ico">🧀</span>Productos
+    </button>
+    <button class="btn-grande" onclick="irA('clientes')">
+      <span class="ico">👤</span>Clientes
+    </button>
+    <button class="btn-grande" onclick="irA('proveedores-mgt')">
+      <span class="ico">🏭</span>Proveedores
+    </button>
+    <button class="btn-grande" onclick="irA('reportes')">
+      <span class="ico">📊</span>Reportes
+    </button>
+  </div>
+  <!-- Devoluciones -->
+  <div style="font-size:11px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px">Devoluciones</div>
   <div class="grilla">
-    <button class="btn-grande" onclick="irA('productos')"><span class="ico">🧀</span>Productos</button>
-    <button class="btn-grande" onclick="irA('clientes')"><span class="ico">👤</span>Clientes</button>
-    <button class="btn-grande" onclick="irA('proveedores-mgt')"><span class="ico">🏭</span>Proveedores</button>
-    <button class="btn-grande" onclick="irA('reportes')"><span class="ico">📊</span>Reportes</button>
-    <button class="btn-grande" onclick="abrirModalDevolucion()"><span class="ico">↩️</span>Registrar devolución</button>
-    <button class="btn-grande" onclick="irA('devoluciones')"><span class="ico">📋</span>Historial devoluciones</button>
+    <button class="btn-grande" onclick="abrirModalDevolucion()">
+      <span class="ico">↩️</span>Registrar devolución
+    </button>
+    <button class="btn-grande" onclick="irA('devoluciones')">
+      <span class="ico">📋</span>Historial
+    </button>
   </div>
 </div>
 
@@ -451,8 +497,8 @@
   <div class="modal">
     <div class="modal-titulo" id="ledger-titulo">Cuenta corriente</div>
     <div id="ledger-tabla" style="margin-bottom:16px"></div>
-    <div style="background:var(--verde-s);border-radius:var(--radio);padding:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <span style="font-weight:600;color:var(--verde)">Saldo actual</span>
+    <div style="background:var(--azul-s);border-radius:var(--radio);padding:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <span style="font-weight:600;color:var(--azul)">Saldo actual</span>
       <span style="font-size:22px;font-weight:700;color:var(--rojo)" id="ledger-saldo"></span>
     </div>
     <input type="hidden" id="ledger-cliente-nombre"/>
@@ -594,7 +640,7 @@
     </div>
     <div id="p-margen" style="font-size:13px;color:var(--gris);margin-bottom:8px;text-align:right;min-height:18px"></div>
     <!-- Aviso que aparece solo al editar precio -->
-    <div id="p-aviso-precio" style="display:none;background:var(--verde-s);border-left:3px solid var(--verde-c);border-radius:6px;padding:8px 12px;font-size:13px;color:var(--gris);margin-bottom:12px">
+    <div id="p-aviso-precio" style="display:none;background:var(--azul-s);border-left:3px solid var(--azul-c);border-radius:6px;padding:8px 12px;font-size:13px;color:var(--gris);margin-bottom:12px">
       ⚠️ Este precio se aplicará a las <strong>próximas ventas</strong>. Las ventas y deudas ya registradas <strong>no cambian</strong>.
     </div>
     <div class="fila" style="gap:10px">
@@ -1152,9 +1198,9 @@ function renderDeudaClientes(lista){
   if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🎉</span>¡Ningún cliente debe nada!</div>';return;}
   const total=lista.reduce((s,d)=>s+d.deuda,0);
   cont.innerHTML=
-    `<div class="card" style="background:var(--verde-s);margin-bottom:16px">
+    `<div class="card" style="background:var(--azul-s);border-left:4px solid var(--azul-c);margin-bottom:16px">
        <div class="card-titulo">Total por cobrar</div>
-       <div class="card-valor">${$$(total)}</div>
+       <div class="card-valor" style="color:var(--azul)">${$$(total)}</div>
      </div>`+
     lista.map(d=>`
       <div class="item" style="cursor:pointer" onclick="abrirLedger('${escH(d.cliente)}',${d.deuda})">
@@ -1590,7 +1636,7 @@ async function cargarReporte(){
             <span style="font-size:14px">${k}</span>
             <strong>${$$(v)}</strong>
           </div>
-          ${barra(v,g.total_ventas,k==='efectivo'?'var(--verde-c)':k==='transferencia'?'#0066cc':'var(--amarillo)')}
+          ${barra(v,g.total_ventas,k==='efectivo'?'var(--verde-c)':k==='transferencia'?'var(--azul-c)':'var(--amarillo)')}
         `).join('')}
       </div>`:''}
 
