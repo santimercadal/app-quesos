@@ -1299,24 +1299,127 @@ async function cargarReporte(){
   const cont=document.getElementById('cont-reporte');
   cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Calculando...</div>';
   try{
-    const d=await apiGet('getGanancia',{desde,hasta});
-    const neg=d.ganancia<0;
+    // Cargar resumen + detalle de ventas y compras en paralelo
+    const [g, ventas, compras] = await Promise.all([
+      apiGet('getGanancia',{desde,hasta}),
+      apiGet('getVentas',{desde,hasta}),
+      apiGet('getCompras',{desde,hasta})
+    ]);
+
+    // --- Cobrado vs pendiente ---
+    const cobrado = ventas.pedidos.reduce((s,p)=>s+Number(p.monto_pagado),0);
+    const pendiente = g.total_ventas - cobrado;
+
+    // --- Desglose por forma de pago ---
+    const pagos = {};
+    ventas.pedidos.forEach(p=>{
+      const k=p.forma_pago||'otro';
+      pagos[k]=(pagos[k]||0)+Number(p.total);
+    });
+
+    // --- Top productos (del período) ---
+    const topProd = {};
+    ventas.pedidos.forEach(p=>{
+      (p.items||[]).forEach(it=>{
+        topProd[it.producto]=(topProd[it.producto]||0)+Number(it.subtotal);
+      });
+    });
+    const topProdSorted = Object.entries(topProd).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+    // --- Compras por proveedor ---
+    const compProv = {};
+    (compras.compras||[]).forEach(c=>{
+      const k=c.proveedor||'Sin proveedor';
+      compProv[k]=(compProv[k]||0)+Number(c.total);
+    });
+    const compProvSorted = Object.entries(compProv).sort((a,b)=>b[1]-a[1]);
+
+    // --- Barra simple ---
+    function barra(val,max,color){
+      const pct=max>0?Math.round(val/max*100):0;
+      return `<div style="background:var(--gris-c);border-radius:6px;height:8px;margin-top:4px">
+        <div style="background:${color};height:8px;border-radius:6px;width:${pct}%"></div>
+      </div>`;
+    }
+
+    const neg=g.ganancia<0;
     cont.innerHTML=`
+      <!-- RESUMEN PRINCIPAL -->
       <div class="rep-grid">
         <div class="rep-card grande">
           <div class="rt">Ganancia del período</div>
-          <div class="rv ${neg?'rojo':''}">${$$(d.ganancia)}</div>
+          <div class="rv ${neg?'rojo':''}">${$$(g.ganancia)}</div>
         </div>
         <div class="rep-card">
-          <div class="rt">Ventas (${d.cantidad_ventas})</div>
-          <div class="rv">${$$(d.total_ventas)}</div>
+          <div class="rt">Ventas (${g.cantidad_ventas})</div>
+          <div class="rv">${$$(g.total_ventas)}</div>
         </div>
         <div class="rep-card">
-          <div class="rt">Compras (${d.cantidad_compras})</div>
-          <div class="rv rojo">${$$(d.total_compras)}</div>
+          <div class="rt">Compras (${g.cantidad_compras})</div>
+          <div class="rv rojo">${$$(g.total_compras)}</div>
         </div>
       </div>
-      <div class="nota">⚠️ Ganancia = total ventas − total compras del período. No refleja stock previo ni margen por producto.</div>`;
+      <div class="nota" style="margin-bottom:12px">⚠️ Ganancia = ventas − compras del período. No incluye stock previo.</div>
+
+      <!-- COBRADO VS PENDIENTE -->
+      <div class="card">
+        <div class="card-titulo">Cobrado vs. pendiente</div>
+        <div class="rep-grid" style="margin-top:10px">
+          <div style="text-align:center">
+            <div style="font-size:12px;color:var(--gris)">Cobrado</div>
+            <div style="font-size:20px;font-weight:700;color:var(--verde-c)">${$$(cobrado)}</div>
+          </div>
+          <div style="text-align:center">
+            <div style="font-size:12px;color:var(--gris)">Pendiente de cobro</div>
+            <div style="font-size:20px;font-weight:700;color:${pendiente>0?'var(--rojo)':'var(--verde-c)'}">${$$(pendiente)}</div>
+          </div>
+        </div>
+        ${g.total_ventas>0?barra(cobrado,g.total_ventas,'var(--verde-c)'):''}
+        <div style="font-size:11px;color:var(--gris);text-align:right;margin-top:4px">${g.total_ventas>0?Math.round(cobrado/g.total_ventas*100)+'% cobrado':''}</div>
+      </div>
+
+      <!-- FORMA DE PAGO -->
+      ${Object.keys(pagos).length?`
+      <div class="card">
+        <div class="card-titulo">Ventas por forma de pago</div>
+        ${Object.entries(pagos).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
+            <span style="font-size:14px">${k}</span>
+            <strong>${$$(v)}</strong>
+          </div>
+          ${barra(v,g.total_ventas,k==='efectivo'?'var(--verde-c)':k==='transferencia'?'#0066cc':'var(--amarillo)')}
+        `).join('')}
+      </div>`:''}
+
+      <!-- TOP PRODUCTOS -->
+      ${topProdSorted.length?`
+      <div class="card">
+        <div class="card-titulo">Top productos del período</div>
+        ${topProdSorted.map(([prod,total],i)=>`
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 0">
+            <div style="font-size:16px;font-weight:700;color:var(--gris);width:20px">${i+1}</div>
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:600">${prod}</div>
+              ${barra(total,topProdSorted[0][1],'var(--verde-c)')}
+            </div>
+            <strong style="white-space:nowrap">${$$(total)}</strong>
+          </div>
+        `).join('')}
+      </div>`:''}
+
+      <!-- COMPRAS POR PROVEEDOR -->
+      ${compProvSorted.length?`
+      <div class="card">
+        <div class="card-titulo">Compras por proveedor</div>
+        ${compProvSorted.map(([prov,total])=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
+            <span style="font-size:14px">${prov}</span>
+            <strong style="color:var(--rojo)">${$$(total)}</strong>
+          </div>
+          ${barra(total,compProvSorted[0][1],'var(--rojo)')}
+        `).join('')}
+      </div>`:''}
+    `;
   }catch(e){cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';}
 }
 
