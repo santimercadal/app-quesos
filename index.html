@@ -45,10 +45,14 @@
     <button class="btn-grande" onclick="irA('deudas')"><span class="ico">👥</span>Clientes que deben</button>
     <button class="btn-grande" onclick="irA('deudas','proveedores')"><span class="ico">🏭</span>Le debemos a...</button>
   </div>
-  <!-- Lista de precios (solo lectura) -->
+  <!-- Acordeón de precios (solo lectura) -->
   <div style="margin-top:4px;margin-bottom:4px">
-    <div style="font-size:11px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Precios de hoy</div>
-    <div id="lista-precios-inicio"></div>
+    <button onclick="togglePrecios()" id="btn-precios"
+      style="width:100%;padding:14px 16px;background:var(--blanco);border:none;border-radius:var(--radio);box-shadow:var(--sombra);display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:15px;font-weight:600;color:var(--texto)">
+      <span>🏷️ Precios</span>
+      <span id="arrow-precios" style="font-size:12px;color:var(--gris);transition:transform .2s">▼</span>
+    </button>
+    <div id="lista-precios-inicio" style="display:none;margin-top:4px"></div>
   </div>
   <div id="ventas-hoy-lista"></div>
 </div>

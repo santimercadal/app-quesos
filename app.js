@@ -270,6 +270,14 @@ function renderPreciosInicio() {
     </div>`).join('');
 }
 
+function togglePrecios() {
+  const cont = document.getElementById('lista-precios-inicio');
+  const arrow = document.getElementById('arrow-precios');
+  const abierto = cont.style.display !== 'none';
+  cont.style.display = abierto ? 'none' : 'block';
+  arrow.style.transform = abierto ? '' : 'rotate(180deg)';
+}
+
 function agregarItemCarrito(){
   carrito.push({producto:'',precio_unitario:0,unidad:'kg',monto:'',cantidad:0});
   renderCarrito();
@@ -1473,12 +1481,17 @@ function init(){
   }
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 
-  // Cargar lista de operadores desde la API (actualiza el cache cuando responde)
+  // Cargar operadores desde Sheets, luego mostrar selector si hace falta
   apiGet('getOperadores').then(lista => {
     if (Array.isArray(lista) && lista.length) operadoresCache = lista;
-  }).catch(e => console.warn('getOperadores falló, usando default:', e));
-
-  // Si no hay operador guardado, pedir selección al abrir
-  if(!operadorActual) setTimeout(() => abrirSelectorOperador(true), 400);
+    // Si el modal ya está abierto, actualizar la lista en vivo
+    const modal = document.getElementById('modal-operador');
+    if (modal && modal.classList.contains('visible')) renderListaOperadores(true);
+    // Si no hay operador elegido, mostrar selector ahora que tenemos la lista real
+    if (!operadorActual) abrirSelectorOperador(true);
+  }).catch(e => {
+    console.warn('getOperadores falló, usando default:', e);
+    if (!operadorActual) abrirSelectorOperador(true);
+  });
 }
 init();
