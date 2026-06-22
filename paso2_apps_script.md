@@ -255,7 +255,7 @@ function editarProducto(ss, d) {
 
   if (d.unidad) hoja.getRange(num, 2).setValue(d.unidad);
   if (d.precio !== undefined) { validarPositivo(Number(d.precio), 'Precio'); hoja.getRange(num, 3).setValue(Number(d.precio)); }
-  if (d.precio_costo !== undefined) { validarPositivo(Number(d.precio_costo), 'Costo'); hoja.getRange(num, 4).setValue(Number(d.precio_costo)); }
+  if (d.precio_costo !== undefined) { validarNoNegativo(Number(d.precio_costo), 'Costo'); hoja.getRange(num, 4).setValue(Number(d.precio_costo)); }
   if (d.proveedor !== undefined) hoja.getRange(num, 5).setValue(d.proveedor?.trim() || '');
 
   return { mensaje: 'Producto actualizado: ' + d.nombre };
