@@ -7,11 +7,89 @@ const API = 'https://script.google.com/macros/s/AKfycbyFQZz8DgsMEfJlCYgOYZrdIK8P
 // ESTADO
 // ==========================================
 let productos = [];
-let productosCompraCache = [];   // cache para datalist de compras
+let productosCompraCache = [];
 let clientesCache = [];
-let carrito = []; // [{producto, precio_unitario, unidad, monto, cantidad}]
+let carrito = [];
 let periodoReporte = 'hoy';
 let pedidoEnEdicion = null;
+
+// ==========================================
+// OPERADORES
+// ==========================================
+const OP_KEY      = 'quesos-operador';
+const OP_LIST_KEY = 'quesos-operadores';
+const OP_DEFAULT  = ['Mamá', 'Papá', 'Santi'];
+
+let operadorActual = '';
+
+function getOperadores() {
+  try { return JSON.parse(localStorage.getItem(OP_LIST_KEY)) || OP_DEFAULT; }
+  catch(e) { return OP_DEFAULT; }
+}
+
+function setOperadores(lista) {
+  localStorage.setItem(OP_LIST_KEY, JSON.stringify(lista));
+}
+
+function seleccionarOperador(nombre) {
+  operadorActual = nombre;
+  localStorage.setItem(OP_KEY, nombre);
+  actualizarChipOperador();
+  cerrarModal('modal-operador');
+}
+
+function actualizarChipOperador() {
+  const val = operadorActual || '—';
+  const chip = document.getElementById('chip-operador');
+  if (chip) chip.textContent = val;
+  const chipMas = document.getElementById('chip-operador-mas');
+  if (chipMas) chipMas.textContent = val;
+}
+
+function abrirSelectorOperador(forzado = false) {
+  const lista = getOperadores();
+  const cont = document.getElementById('op-lista');
+  cont.innerHTML = lista.map(n => `
+    <button onclick="seleccionarOperador('${escH(n)}')"
+      style="width:100%;padding:16px;border:2px solid ${operadorActual===n?'var(--azul-c)':'var(--borde)'};
+      border-radius:var(--radio);font-size:16px;font-weight:${operadorActual===n?'700':'400'};
+      background:${operadorActual===n?'var(--azul-s)':'var(--blanco)'};
+      color:${operadorActual===n?'var(--azul)':'var(--texto)'};cursor:pointer;text-align:left;
+      margin-bottom:8px">
+      ${operadorActual===n?'✓ ':''}${n}
+    </button>`).join('');
+  // Mostrar zona de gestión solo si no es forzado (login)
+  document.getElementById('op-gestion').style.display = forzado ? 'none' : 'block';
+  document.getElementById('op-titulo').textContent = forzado ? '¿Quién va a usar la app?' : 'Cambiar operador';
+  document.getElementById('btn-cerrar-op').style.display = forzado ? 'none' : 'block';
+  document.getElementById('modal-operador').classList.add('visible');
+}
+
+function agregarOperador() {
+  const inp = document.getElementById('op-nuevo');
+  const nombre = inp.value.trim();
+  if (!nombre) { toast('Ingresá un nombre', 'error'); return; }
+  const lista = getOperadores();
+  if (lista.includes(nombre)) { toast('Ya existe ese operador', 'error'); return; }
+  lista.push(nombre);
+  setOperadores(lista);
+  inp.value = '';
+  abrirSelectorOperador(false);
+  toast('✅ ' + nombre + ' agregado', 'exito');
+}
+
+function eliminarOperador(nombre) {
+  if (!confirm(`¿Eliminar a ${nombre} de la lista?\n\nSus movimientos anteriores no se borran.`)) return;
+  let lista = getOperadores().filter(n => n !== nombre);
+  if (lista.length === 0) lista = OP_DEFAULT;
+  setOperadores(lista);
+  if (operadorActual === nombre) {
+    operadorActual = '';
+    localStorage.removeItem(OP_KEY);
+    actualizarChipOperador();
+  }
+  abrirSelectorOperador(false);
+}
 
 // ==========================================
 // API
@@ -110,6 +188,7 @@ async function cargarInicio(){
               <div class="item-info" style="flex:1">
                 <div class="item-nombre">${p.cliente||'(sin nombre)'} <span class="badge ${badge}">${p.forma_pago}</span></div>
                 <div class="item-det">${p.descripcion||''}</div>
+                <div class="item-det" style="font-size:12px;color:var(--gris)">👤 ${p.operador||'—'}</div>
                 ${deudaOriginal>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deudaOriginal)}</div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
               </div>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
@@ -276,7 +355,7 @@ async function guardarVenta(){
 
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Guardando...';
   try{
-    await apiPost('registrarPedido',{fecha,cliente,forma_pago,monto_pagado,total,descripcion,items});
+    await apiPost('registrarPedido',{fecha,cliente,forma_pago,monto_pagado,total,descripcion,items,operador:operadorActual});
     cerrarModal('modal-confirmar');
     toast('✅ Pedido guardado','exito');
     carrito=[{producto:'',precio_unitario:0,unidad:'kg',monto:'',cantidad:0}];
@@ -476,7 +555,7 @@ async function guardarCompra(){
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Guardando...';
   toast('Guardando...','guardando');
   try{
-    await apiPost('registrarCompra',{fecha,proveedor,producto_insumo,cantidad,costo_unitario,total,forma_pago,monto_pagado});
+    await apiPost('registrarCompra',{fecha,proveedor,producto_insumo,cantidad,costo_unitario,total,forma_pago,monto_pagado,operador:operadorActual});
     cerrarModal('modal-confirmar-compra');
     ocultarToast();
     // Mostrar ticket de confirmación
@@ -642,7 +721,7 @@ async function guardarAbono(){
   if(!(monto>0)){toast('Ingresá un monto válido','error');return;}
   toast('Guardando...','guardando');
   try{
-    await apiPost('registrarPagoCliente',{cliente,monto,fecha,nota});
+    await apiPost('registrarPagoCliente',{cliente,monto,fecha,nota,operador:operadorActual});
     cerrarModal('modal-abono');
     ocultarToast(); toast('✅ Abono registrado','exito');
     invalidarCacheDeudas(); cargarDeudaClientes();
@@ -742,7 +821,7 @@ async function guardarAbonoProv(){
   if(!(monto>0)){toast('Ingresá un monto válido','error');return;}
   toast('Guardando...','guardando');
   try{
-    await apiPost('registrarPagoProveedor',{proveedor,monto,fecha});
+    await apiPost('registrarPagoProveedor',{proveedor,monto,fecha,operador:operadorActual});
     cerrarModal('modal-abono-prov');
     ocultarToast(); toast('✅ Pago registrado','exito');
     invalidarCacheDeudas(); cargarDeudaProveedores();
@@ -1231,7 +1310,8 @@ async function guardarDevolucion(){
   try {
     const r = await apiPost('registrarDevolucion', {
       tipo, contraparte, referencia_id: referencia,
-      producto, cantidad, monto, motivo, resolucion, fecha
+      producto, cantidad, monto, motivo, resolucion, fecha,
+      operador: operadorActual
     });
     cerrarModal('modal-devolucion');
     ocultarToast();
@@ -1343,6 +1423,10 @@ function toggleModo(){
 // INIT
 // ==========================================
 function init(){
+  // Restaurar operador
+  operadorActual = localStorage.getItem(OP_KEY) || '';
+  actualizarChipOperador();
+
   document.getElementById('v-fecha').value=hoy();
   document.getElementById('c-fecha').value=hoy();
   carrito=[{producto:'',precio_unitario:0,unidad:'kg',monto:'',cantidad:0}];
@@ -1354,5 +1438,8 @@ function init(){
     document.getElementById('btn-modo').textContent='☀️';
   }
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+  // Si no hay operador guardado, pedir selección al abrir
+  if(!operadorActual) setTimeout(() => abrirSelectorOperador(true), 400);
 }
 init();

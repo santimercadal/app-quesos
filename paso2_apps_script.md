@@ -39,16 +39,16 @@ function inicializarHojas() {
   const hojas = [
     { nombre: 'Productos',         encabezados: ['nombre', 'unidad', 'precio', 'precio_costo', 'proveedor'] },
     // Pedidos: cabecera de cada venta (cliente, pago, total)
-    { nombre: 'Pedidos',           encabezados: ['pedido_id', 'fecha', 'cliente', 'forma_pago', 'monto_pagado', 'total', 'descripcion'] },
+    { nombre: 'Pedidos',           encabezados: ['pedido_id', 'fecha', 'cliente', 'forma_pago', 'monto_pagado', 'total', 'descripcion', 'operador'] },
     // Ventas: líneas de cada pedido (un producto por fila)
     { nombre: 'Ventas',            encabezados: ['id', 'pedido_id', 'producto', 'cantidad', 'precio_unitario', 'subtotal'] },
-    { nombre: 'Pagos Clientes',    encabezados: ['id', 'fecha', 'cliente', 'monto', 'nota'] },
-    { nombre: 'Compras',           encabezados: ['id', 'fecha', 'proveedor', 'producto_insumo', 'cantidad', 'costo_unitario', 'total', 'forma_pago', 'monto_pagado'] },
-    { nombre: 'Pagos Proveedores', encabezados: ['id', 'fecha', 'proveedor', 'monto'] },
+    { nombre: 'Pagos Clientes',    encabezados: ['id', 'fecha', 'cliente', 'monto', 'nota', 'operador'] },
+    { nombre: 'Compras',           encabezados: ['id', 'fecha', 'proveedor', 'producto_insumo', 'cantidad', 'costo_unitario', 'total', 'forma_pago', 'monto_pagado', 'operador'] },
+    { nombre: 'Pagos Proveedores', encabezados: ['id', 'fecha', 'proveedor', 'monto', 'operador'] },
     { nombre: 'Clientes',          encabezados: ['nombre', 'apellido', 'celular'] },
     { nombre: 'Proveedores',       encabezados: ['nombre', 'contacto'] },
     // Devoluciones: registro inmutable de mercadería devuelta (a proveedores o de clientes)
-    { nombre: 'Devoluciones',      encabezados: ['id', 'fecha', 'tipo', 'contraparte', 'referencia_id', 'producto', 'cantidad', 'monto', 'motivo', 'resolucion'] },
+    { nombre: 'Devoluciones',      encabezados: ['id', 'fecha', 'tipo', 'contraparte', 'referencia_id', 'producto', 'cantidad', 'monto', 'motivo', 'resolucion', 'operador'] },
   ];
 
   hojas.forEach(({ nombre, encabezados }) => {
@@ -295,7 +295,8 @@ function registrarPedido(ss, d) {
     d.forma_pago,
     Number(d.monto_pagado),
     Number(d.total),
-    d.descripcion || ''
+    d.descripcion || '',
+    d.operador?.trim() || ''
   ]);
 
   // Guardar cada ítem en Ventas
@@ -590,7 +591,7 @@ function registrarPagoCliente(ss, d) {
 
   const hoja = ss.getSheetByName('Pagos Clientes');
   const id = generarId(hoja, 'PC');
-  hoja.appendRow([id, d.fecha || hoyStr(), d.cliente, Number(d.monto), d.nota || '']);
+  hoja.appendRow([id, d.fecha || hoyStr(), d.cliente, Number(d.monto), d.nota || '', d.operador?.trim() || '']);
   return { id, mensaje: 'Abono registrado' };
 }
 
@@ -650,7 +651,7 @@ function registrarPagoProveedor(ss, d) {
   validarPositivo(Number(d.monto), 'El monto');
   const hoja = ss.getSheetByName('Pagos Proveedores');
   const id = generarId(hoja, 'PP');
-  hoja.appendRow([id, d.fecha || hoyStr(), d.proveedor, Number(d.monto)]);
+  hoja.appendRow([id, d.fecha || hoyStr(), d.proveedor, Number(d.monto), d.operador?.trim() || '']);
   return { id, mensaje: 'Pago a proveedor registrado' };
 }
 
@@ -670,7 +671,7 @@ function registrarCompra(ss, d) {
   const hoja = ss.getSheetByName('Compras');
   const id = generarId(hoja, 'C');
   hoja.appendRow([id, d.fecha || hoyStr(), d.proveedor, d.producto_insumo,
-    Number(d.cantidad), Number(d.costo_unitario), Number(d.total), d.forma_pago, Number(d.monto_pagado)]);
+    Number(d.cantidad), Number(d.costo_unitario), Number(d.total), d.forma_pago, Number(d.monto_pagado), d.operador?.trim() || '']);
   return { id, mensaje: 'Compra registrada' };
 }
 
@@ -743,12 +744,13 @@ function registrarDevolucion(ss, d) {
     d.fecha || hoyStr(),
     d.tipo,
     d.contraparte.trim(),
-    d.referencia_id?.trim() || '',   // ID de compra o pedido origen (opcional)
+    d.referencia_id?.trim() || '',
     d.producto.trim(),
     Number(d.cantidad),
     Number(d.monto),
     d.motivo.trim(),
-    resolucion
+    resolucion,
+    d.operador?.trim() || ''
   ]);
 
   SpreadsheetApp.flush();

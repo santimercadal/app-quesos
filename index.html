@@ -16,7 +16,7 @@
 <body>
 
 <div class="header" id="header">
-  <div style="width:36px"></div>
+  <button class="btn-modo" onclick="abrirSelectorOperador(false)" title="Cambiar operador" style="font-size:13px;font-weight:600;padding:4px 8px;border-radius:20px;background:rgba(255,255,255,.2)">👤 <span id="chip-operador">—</span></button>
   <div class="header-title" id="header-title">App Quesos 🧀</div>
   <button class="btn-modo" id="btn-modo" onclick="toggleModo()" title="Modo oscuro">🌙</button>
 </div>
@@ -193,6 +193,15 @@
     <button class="btn-grande" onclick="irA('devoluciones')">
       <span class="ico">📋</span>Historial
     </button>
+  </div>
+  <!-- Operador -->
+  <div style="font-size:11px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px">Operador</div>
+  <div class="card" style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-size:13px;color:var(--gris);margin-bottom:2px">Usando la app como</div>
+      <div style="font-size:18px;font-weight:700">👤 <span id="chip-operador-mas">—</span></div>
+    </div>
+    <button class="btn btn-s btn-sm" onclick="abrirSelectorOperador(false)">Cambiar</button>
   </div>
 </div>
 
@@ -576,6 +585,23 @@
     <button class="btn btn-r" id="btn-pago-total-prov" onclick="abrirPagoTotalProv()" style="margin-bottom:8px"></button>
     <button class="btn btn-s" onclick="abrirPagoParcialProv()">Registrar pago parcial</button>
     <button class="btn btn-s" onclick="cerrarModal('modal-ledger-prov')" style="margin-top:8px">Cerrar</button>
+  </div>
+</div>
+
+<!-- SELECTOR OPERADOR -->
+<div class="modal-fondo" id="modal-operador">
+  <div class="modal">
+    <div class="modal-titulo" id="op-titulo">¿Quién va a usar la app?</div>
+    <div id="op-lista" style="display:flex;flex-direction:column;gap:10px;margin-bottom:16px"></div>
+    <div id="op-gestion">
+      <div class="sep"></div>
+      <div style="font-size:12px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 8px">Administrar operadores</div>
+      <div class="fila" style="gap:8px">
+        <input type="text" id="op-nuevo" placeholder="Nombre del operador" style="flex:1;padding:12px"/>
+        <button class="btn btn-p btn-sm" onclick="agregarOperador()">Agregar</button>
+      </div>
+    </div>
+    <button class="btn btn-s" id="btn-cerrar-op" onclick="cerrarModal('modal-operador')" style="margin-top:12px">Cancelar</button>
   </div>
 </div>
 
