@@ -16,20 +16,11 @@ let pedidoEnEdicion = null;
 // ==========================================
 // OPERADORES
 // ==========================================
-const OP_KEY      = 'quesos-operador';
-const OP_LIST_KEY = 'quesos-operadores';
-const OP_DEFAULT  = ['Mamá', 'Papá', 'Santi'];
+const OP_KEY     = 'quesos-operador';
+const OP_DEFAULT = ['Mamá', 'Papá', 'Santi'];
 
 let operadorActual = '';
-
-function getOperadores() {
-  try { return JSON.parse(localStorage.getItem(OP_LIST_KEY)) || OP_DEFAULT; }
-  catch(e) { return OP_DEFAULT; }
-}
-
-function setOperadores(lista) {
-  localStorage.setItem(OP_LIST_KEY, JSON.stringify(lista));
-}
+let operadoresCache = [];  // cargados desde la API al iniciar
 
 function seleccionarOperador(nombre) {
   operadorActual = nombre;
@@ -46,9 +37,9 @@ function actualizarChipOperador() {
   if (chipMas) chipMas.textContent = val;
 }
 
-function abrirSelectorOperador(forzado = false) {
-  const lista = getOperadores();
+function renderListaOperadores(forzado) {
   const cont = document.getElementById('op-lista');
+  const lista = operadoresCache.length ? operadoresCache : OP_DEFAULT;
   cont.innerHTML = lista.map(n => `
     <div style="display:flex;gap:8px;align-items:center">
       <button onclick="seleccionarOperador('${escH(n)}')"
@@ -58,41 +49,50 @@ function abrirSelectorOperador(forzado = false) {
         color:${operadorActual===n?'var(--azul)':'var(--texto)'};cursor:pointer;text-align:left">
         ${operadorActual===n?'✓ ':''}${escH(n)}
       </button>
-      <button onclick="eliminarOperador('${escH(n)}')"
-        class="btn-gestion-op"
-        style="padding:12px;border:2px solid var(--rojo-s);border-radius:var(--radio);background:var(--rojo-s);color:var(--rojo);font-size:18px;cursor:pointer;line-height:1">🗑</button>
+      ${!forzado ? `<button onclick="eliminarOperador('${escH(n)}')"
+        style="padding:12px;border:2px solid var(--rojo-s);border-radius:var(--radio);background:var(--rojo-s);color:var(--rojo);font-size:18px;cursor:pointer;line-height:1">🗑</button>` : ''}
     </div>`).join('');
-  // Mostrar zona de gestión solo si no es forzado (login)
+}
+
+function abrirSelectorOperador(forzado = false) {
+  renderListaOperadores(forzado);
   document.getElementById('op-gestion').style.display = forzado ? 'none' : 'block';
   document.getElementById('op-titulo').textContent = forzado ? '¿Quién va a usar la app?' : 'Cambiar operador';
   document.getElementById('btn-cerrar-op').style.display = forzado ? 'none' : 'block';
   document.getElementById('modal-operador').classList.add('visible');
 }
 
-function agregarOperador() {
+async function agregarOperador() {
   const inp = document.getElementById('op-nuevo');
   const nombre = inp.value.trim();
   if (!nombre) { toast('Ingresá un nombre', 'error'); return; }
-  const lista = getOperadores();
-  if (lista.includes(nombre)) { toast('Ya existe ese operador', 'error'); return; }
-  lista.push(nombre);
-  setOperadores(lista);
+  if (operadoresCache.includes(nombre)) { toast('Ya existe ese operador', 'error'); return; }
+  const nuevaLista = [...operadoresCache, nombre];
+  await _guardarOperadoresAPI(nuevaLista);
   inp.value = '';
-  abrirSelectorOperador(false);
   toast('✅ ' + nombre + ' agregado', 'exito');
 }
 
-function eliminarOperador(nombre) {
+async function eliminarOperador(nombre) {
   if (!confirm(`¿Eliminar a ${nombre} de la lista?\n\nSus movimientos anteriores no se borran.`)) return;
-  let lista = getOperadores().filter(n => n !== nombre);
-  if (lista.length === 0) lista = OP_DEFAULT;
-  setOperadores(lista);
+  let nuevaLista = operadoresCache.filter(n => n !== nombre);
+  if (nuevaLista.length === 0) nuevaLista = [...OP_DEFAULT];
+  await _guardarOperadoresAPI(nuevaLista);
   if (operadorActual === nombre) {
     operadorActual = '';
     localStorage.removeItem(OP_KEY);
     actualizarChipOperador();
   }
-  abrirSelectorOperador(false);
+}
+
+async function _guardarOperadoresAPI(lista) {
+  try {
+    await apiPost('guardarOperadores', { lista });
+    operadoresCache = lista;
+    renderListaOperadores(false);
+  } catch(e) {
+    toast('Error al guardar operadores', 'error');
+  }
 }
 
 // ==========================================
@@ -1427,7 +1427,7 @@ function toggleModo(){
 // INIT
 // ==========================================
 function init(){
-  // Restaurar operador
+  // Restaurar operador (nombre guardado en este dispositivo)
   operadorActual = localStorage.getItem(OP_KEY) || '';
   actualizarChipOperador();
 
@@ -1442,6 +1442,12 @@ function init(){
     document.getElementById('btn-modo').textContent='☀️';
   }
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
+
+  // Cargar lista de operadores desde la API
+  apiGet('getOperadores').then(r => {
+    if (r.ok && Array.isArray(r.datos)) operadoresCache = r.datos;
+    else operadoresCache = [...OP_DEFAULT];
+  }).catch(() => { operadoresCache = [...OP_DEFAULT]; });
 
   // Si no hay operador guardado, pedir selección al abrir
   if(!operadorActual) setTimeout(() => abrirSelectorOperador(true), 400);

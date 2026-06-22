@@ -49,6 +49,7 @@ function inicializarHojas() {
     { nombre: 'Proveedores',       encabezados: ['nombre', 'contacto'] },
     // Devoluciones: registro inmutable de mercadería devuelta (a proveedores o de clientes)
     { nombre: 'Devoluciones',      encabezados: ['id', 'fecha', 'tipo', 'contraparte', 'referencia_id', 'producto', 'cantidad', 'monto', 'motivo', 'resolucion', 'operador'] },
+    { nombre: 'Operadores',        encabezados: ['nombre'] },
   ];
 
   hojas.forEach(({ nombre, encabezados }) => {
@@ -123,6 +124,7 @@ function doGet(e) {
       case 'getHistorialCliente':   resultado = getHistorialCliente(ss, e.parameter.cliente); break;
       case 'getHistorialProveedor': resultado = getHistorialProveedor(ss, e.parameter.proveedor); break;
       case 'getDevoluciones':       resultado = getDevoluciones(ss, e.parameter.desde, e.parameter.hasta, e.parameter.tipo); break;
+      case 'getOperadores':         resultado = getOperadoresList(ss); break;
       default: resultado = { error: 'Acción no reconocida: ' + accion };
     }
 
@@ -160,6 +162,7 @@ function doPost(e) {
       case 'eliminarProveedor':      resultado = eliminarProveedor(ss, body.datos); break;
       case 'registrarDevolucion':    resultado = registrarDevolucion(ss, body.datos); break;
       case 'resolverDevolucion':     resultado = resolverDevolucion(ss, body.datos); break;
+      case 'guardarOperadores':      resultado = guardarOperadores(ss, body.datos); break;
       default: resultado = { error: 'Acción no reconocida: ' + accion };
     }
 
@@ -217,6 +220,32 @@ function filtrarFecha(lista, desde, hasta) {
     const f = (item.fecha || '').toString().substring(0, 10);
     return (!desde || f >= desde) && (!hasta || f <= hasta);
   });
+}
+
+
+// ==========================================
+// OPERADORES
+// ==========================================
+
+function getOperadoresList(ss) {
+  const hoja = ss.getSheetByName('Operadores');
+  if (!hoja || hoja.getLastRow() <= 1) return ['Mamá', 'Papá', 'Santi'];
+  const vals = hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).getValues();
+  return vals.map(r => r[0]).filter(n => n && n.toString().trim());
+}
+
+function guardarOperadores(ss, d) {
+  if (!Array.isArray(d.lista)) throw new Error('Lista de operadores inválida');
+  const hoja = ss.getSheetByName('Operadores');
+  // Limpiar filas de datos (mantener encabezado)
+  if (hoja.getLastRow() > 1) {
+    hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).clearContent();
+  }
+  // Escribir la lista nueva
+  d.lista.forEach((nombre, i) => {
+    hoja.getRange(2 + i, 1).setValue(nombre.trim());
+  });
+  return { mensaje: 'Operadores guardados' };
 }
 
 
