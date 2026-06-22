@@ -1444,9 +1444,8 @@ function init(){
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 
   // Cargar lista de operadores desde la API
-  apiGet('getOperadores').then(r => {
-    if (r.ok && Array.isArray(r.datos)) operadoresCache = r.datos;
-    else operadoresCache = [...OP_DEFAULT];
+  apiGet('getOperadores').then(lista => {
+    operadoresCache = Array.isArray(lista) && lista.length ? lista : [...OP_DEFAULT];
   }).catch(() => { operadoresCache = [...OP_DEFAULT]; });
 
   // Si no hay operador guardado, pedir selección al abrir
