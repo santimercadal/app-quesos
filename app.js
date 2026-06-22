@@ -40,18 +40,32 @@ function actualizarChipOperador() {
 function renderListaOperadores(forzado) {
   const cont = document.getElementById('op-lista');
   const lista = operadoresCache.length ? operadoresCache : OP_DEFAULT;
-  cont.innerHTML = lista.map(n => `
-    <div style="display:flex;gap:8px;align-items:center">
-      <button onclick="seleccionarOperador('${escH(n)}')"
-        style="flex:1;padding:16px;border:2px solid ${operadorActual===n?'var(--azul-c)':'var(--borde)'};
-        border-radius:var(--radio);font-size:16px;font-weight:${operadorActual===n?'700':'400'};
-        background:${operadorActual===n?'var(--azul-s)':'var(--blanco)'};
-        color:${operadorActual===n?'var(--azul)':'var(--texto)'};cursor:pointer;text-align:left">
-        ${operadorActual===n?'✓ ':''}${escH(n)}
-      </button>
-      ${!forzado ? `<button onclick="eliminarOperador('${escH(n)}')"
-        style="padding:12px;border:2px solid var(--rojo-s);border-radius:var(--radio);background:var(--rojo-s);color:var(--rojo);font-size:18px;cursor:pointer;line-height:1">🗑</button>` : ''}
-    </div>`).join('');
+  cont.innerHTML = '';
+  lista.forEach(n => {
+    const fila = document.createElement('div');
+    fila.style.cssText = 'display:flex;gap:8px;align-items:center';
+
+    const btn = document.createElement('button');
+    const activo = operadorActual === n;
+    btn.style.cssText = [
+      'flex:1;padding:16px;border-radius:var(--radio);font-size:16px;cursor:pointer;text-align:left',
+      activo ? 'border:2px solid var(--azul-c);background:var(--azul-s);color:var(--azul);font-weight:700'
+             : 'border:2px solid var(--borde);background:var(--gris-c);color:var(--texto);font-weight:400'
+    ].join(';');
+    btn.textContent = (activo ? '✓ ' : '') + n;
+    btn.onclick = () => seleccionarOperador(n);
+    fila.appendChild(btn);
+
+    if (!forzado) {
+      const del = document.createElement('button');
+      del.style.cssText = 'padding:12px;border:2px solid var(--rojo-s);border-radius:var(--radio);background:var(--rojo-s);color:var(--rojo);font-size:18px;cursor:pointer;line-height:1';
+      del.textContent = '🗑';
+      del.onclick = () => eliminarOperador(n);
+      fila.appendChild(del);
+    }
+
+    cont.appendChild(fila);
+  });
 }
 
 function abrirSelectorOperador(forzado = false) {
@@ -236,11 +250,24 @@ async function cargarDatosVenta(){
   try{
     productos=await apiGet('getProductos');
     clientesCache=await apiGet('getClientes');
-    // Autocomplete con nombre completo (nombre + apellido)
     document.getElementById('lista-clientes').innerHTML=clientesCache.map(c=>`<option value="${escH(nombreCompleto(c))}">`).join('');
+    renderPreciosInicio();
   }catch(e){toast('Error cargando datos: '+e.message,'error');}
   if(carrito.length===0){carrito=[{producto:'',precio_unitario:0,unidad:'kg',monto:'',cantidad:0}];}
   renderCarrito();
+}
+
+function renderPreciosInicio() {
+  const cont = document.getElementById('lista-precios-inicio');
+  if (!cont || !productos.length) return;
+  cont.innerHTML = productos.map(p => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--blanco);border-radius:var(--radio);margin-bottom:6px;box-shadow:var(--sombra)">
+      <div>
+        <div style="font-weight:600;font-size:14px">${escH(p.nombre)}</div>
+        <div style="font-size:12px;color:var(--gris)">${p.unidad}</div>
+      </div>
+      <div style="font-size:18px;font-weight:700;color:var(--azul)">${$$(p.precio)}</div>
+    </div>`).join('');
 }
 
 function agregarItemCarrito(){
