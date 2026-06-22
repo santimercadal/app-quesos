@@ -17,7 +17,7 @@ let pedidoEnEdicion = null;
 // OPERADORES
 // ==========================================
 const OP_KEY     = 'quesos-operador';
-const OP_DEFAULT = ['Mamá', 'Papá', 'Santi'];
+const OP_DEFAULT = ['Silvana', 'Juan', 'Santi', 'Pollo', 'Bruno'];
 
 let operadorActual = '';
 let operadoresCache = [...OP_DEFAULT];  // default hasta que llegue la API
