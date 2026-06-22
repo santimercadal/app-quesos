@@ -20,7 +20,7 @@ const OP_KEY     = 'quesos-operador';
 const OP_DEFAULT = ['Mamá', 'Papá', 'Santi'];
 
 let operadorActual = '';
-let operadoresCache = [];  // cargados desde la API al iniciar
+let operadoresCache = [...OP_DEFAULT];  // default hasta que llegue la API
 
 function seleccionarOperador(nombre) {
   operadorActual = nombre;
@@ -87,11 +87,14 @@ async function eliminarOperador(nombre) {
 
 async function _guardarOperadoresAPI(lista) {
   try {
+    toast('Guardando...', 'guardando');
     await apiPost('guardarOperadores', { lista });
     operadoresCache = lista;
     renderListaOperadores(false);
+    toast('✅ Guardado', 'exito');
   } catch(e) {
-    toast('Error al guardar operadores', 'error');
+    console.error('guardarOperadores error:', e);
+    toast('Error: ' + (e.message || 'no se pudo guardar'), 'error');
   }
 }
 
@@ -1443,10 +1446,10 @@ function init(){
   }
   if('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(()=>{});
 
-  // Cargar lista de operadores desde la API
+  // Cargar lista de operadores desde la API (actualiza el cache cuando responde)
   apiGet('getOperadores').then(lista => {
-    operadoresCache = Array.isArray(lista) && lista.length ? lista : [...OP_DEFAULT];
-  }).catch(() => { operadoresCache = [...OP_DEFAULT]; });
+    if (Array.isArray(lista) && lista.length) operadoresCache = lista;
+  }).catch(e => console.warn('getOperadores falló, usando default:', e));
 
   // Si no hay operador guardado, pedir selección al abrir
   if(!operadorActual) setTimeout(() => abrirSelectorOperador(true), 400);

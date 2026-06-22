@@ -73,6 +73,10 @@ function inicializarHojas() {
     if (hoja.getLastRow() === 0) {
       hoja.appendRow(encabezados);
       hoja.getRange(1, 1, 1, encabezados.length).setFontWeight('bold').setBackground('#f0f0f0');
+      // Poblar valores iniciales para Operadores
+      if (nombre === 'Operadores') {
+        ['Mamá', 'Papá', 'Santi'].forEach(op => hoja.appendRow([op]));
+      }
     }
   });
 
@@ -235,17 +239,20 @@ function getOperadoresList(ss) {
 }
 
 function guardarOperadores(ss, d) {
-  if (!Array.isArray(d.lista)) throw new Error('Lista de operadores inválida');
+  if (!Array.isArray(d.lista) || d.lista.length === 0) throw new Error('Lista de operadores inválida o vacía');
   const hoja = ss.getSheetByName('Operadores');
-  // Limpiar filas de datos (mantener encabezado)
-  if (hoja.getLastRow() > 1) {
-    hoja.getRange(2, 1, hoja.getLastRow() - 1, 1).clearContent();
+  if (!hoja) throw new Error('Hoja Operadores no encontrada. Ejecutá inicializarHojas primero.');
+  // Limpiar filas de datos (mantener encabezado en fila 1)
+  const lastRow = hoja.getLastRow();
+  if (lastRow > 1) {
+    hoja.getRange(2, 1, lastRow - 1, 1).clearContent();
   }
-  // Escribir la lista nueva
+  // Escribir lista nueva
   d.lista.forEach((nombre, i) => {
-    hoja.getRange(2 + i, 1).setValue(nombre.trim());
+    hoja.getRange(2 + i, 1).setValue(nombre.toString().trim());
   });
-  return { mensaje: 'Operadores guardados' };
+  SpreadsheetApp.flush();
+  return { mensaje: 'Operadores guardados: ' + d.lista.length };
 }
 
 
