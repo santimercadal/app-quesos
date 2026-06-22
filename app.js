@@ -50,14 +50,18 @@ function abrirSelectorOperador(forzado = false) {
   const lista = getOperadores();
   const cont = document.getElementById('op-lista');
   cont.innerHTML = lista.map(n => `
-    <button onclick="seleccionarOperador('${escH(n)}')"
-      style="width:100%;padding:16px;border:2px solid ${operadorActual===n?'var(--azul-c)':'var(--borde)'};
-      border-radius:var(--radio);font-size:16px;font-weight:${operadorActual===n?'700':'400'};
-      background:${operadorActual===n?'var(--azul-s)':'var(--blanco)'};
-      color:${operadorActual===n?'var(--azul)':'var(--texto)'};cursor:pointer;text-align:left;
-      margin-bottom:8px">
-      ${operadorActual===n?'✓ ':''}${n}
-    </button>`).join('');
+    <div style="display:flex;gap:8px;align-items:center">
+      <button onclick="seleccionarOperador('${escH(n)}')"
+        style="flex:1;padding:16px;border:2px solid ${operadorActual===n?'var(--azul-c)':'var(--borde)'};
+        border-radius:var(--radio);font-size:16px;font-weight:${operadorActual===n?'700':'400'};
+        background:${operadorActual===n?'var(--azul-s)':'var(--blanco)'};
+        color:${operadorActual===n?'var(--azul)':'var(--texto)'};cursor:pointer;text-align:left">
+        ${operadorActual===n?'✓ ':''}${escH(n)}
+      </button>
+      <button onclick="eliminarOperador('${escH(n)}')"
+        class="btn-gestion-op"
+        style="padding:12px;border:2px solid var(--rojo-s);border-radius:var(--radio);background:var(--rojo-s);color:var(--rojo);font-size:18px;cursor:pointer;line-height:1">🗑</button>
+    </div>`).join('');
   // Mostrar zona de gestión solo si no es forzado (login)
   document.getElementById('op-gestion').style.display = forzado ? 'none' : 'block';
   document.getElementById('op-titulo').textContent = forzado ? '¿Quién va a usar la app?' : 'Cambiar operador';
