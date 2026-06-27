@@ -13,6 +13,7 @@ let proveedoresCache = [];
 let carrito = [];
 let periodoReporte = 'hoy';
 let pedidoEnEdicion = null;
+let carritoEdit = [];
 // Listas en pantalla referenciadas por índice desde los onclick (evita inyectar
 // nombres/objetos en el HTML, que rompía botones con apóstrofos, ej: "D'Angelo").
 let _pedidosHoy = [];
@@ -422,29 +423,85 @@ async function guardarVenta(){
 // ==========================================
 // EDITAR PEDIDO
 // ==========================================
-function abrirEdicionPedido(p){
+async function abrirEdicionPedido(p){
   pedidoEnEdicion=p;
   document.getElementById('edit-pedido-id').value=p.pedido_id;
   document.getElementById('edit-cliente').value=p.cliente||'';
   document.getElementById('edit-pago').value=p.forma_pago||'efectivo';
   document.getElementById('edit-pagado').value=p.monto_pagado;
   document.getElementById('edit-fecha').value=p.fecha;
-  const items=p.items||[];
-  document.getElementById('edit-items-lista').innerHTML=items.length?
-    items.map(it=>`
-      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #eee">
-        <div style="flex:1">
-          <div style="font-weight:600">${it.producto}</div>
-          <div style="font-size:12px;color:var(--gris)">≈ ${Number(it.cantidad).toFixed(2)} ${it.unidad||''}</div>
-        </div>
-        <div>
-          <label style="font-size:11px;margin-bottom:2px;display:block">Monto $</label>
-          <input type="number" value="${it.subtotal}" min="0" step="1" data-id="${it.id}"
-            style="width:100px;padding:8px;border:2px solid #e0e0e0;border-radius:8px;font-size:15px;font-weight:600"/>
-        </div>
-      </div>`).join('')
-    :'<div style="color:var(--gris);text-align:center;padding:8px">Sin ítems</div>';
+  // Asegurar lista de productos para los selects
+  if(!productos.length){ try{ productos=await apiGet('getProductos'); }catch(e){} }
+  carritoEdit=(p.items||[]).map(it=>{
+    const prod=productos.find(x=>x.nombre===it.producto);
+    return {
+      producto:it.producto,
+      precio_unitario:Number(it.precio_unitario)||(prod?Number(prod.precio):0)||0,
+      unidad:(prod&&prod.unidad)||it.unidad||'kg',
+      monto:Number(it.subtotal)||''
+    };
+  });
+  if(!carritoEdit.length) carritoEdit=[{producto:'',precio_unitario:0,unidad:'kg',monto:''}];
+  renderCarritoEdit();
   document.getElementById('modal-editar-pedido').classList.add('visible');
+}
+
+function renderCarritoEdit(){
+  const el=document.getElementById('edit-items-lista');
+  el.innerHTML=carritoEdit.map((item,i)=>`
+    <div class="carrito-item">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div class="campo" style="margin-bottom:8px">
+            <label>Producto</label>
+            <select onchange="alElegirProdEdit(${i},this)">
+              <option value="">Elegí un producto</option>
+              ${productos.map(p=>`<option value="${p.nombre}" data-precio="${p.precio}" data-unidad="${p.unidad}" ${item.producto===p.nombre?'selected':''}>${p.nombre}</option>`).join('')}
+            </select>
+          </div>
+          <div class="campo" style="margin-bottom:0">
+            <label>Monto en pesos ($)</label>
+            <input type="number" value="${item.monto}" placeholder="0" min="0" step="1"
+              oninput="alCambiarMontoEdit(${i},this.value)" style="font-size:18px;font-weight:600"/>
+          </div>
+          ${item.precio_unitario>0&&Number(item.monto)>0?
+            `<div class="hint">≈ ${(Number(item.monto)/item.precio_unitario).toFixed(2)} ${item.unidad}</div>`:''}
+        </div>
+        <button onclick="quitarItemEdit(${i})" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--rojo);padding:24px 0 0;line-height:1">×</button>
+      </div>
+    </div>`).join('')
+    + `<button class="btn btn-s" onclick="agregarItemEdit()" style="margin-bottom:6px">+ Agregar producto</button>`;
+}
+
+function alElegirProdEdit(i,sel){
+  const opt=sel.options[sel.selectedIndex];
+  carritoEdit[i].producto=sel.value;
+  carritoEdit[i].precio_unitario=Number(opt.dataset.precio)||0;
+  carritoEdit[i].unidad=opt.dataset.unidad||'kg';
+  renderCarritoEdit();
+}
+
+function alCambiarMontoEdit(i,val){
+  carritoEdit[i].monto=val;
+  const items=document.querySelectorAll('#edit-items-lista .carrito-item');
+  if(!items[i])return;
+  let hint=items[i].querySelector('.hint');
+  if(carritoEdit[i].precio_unitario>0&&Number(val)>0){
+    const txt=`≈ ${(Number(val)/carritoEdit[i].precio_unitario).toFixed(2)} ${carritoEdit[i].unidad}`;
+    if(hint){hint.textContent=txt;}
+    else{const h=document.createElement('div');h.className='hint';h.textContent=txt;items[i].querySelector('.campo:last-of-type').after(h);}
+  }else if(hint){hint.remove();}
+}
+
+function agregarItemEdit(){
+  carritoEdit.push({producto:'',precio_unitario:0,unidad:'kg',monto:''});
+  renderCarritoEdit();
+}
+
+function quitarItemEdit(i){
+  if(carritoEdit.length===1){toast('El pedido debe tener al menos un producto','error');return;}
+  carritoEdit.splice(i,1);
+  renderCarritoEdit();
 }
 
 async function confirmarEdicion(){
@@ -454,8 +511,17 @@ async function confirmarEdicion(){
   const forma_pago=document.getElementById('edit-pago').value;
   const monto_pagado=parseFloat(document.getElementById('edit-pagado').value)||0;
   const fecha=document.getElementById('edit-fecha').value;
-  const inputs=document.querySelectorAll('#edit-items-lista input[data-id]');
-  const items=[...inputs].map(inp=>({id:inp.dataset.id,subtotal:Number(inp.value),cantidad:pedidoEnEdicion?.items?.find(i=>i.id===inp.dataset.id)?.cantidad}));
+  if(carritoEdit.some(it=>!it.producto||!(Number(it.monto)>0))){toast('Completá todos los productos del pedido','error');return;}
+  const total=carritoEdit.reduce((s,it)=>s+Number(it.monto),0);
+  if(monto_pagado>total){toast('El monto pagado no puede superar el total','error');return;}
+  if(forma_pago==='crédito'&&!cliente){toast('Para ventas a crédito el cliente es obligatorio','error');return;}
+  const items=carritoEdit.map(it=>({
+    producto:it.producto,
+    cantidad:it.precio_unitario>0?Number(it.monto)/it.precio_unitario:1,
+    precio_unitario:it.precio_unitario,
+    subtotal:Number(it.monto),
+    unidad:it.unidad
+  }));
 
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Guardando...';
   toast('Guardando...','guardando');

@@ -144,6 +144,14 @@ function doGet(e) {
 // ==========================================
 
 function doPost(e) {
+  // LockService serializa las escrituras: con varios operadores a la vez,
+  // evita que dos requests se pisen y corrompan datos en la planilla.
+  const lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(30000); // esperar hasta 30s a que se libere
+  } catch (errLock) {
+    return crearRespuesta({ ok: false, error: 'El sistema está ocupado, probá de nuevo en unos segundos.' });
+  }
   try {
     const body = JSON.parse(e.postData.contents);
     const accion = body.accion;
@@ -173,6 +181,8 @@ function doPost(e) {
     return crearRespuesta({ ok: true, datos: resultado });
   } catch (err) {
     return crearRespuesta({ ok: false, error: err.toString() });
+  } finally {
+    lock.releaseLock();
   }
 }
 
@@ -353,7 +363,8 @@ function registrarPedido(ss, d) {
 }
 
 function editarPedido(ss, d) {
-  // d = { pedido_id, fecha?, cliente?, forma_pago?, monto_pagado?, items?: [{id, subtotal, cantidad}] }
+  // d = { pedido_id, fecha?, cliente?, forma_pago?, monto_pagado?, items?: [{producto, cantidad, precio_unitario, subtotal, unidad}] }
+  // Los ítems se reemplazan por completo: permite agregar y quitar productos.
   if (!d.pedido_id) throw new Error('pedido_id obligatorio');
 
   const hojaPedidos = ss.getSheetByName('Pedidos');
@@ -364,39 +375,46 @@ function editarPedido(ss, d) {
   }
   if (numPed === -1) throw new Error('Pedido no encontrado: ' + d.pedido_id);
 
-  if (d.fecha)        hojaPedidos.getRange(numPed, 2).setValue(d.fecha);
+  if (d.fecha)                 hojaPedidos.getRange(numPed, 2).setValue(d.fecha);
   if (d.cliente !== undefined) hojaPedidos.getRange(numPed, 3).setValue(d.cliente);
-  if (d.forma_pago)   hojaPedidos.getRange(numPed, 4).setValue(d.forma_pago);
-  if (d.monto_pagado !== undefined) {
-    validarNoNegativo(Number(d.monto_pagado), 'Monto pagado');
-    const total = Number(filasPed[numPed - 1][5]);
-    if (Number(d.monto_pagado) > total) throw new Error('Monto pagado no puede superar el total (' + total + ')');
-    hojaPedidos.getRange(numPed, 5).setValue(Number(d.monto_pagado));
-  }
+  if (d.forma_pago)            hojaPedidos.getRange(numPed, 4).setValue(d.forma_pago);
 
-  // Editar ítems si se enviaron
-  if (d.items && d.items.length > 0) {
+  // Reemplazo completo de los ítems (si se enviaron)
+  if (Array.isArray(d.items)) {
+    if (d.items.length === 0) throw new Error('El pedido debe tener al menos un producto');
+
     const hojaVentas = ss.getSheetByName('Ventas');
     const filasVentas = hojaVentas.getDataRange().getValues();
-
+    // Borrar las líneas existentes de este pedido (de abajo hacia arriba)
+    for (let i = filasVentas.length - 1; i >= 1; i--) {
+      if (filasVentas[i][1] === d.pedido_id) hojaVentas.deleteRow(i + 1);
+    }
+    // Insertar las líneas nuevas
     d.items.forEach(item => {
-      for (let i = 1; i < filasVentas.length; i++) {
-        if (filasVentas[i][0] === item.id) {
-          if (item.subtotal !== undefined) hojaVentas.getRange(i+1, 6).setValue(Number(item.subtotal));
-          if (item.cantidad !== undefined) hojaVentas.getRange(i+1, 4).setValue(Number(item.cantidad));
-          break;
-        }
-      }
+      if (!item.producto) throw new Error('Cada producto del pedido debe tener nombre');
+      const id = generarId(hojaVentas, 'V');
+      hojaVentas.appendRow([
+        id, d.pedido_id, item.producto,
+        Number(item.cantidad) || 0, Number(item.precio_unitario) || 0, Number(item.subtotal) || 0
+      ]);
     });
 
-    // Recalcular total del pedido
-    const itemsDelPedido = hojaAObjetos(hojaVentas).filter(v => v.pedido_id === d.pedido_id);
-    const nuevoTotal = itemsDelPedido.reduce((s, v) => s + Number(v.subtotal), 0);
+    // Recalcular total y descripción
+    const nuevoTotal = d.items.reduce((s, it) => s + (Number(it.subtotal) || 0), 0);
     hojaPedidos.getRange(numPed, 6).setValue(nuevoTotal);
-
-    // Recalcular descripcion
-    const nuevaDesc = itemsDelPedido.map(v => v.producto).join(', ');
+    const nuevaDesc = d.items.map(it => {
+      const cant = Number(it.cantidad) > 0 ? ' (' + Number(it.cantidad).toFixed(2) + ' ' + (it.unidad || 'kg') + ')' : '';
+      return it.producto + cant;
+    }).join(', ');
     hojaPedidos.getRange(numPed, 7).setValue(nuevaDesc);
+  }
+
+  // Validar monto_pagado contra el total ACTUAL (recalculado si cambiaron los ítems)
+  if (d.monto_pagado !== undefined) {
+    validarNoNegativo(Number(d.monto_pagado), 'Monto pagado');
+    const totalActual = Number(hojaPedidos.getRange(numPed, 6).getValue());
+    if (Number(d.monto_pagado) > totalActual) throw new Error('Monto pagado no puede superar el total (' + totalActual + ')');
+    hojaPedidos.getRange(numPed, 5).setValue(Number(d.monto_pagado));
   }
 
   SpreadsheetApp.flush();
@@ -581,6 +599,8 @@ function getHistorialCliente(ss, cliente) {
   const pedidos = hojaAObjetos(ss.getSheetByName('Pedidos')).filter(p => p.cliente === cliente);
   const ventas  = hojaAObjetos(ss.getSheetByName('Ventas'));
   const pagos   = hojaAObjetos(ss.getSheetByName('Pagos Clientes')).filter(p => p.cliente === cliente);
+  const devoluciones = hojaAObjetos(ss.getSheetByName('Devoluciones'))
+                         .filter(d => d.tipo === 'cliente' && d.contraparte === cliente);
 
   // Armar línea de tiempo unificada
   const movimientos = [
@@ -588,7 +608,7 @@ function getHistorialCliente(ss, cliente) {
       tipo: 'compra',
       fecha: p.fecha,
       id: p.pedido_id,
-      descripcion: p.descripcion || pedidos.map(v => v.producto).join(', '),
+      descripcion: p.descripcion || 'Venta',
       debe: Number(p.total),
       haber: Number(p.monto_pagado), // lo pagado al momento de la venta
     })),
@@ -599,6 +619,15 @@ function getHistorialCliente(ss, cliente) {
       descripcion: p.nota || 'Abono',
       debe: 0,
       haber: Number(p.monto),
+    })),
+    ...devoluciones.map(d => ({
+      tipo: 'devolucion',
+      fecha: d.fecha,
+      id: d.id,
+      descripcion: `Devolución: ${d.producto} · ${d.cantidad} · ${d.motivo}`,
+      debe: 0,
+      haber: Number(d.monto),
+      resolucion: d.resolucion
     }))
   ].sort((a, b) => a.fecha.localeCompare(b.fecha));
 
