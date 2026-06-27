@@ -2,7 +2,7 @@
 :root{
   /* Identidad quesería: turquesa + azul marino + verde gramilla + blanco */
   --turquesa:#12b2ac; --turquesa-d:#0e928d; --turquesa-s:#e1f6f4;
-  --navy:#16324a; --navy-d:#0f2436; --navy-s:#eaf1f6;
+  --navy:#16324a; --navy-d:#0f2436; --navy-s:#eaf1f6; --titulo:#16324a;
   --gramilla:#5da22e; --gramilla-s:#eef6e1;
   --coral:#e25141; --coral-s:#fcebe8;
 
@@ -23,7 +23,7 @@
 }
 body.dark{
   --turquesa:#2bd0c9; --turquesa-d:#23b3ad; --turquesa-s:#0f3a39;
-  --navy:#0f2436; --navy-d:#0a1a28; --navy-s:#13263a;
+  --navy:#0f2436; --navy-d:#0a1a28; --navy-s:#13263a; --titulo:#eaf1f6;
   --gramilla:#8cc63f; --gramilla-s:#23320f;
   --coral:#ff6f5e; --coral-s:#3a1612;
 
@@ -75,7 +75,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica N
 
 /* GRILLA */
 .grilla{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
-.btn-grande{background:var(--blanco);border:1px solid var(--borde);border-radius:var(--radio);padding:20px 12px;text-align:center;cursor:pointer;box-shadow:var(--sombra-sm);font-size:14px;font-weight:700;color:var(--navy);transition:transform .12s,box-shadow .12s}
+.btn-grande{background:var(--blanco);border:1px solid var(--borde);border-radius:var(--radio);padding:20px 12px;text-align:center;cursor:pointer;box-shadow:var(--sombra-sm);font-size:14px;font-weight:700;color:var(--titulo);transition:transform .12s,box-shadow .12s}
 .btn-grande:active{transform:scale(.97);box-shadow:var(--sombra)}
 .btn-grande .ico{font-size:28px;display:block;margin-bottom:6px}
 
@@ -104,13 +104,13 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .item{background:var(--blanco);border-radius:var(--radio);padding:14px 16px;margin-bottom:10px;box-shadow:var(--sombra-sm);border:1px solid var(--borde);transition:transform .12s}
 .item:active{transform:scale(.995)}
 .item-head{display:flex;justify-content:space-between;align-items:flex-start}
-.item-nombre{font-weight:700;font-size:15px;margin-bottom:2px;color:var(--navy)}
+.item-nombre{font-weight:700;font-size:15px;margin-bottom:2px;color:var(--titulo)}
 .item-det{font-size:13px;color:var(--gris)}
 .item-val{font-size:18px;font-weight:800;color:var(--azul);white-space:nowrap;margin-left:8px;letter-spacing:-.3px}
 .item-val.rojo{color:var(--coral)}
 
 /* TITULO */
-.titulo-sec{font-size:21px;font-weight:800;color:var(--navy);margin-bottom:16px;letter-spacing:-.3px}
+.titulo-sec{font-size:21px;font-weight:800;color:var(--titulo);margin-bottom:16px;letter-spacing:-.3px}
 
 /* TABS */
 .tabs{display:flex;gap:8px;margin-bottom:16px}
@@ -124,7 +124,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .rep-card .rv{font-size:20px;font-weight:800;color:var(--azul);letter-spacing:-.3px}
 .rep-card .rv.rojo{color:var(--coral)}
 .rep-card.grande{grid-column:1/-1;background:linear-gradient(135deg,var(--azul-s),var(--navy-s))}
-.rep-card.grande .rv{font-size:30px;color:var(--navy)}
+.rep-card.grande .rv{font-size:30px;color:var(--titulo)}
 .rep-card.grande .rv.rojo{color:var(--coral)}
 .nota{font-size:12px;color:var(--gris);text-align:center;font-style:italic;padding:8px}
 
@@ -144,7 +144,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .modal-fondo.visible{display:flex;animation:fadeIn .2s ease}
 .modal{background:var(--blanco);border-radius:22px 22px 0 0;padding:24px 16px 36px;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;animation:slideUp .28s cubic-bezier(.2,.9,.3,1)}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
-.modal-titulo{font-size:18px;font-weight:800;margin-bottom:16px;text-align:center;color:var(--navy)}
+.modal-titulo{font-size:18px;font-weight:800;margin-bottom:16px;text-align:center;color:var(--titulo)}
 
 /* SPINNER */
 .spin{display:inline-block;width:16px;height:16px;border:3px solid rgba(255,255,255,.35);border-top-color:#fff;border-radius:50%;animation:rotar .7s linear infinite;vertical-align:middle;margin-right:6px}
@@ -169,6 +169,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .badge-efectivo{background:var(--gramilla-s);color:#3f6e16}
 .badge-trans{background:var(--azul-s);color:var(--azul-m)}
 body.dark .badge-credito{background:#3a2e0c;color:#ffd76a}
+body.dark .badge-efectivo{background:#23320f;color:#a9d96a}
 
 /* MÉTRICAS EXTRA EN REPORTES */
 .rep-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
