@@ -140,7 +140,8 @@ async function apiGet(accion, params={}) {
   return d.datos;
 }
 async function apiPost(accion, datos) {
-  const r = await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({accion,datos})});
+  const payload = Object.assign({operador: operadorActual}, datos||{});
+  const r = await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({accion,datos:payload})});
   if (!r.ok) throw new Error('Error de red ('+r.status+')');
   const d = await r.json();
   if (!d.ok) throw new Error(d.error||'Error del servidor');
@@ -174,8 +175,8 @@ function _norm(s){return (s||'').toString().normalize('NFC').trim().toLowerCase(
 // ==========================================
 // NAVEGACIÓN
 // ==========================================
-const TITULOS={inicio:'App Quesos 🧀',venta:'Nueva Venta',compra:'Nueva Compra',deudas:'Deudas',mas:'Más opciones',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes',devoluciones:'Devoluciones'};
-const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas','proveedores-mgt':'nav-mas',reportes:'nav-mas',devoluciones:'nav-mas'};
+const TITULOS={inicio:'App Quesos 🧀',venta:'Nueva Venta',compra:'Nueva Compra',deudas:'Deudas',mas:'Más opciones',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes',devoluciones:'Devoluciones',historial:'Historial'};
+const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas','proveedores-mgt':'nav-mas',reportes:'nav-mas',devoluciones:'nav-mas',historial:'nav-mas'};
 
 function irA(p, tab){
   document.querySelectorAll('.pantalla').forEach(x=>x.classList.remove('activa'));
@@ -193,6 +194,7 @@ function irA(p, tab){
   if(p==='proveedores-mgt') cargarProveedoresMgt();
   if(p==='reportes') cargarReporte();
   if(p==='devoluciones') cargarDevoluciones('todos');
+  if(p==='historial') cargarHistorial();
 }
 
 // ==========================================
@@ -1861,6 +1863,76 @@ async function confirmarEliminarProveedor(){
     cerrarModal('modal-proveedor'); ocultarToast(); toast('✅ Proveedor eliminado','exito');
     cargarProveedoresMgt();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
+}
+
+// ==========================================
+// HISTORIAL DE MOVIMIENTOS (auditoría)
+// ==========================================
+const HIST_META={
+  registrarPedido:{ico:'🛒',label:'Venta'},
+  editarPedido:{ico:'✏️',label:'Venta editada'},
+  eliminarPedido:{ico:'🗑️',label:'Venta eliminada'},
+  registrarCompra:{ico:'📦',label:'Compra'},
+  editarCompra:{ico:'✏️',label:'Compra editada'},
+  eliminarCompra:{ico:'🗑️',label:'Compra eliminada'},
+  registrarPagoCliente:{ico:'💰',label:'Cobro a cliente'},
+  editarPagoCliente:{ico:'✏️',label:'Cobro editado'},
+  eliminarPagoCliente:{ico:'🗑️',label:'Cobro eliminado'},
+  registrarPagoProveedor:{ico:'📤',label:'Pago a proveedor'},
+  editarPagoProveedor:{ico:'✏️',label:'Pago editado'},
+  eliminarPagoProveedor:{ico:'🗑️',label:'Pago eliminado'},
+  agregarCliente:{ico:'👤',label:'Cliente nuevo'},
+  editarCliente:{ico:'✏️',label:'Cliente editado'},
+  eliminarCliente:{ico:'🗑️',label:'Cliente eliminado'},
+  renombrarCliente:{ico:'✏️',label:'Cliente renombrado'},
+  agregarProveedor:{ico:'🏭',label:'Proveedor nuevo'},
+  editarProveedor:{ico:'✏️',label:'Proveedor editado'},
+  eliminarProveedor:{ico:'🗑️',label:'Proveedor eliminado'},
+  renombrarProveedor:{ico:'✏️',label:'Proveedor renombrado'},
+  agregarProducto:{ico:'🧀',label:'Producto nuevo'},
+  editarProducto:{ico:'✏️',label:'Producto editado'},
+  renombrarProducto:{ico:'✏️',label:'Producto renombrado'},
+  registrarDevolucion:{ico:'↩️',label:'Devolución'},
+  editarDevolucion:{ico:'✏️',label:'Devolución editada'},
+  eliminarDevolucion:{ico:'🗑️',label:'Devolución eliminada'},
+  resolverDevolucion:{ico:'✅',label:'Devolución resuelta'},
+  guardarOperadores:{ico:'👥',label:'Operadores'}
+};
+
+async function cargarHistorial(periodo='semana', btn){
+  if(btn){ document.querySelectorAll('#pantalla-historial .tab').forEach(t=>t.classList.remove('activo')); btn.classList.add('activo'); }
+  const cont=document.getElementById('cont-historial');
+  cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  let desde='2000-01-01', hasta='2099-12-31';
+  const h=hoy();
+  if(periodo==='hoy'){ desde=h; hasta=h; }
+  else if(periodo==='semana'){ const d=new Date(); const dia=d.getDay()||7; d.setDate(d.getDate()-dia+1); desde=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires'}).format(d); hasta=h; }
+  else if(periodo==='mes'){ const d=new Date(); desde=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; hasta=h; }
+  try{
+    const r=await apiGet('getAuditoria',{desde,hasta});
+    renderHistorial(r.movimientos||[]);
+  }catch(e){ cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>'; }
+}
+
+function renderHistorial(movs){
+  const cont=document.getElementById('cont-historial');
+  if(!movs.length){ cont.innerHTML='<div class="vacio"><span class="ico">📜</span>Sin movimientos en este período</div>'; return; }
+  cont.innerHTML=movs.map(m=>{
+    const meta=HIST_META[m.accion]||{ico:'📝',label:m.accion};
+    const ts=(m.timestamp||'').toString();
+    const hora=ts.length>=16?ts.substring(11,16):'';
+    const fch=fmtFecha((m.fecha||ts.substring(0,10)));
+    return `<div class="item">
+      <div class="item-head">
+        <div style="font-size:20px;margin-right:10px;flex-shrink:0">${meta.ico}</div>
+        <div style="flex:1;min-width:0">
+          <div class="item-nombre">${meta.label}</div>
+          <div class="item-det">${m.detalle||''}</div>
+          <div class="item-det" style="font-size:11px;color:var(--gris)">👤 ${m.operador||'—'} · ${fch}${hora?' '+hora:''}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ==========================================

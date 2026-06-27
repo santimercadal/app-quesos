@@ -192,6 +192,9 @@
     <button class="btn-grande" onclick="irA('reportes')">
       <span class="ico">📊</span>Reportes
     </button>
+    <button class="btn-grande" onclick="irA('historial')">
+      <span class="ico">📜</span>Historial
+    </button>
   </div>
   <!-- Devoluciones -->
   <div style="font-size:11px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px">Devoluciones</div>
@@ -273,6 +276,18 @@
     </div>
   </div>
   <div id="cont-reporte"><div class="vacio"><span class="ico">📊</span>Seleccioná un período</div></div>
+</div>
+
+<!-- HISTORIAL DE MOVIMIENTOS -->
+<div class="pantalla" id="pantalla-historial">
+  <div class="titulo-sec">Historial de movimientos</div>
+  <div class="tabs" style="margin-bottom:12px">
+    <button class="tab" onclick="cargarHistorial('hoy',this)">Hoy</button>
+    <button class="tab activo" onclick="cargarHistorial('semana',this)">Semana</button>
+    <button class="tab" onclick="cargarHistorial('mes',this)">Mes</button>
+    <button class="tab" onclick="cargarHistorial('todo',this)">Todo</button>
+  </div>
+  <div id="cont-historial"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
 </div>
 
 <!-- ====== NAV BAR ====== -->

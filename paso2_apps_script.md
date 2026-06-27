@@ -50,6 +50,7 @@ function inicializarHojas() {
     // Devoluciones: registro inmutable de mercadería devuelta (a proveedores o de clientes)
     { nombre: 'Devoluciones',      encabezados: ['id', 'fecha', 'tipo', 'contraparte', 'referencia_id', 'producto', 'cantidad', 'monto', 'motivo', 'resolucion', 'operador'] },
     { nombre: 'Operadores',        encabezados: ['nombre'] },
+    { nombre: 'Auditoria',         encabezados: ['timestamp', 'fecha', 'accion', 'detalle', 'operador'] },
   ];
 
   hojas.forEach(({ nombre, encabezados }) => {
@@ -131,7 +132,8 @@ function doGet(e) {
       case 'getHistorialProveedor': resultado = getHistorialProveedor(ss, e.parameter.proveedor); break;
       case 'getDevoluciones':       resultado = getDevoluciones(ss, e.parameter.desde, e.parameter.hasta, e.parameter.tipo); break;
       case 'getOperadores':         resultado = getOperadoresList(ss); break;
-      default: resultado = { error: 'Acción no reconocida: ' + accion };
+      case 'getAuditoria':          resultado = getAuditoria(ss, e.parameter.desde, e.parameter.hasta); break;
+      default: throw new Error('Acción no reconocida: ' + accion);
     }
 
     return crearRespuesta({ ok: true, datos: resultado });
@@ -189,9 +191,10 @@ function doPost(e) {
       case 'registrarDevolucion':    resultado = registrarDevolucion(ss, body.datos); break;
       case 'resolverDevolucion':     resultado = resolverDevolucion(ss, body.datos); break;
       case 'guardarOperadores':      resultado = guardarOperadores(ss, body.datos); break;
-      default: resultado = { error: 'Acción no reconocida: ' + accion };
+      default: throw new Error('Acción no reconocida: ' + accion);
     }
 
+    try { registrarAuditoria(ss, accion, _detalleAuditoria(accion, body.datos, resultado), (body.datos && body.datos.operador) || ''); } catch (eLog) {}
     return crearRespuesta({ ok: true, datos: resultado });
   } catch (err) {
     return crearRespuesta({ ok: false, error: err.toString() });
@@ -926,6 +929,44 @@ function getHistorialProveedor(ss, proveedor) {
     movimientos: movimientos.reverse(),
     saldo_total: saldo
   };
+}
+
+// ==========================================
+// AUDITORÍA (historial de movimientos)
+// ==========================================
+function registrarAuditoria(ss, accion, detalle, operador) {
+  let hoja = ss.getSheetByName('Auditoria');
+  if (!hoja) {
+    hoja = ss.insertSheet('Auditoria');
+    hoja.appendRow(['timestamp', 'fecha', 'accion', 'detalle', 'operador']);
+    hoja.getRange(1, 1, 1, 5).setFontWeight('bold').setBackground('#f0f0f0');
+  }
+  const ahora = new Date();
+  const ts = Utilities.formatDate(ahora, ZONA_HORARIA, 'yyyy-MM-dd HH:mm:ss');
+  const fecha = Utilities.formatDate(ahora, ZONA_HORARIA, 'yyyy-MM-dd');
+  hoja.appendRow([ts, fecha, accion, detalle || '', operador || '']);
+}
+
+function _detalleAuditoria(accion, d, resultado) {
+  d = d || {};
+  const money = n => '$' + Number(n || 0).toLocaleString('es-AR');
+  switch (accion) {
+    case 'registrarPedido':        return 'Venta a ' + (d.cliente || 'consumidor final') + ' por ' + money(d.total) + (d.forma_pago ? ' (' + d.forma_pago + ')' : '');
+    case 'registrarCompra':        return 'Compra a ' + (d.proveedor || '?') + ': ' + (d.producto_insumo || '') + ' por ' + money(d.total);
+    case 'registrarPagoCliente':   return 'Cobro a ' + (d.cliente || '?') + ' por ' + money(d.monto);
+    case 'registrarPagoProveedor': return 'Pago a ' + (d.proveedor || '?') + ' por ' + money(d.monto);
+    case 'registrarDevolucion':    return 'Devolución ' + (d.tipo === 'cliente' ? 'de ' : 'a ') + (d.contraparte || '?') + ': ' + (d.producto || '') + ' por ' + money(d.monto);
+    default: return (resultado && resultado.mensaje) ? resultado.mensaje : accion;
+  }
+}
+
+function getAuditoria(ss, desde, hasta) {
+  const hoja = ss.getSheetByName('Auditoria');
+  if (!hoja || hoja.getLastRow() < 2) return { movimientos: [] };
+  let filas = filtrarFecha(hojaAObjetos(hoja), desde, hasta);
+  filas.reverse();
+  if (filas.length > 1000) filas = filas.slice(0, 1000);
+  return { movimientos: filas };
 }
 
 // ==========================================
