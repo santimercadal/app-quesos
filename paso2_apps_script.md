@@ -168,6 +168,18 @@ function doPost(e) {
       case 'registrarCompra':        resultado = registrarCompra(ss, body.datos); break;
       case 'registrarPagoCliente':   resultado = registrarPagoCliente(ss, body.datos); break;
       case 'registrarPagoProveedor': resultado = registrarPagoProveedor(ss, body.datos); break;
+      case 'editarCompra':           resultado = editarCompra(ss, body.datos); break;
+      case 'eliminarCompra':         resultado = eliminarCompra(ss, body.datos); break;
+      case 'eliminarPedido':         resultado = eliminarPedido(ss, body.datos); break;
+      case 'editarPagoCliente':      resultado = editarPagoCliente(ss, body.datos); break;
+      case 'eliminarPagoCliente':    resultado = eliminarPagoCliente(ss, body.datos); break;
+      case 'editarPagoProveedor':    resultado = editarPagoProveedor(ss, body.datos); break;
+      case 'eliminarPagoProveedor':  resultado = eliminarPagoProveedor(ss, body.datos); break;
+      case 'editarDevolucion':       resultado = editarDevolucion(ss, body.datos); break;
+      case 'eliminarDevolucion':     resultado = eliminarDevolucion(ss, body.datos); break;
+      case 'renombrarProducto':      resultado = renombrarProducto(ss, body.datos); break;
+      case 'renombrarCliente':       resultado = renombrarCliente(ss, body.datos); break;
+      case 'renombrarProveedor':     resultado = renombrarProveedor(ss, body.datos); break;
       case 'agregarCliente':         resultado = agregarCliente(ss, body.datos); break;
       case 'editarCliente':          resultado = editarCliente(ss, body.datos); break;
       case 'eliminarCliente':        resultado = eliminarCliente(ss, body.datos); break;
@@ -914,6 +926,232 @@ function getHistorialProveedor(ss, proveedor) {
     movimientos: movimientos.reverse(),
     saldo_total: saldo
   };
+}
+
+// ==========================================
+// CORRECCIONES (Fase 3.5): editar / eliminar / renombrar
+// ==========================================
+
+function _buscarFilaPorId(hoja, id) {
+  const filas = hoja.getDataRange().getValues();
+  for (let i = 1; i < filas.length; i++) {
+    if (filas[i][0] === id) return i + 1;
+  }
+  return -1;
+}
+
+// ---- COMPRAS ----
+function editarCompra(ss, d) {
+  if (!d.id) throw new Error('id de compra obligatorio');
+  const hoja = ss.getSheetByName('Compras');
+  const fila = _buscarFilaPorId(hoja, d.id);
+  if (fila === -1) throw new Error('Compra no encontrada: ' + d.id);
+  if (d.fecha !== undefined)           hoja.getRange(fila, 2).setValue(d.fecha);
+  if (d.proveedor !== undefined)       hoja.getRange(fila, 3).setValue(d.proveedor);
+  if (d.producto_insumo !== undefined) hoja.getRange(fila, 4).setValue(d.producto_insumo);
+  if (d.cantidad !== undefined) { validarPositivo(Number(d.cantidad), 'Cantidad'); hoja.getRange(fila, 5).setValue(Number(d.cantidad)); }
+  if (d.costo_unitario !== undefined)  hoja.getRange(fila, 6).setValue(Number(d.costo_unitario) || 0);
+  if (d.total !== undefined) { validarPositivo(Number(d.total), 'Total'); hoja.getRange(fila, 7).setValue(Number(d.total)); }
+  if (d.forma_pago !== undefined)      hoja.getRange(fila, 8).setValue(d.forma_pago);
+  if (d.monto_pagado !== undefined) {
+    validarNoNegativo(Number(d.monto_pagado), 'Monto pagado');
+    const total = Number(hoja.getRange(fila, 7).getValue());
+    if (Number(d.monto_pagado) > total) throw new Error('Monto pagado no puede superar el total (' + total + ')');
+    hoja.getRange(fila, 9).setValue(Number(d.monto_pagado));
+  }
+  SpreadsheetApp.flush();
+  return { mensaje: 'Compra actualizada: ' + d.id };
+}
+
+function eliminarCompra(ss, d) {
+  if (!d.id) throw new Error('id obligatorio');
+  const hoja = ss.getSheetByName('Compras');
+  const fila = _buscarFilaPorId(hoja, d.id);
+  if (fila === -1) throw new Error('Compra no encontrada: ' + d.id);
+  hoja.deleteRow(fila);
+  return { mensaje: 'Compra eliminada: ' + d.id };
+}
+
+// ---- PEDIDOS (VENTAS) ----
+function eliminarPedido(ss, d) {
+  if (!d.pedido_id) throw new Error('pedido_id obligatorio');
+  const hojaPed = ss.getSheetByName('Pedidos');
+  const filaP = _buscarFilaPorId(hojaPed, d.pedido_id);
+  if (filaP === -1) throw new Error('Pedido no encontrado: ' + d.pedido_id);
+  const hojaV = ss.getSheetByName('Ventas');
+  const fv = hojaV.getDataRange().getValues();
+  for (let i = fv.length - 1; i >= 1; i--) {
+    if (fv[i][1] === d.pedido_id) hojaV.deleteRow(i + 1);
+  }
+  hojaPed.deleteRow(filaP);
+  SpreadsheetApp.flush();
+  return { mensaje: 'Pedido eliminado: ' + d.pedido_id };
+}
+
+// ---- PAGOS CLIENTES (ABONOS) ----
+function editarPagoCliente(ss, d) {
+  if (!d.id) throw new Error('id obligatorio');
+  const hoja = ss.getSheetByName('Pagos Clientes');
+  const fila = _buscarFilaPorId(hoja, d.id);
+  if (fila === -1) throw new Error('Pago no encontrado: ' + d.id);
+  if (d.fecha !== undefined) hoja.getRange(fila, 2).setValue(d.fecha);
+  if (d.monto !== undefined) { validarPositivo(Number(d.monto), 'Monto'); hoja.getRange(fila, 4).setValue(Number(d.monto)); }
+  if (d.nota !== undefined)  hoja.getRange(fila, 5).setValue(d.nota || '');
+  SpreadsheetApp.flush();
+  return { mensaje: 'Pago actualizado' };
+}
+
+function eliminarPagoCliente(ss, d) {
+  if (!d.id) throw new Error('id obligatorio');
+  const hoja = ss.getSheetByName('Pagos Clientes');
+  const fila = _buscarFilaPorId(hoja, d.id);
+  if (fila === -1) throw new Error('Pago no encontrado: ' + d.id);
+  hoja.deleteRow(fila);
+  return { mensaje: 'Pago eliminado' };
+}
+
+// ---- PAGOS PROVEEDORES ----
+function editarPagoProveedor(ss, d) {
+  if (!d.id) throw new Error('id obligatorio');
+  const hoja = ss.getSheetByName('Pagos Proveedores');
+  const fila = _buscarFilaPorId(hoja, d.id);
+  if (fila === -1) throw new Error('Pago no encontrado: ' + d.id);
+  if (d.fecha !== undefined) hoja.getRange(fila, 2).setValue(d.fecha);
+  if (d.monto !== undefined) { validarPositivo(Number(d.monto), 'Monto'); hoja.getRange(fila, 4).setValue(Number(d.monto)); }
+  SpreadsheetApp.flush();
+  return { mensaje: 'Pago actualizado' };
+}
+
+function eliminarPagoProveedor(ss, d) {
+  if (!d.id) throw new Error('id obligatorio');
+  const hoja = ss.getSheetByName('Pagos Proveedores');
+  const fila = _buscarFilaPorId(hoja, d.id);
+  if (fila === -1) throw new Error('Pago no encontrado: ' + d.id);
+  hoja.deleteRow(fila);
+  return { mensaje: 'Pago eliminado' };
+}
+
+// ---- DEVOLUCIONES ----
+function editarDevolucion(ss, d) {
+  if (!d.id) throw new Error('id obligatorio');
+  const hoja = ss.getSheetByName('Devoluciones');
+  const fila = _buscarFilaPorId(hoja, d.id);
+  if (fila === -1) throw new Error('Devolución no encontrada: ' + d.id);
+  if (d.fecha !== undefined)         hoja.getRange(fila, 2).setValue(d.fecha);
+  if (d.contraparte !== undefined)   hoja.getRange(fila, 4).setValue(d.contraparte);
+  if (d.referencia_id !== undefined) hoja.getRange(fila, 5).setValue(d.referencia_id || '');
+  if (d.producto !== undefined)      hoja.getRange(fila, 6).setValue(d.producto);
+  if (d.cantidad !== undefined) { validarPositivo(Number(d.cantidad), 'Cantidad'); hoja.getRange(fila, 7).setValue(Number(d.cantidad)); }
+  if (d.monto !== undefined) { validarPositivo(Number(d.monto), 'Monto'); hoja.getRange(fila, 8).setValue(Number(d.monto)); }
+  if (d.motivo !== undefined)        hoja.getRange(fila, 9).setValue(d.motivo);
+  if (d.resolucion !== undefined) {
+    if (['pendiente','acreditado','devuelto_dinero'].indexOf(d.resolucion) === -1) throw new Error('Resolución inválida');
+    hoja.getRange(fila, 10).setValue(d.resolucion);
+  }
+  SpreadsheetApp.flush();
+  return { mensaje: 'Devolución actualizada' };
+}
+
+function eliminarDevolucion(ss, d) {
+  if (!d.id) throw new Error('id obligatorio');
+  const hoja = ss.getSheetByName('Devoluciones');
+  const fila = _buscarFilaPorId(hoja, d.id);
+  if (fila === -1) throw new Error('Devolución no encontrada: ' + d.id);
+  hoja.deleteRow(fila);
+  return { mensaje: 'Devolución eliminada' };
+}
+
+// ---- RENOMBRAR (con cascada al historial) ----
+function _renNorm(s) { return (s || '').toString().normalize('NFC').trim().toLowerCase().replace(/\s+/g, ' '); }
+
+function _renReescribir(ss, nombreHoja, col, viejoNorm, nuevo, condCol, cond) {
+  const h = ss.getSheetByName(nombreHoja);
+  if (!h || h.getLastRow() < 2) return 0;
+  const rng = h.getRange(2, 1, h.getLastRow() - 1, h.getLastColumn());
+  const v = rng.getValues();
+  let c = 0;
+  for (let i = 0; i < v.length; i++) {
+    if (condCol && v[i][condCol - 1] !== cond) continue;
+    if (_renNorm(v[i][col - 1]) === viejoNorm) { v[i][col - 1] = nuevo; c++; }
+  }
+  if (c) rng.setValues(v);
+  return c;
+}
+
+function renombrarProducto(ss, d) {
+  if (!d.nombre || !d.nombre_nuevo) throw new Error('nombre y nombre_nuevo obligatorios');
+  const viejo = _renNorm(d.nombre);
+  const nuevo = d.nombre_nuevo.toString().trim();
+  if (!nuevo) throw new Error('El nombre nuevo no puede estar vacío');
+  const hp = ss.getSheetByName('Productos');
+  const fp = hp.getDataRange().getValues();
+  for (let i = 1; i < fp.length; i++) {
+    if (_renNorm(fp[i][0]) === _renNorm(nuevo) && _renNorm(fp[i][0]) !== viejo)
+      throw new Error('Ya existe un producto "' + nuevo + '"');
+  }
+  let encontrado = false;
+  for (let i = 1; i < fp.length; i++) {
+    if (_renNorm(fp[i][0]) === viejo) { hp.getRange(i + 1, 1).setValue(nuevo); encontrado = true; break; }
+  }
+  if (!encontrado) throw new Error('Producto no encontrado: ' + d.nombre);
+  let tot = 0;
+  tot += _renReescribir(ss, 'Ventas', 3, viejo, nuevo);
+  tot += _renReescribir(ss, 'Compras', 4, viejo, nuevo);
+  tot += _renReescribir(ss, 'Devoluciones', 6, viejo, nuevo);
+  SpreadsheetApp.flush();
+  return { mensaje: 'Producto renombrado a "' + nuevo + '" (' + tot + ' movimientos actualizados)' };
+}
+
+function renombrarProveedor(ss, d) {
+  if (!d.nombre || !d.nombre_nuevo) throw new Error('nombre y nombre_nuevo obligatorios');
+  const viejo = _renNorm(d.nombre);
+  const nuevo = d.nombre_nuevo.toString().trim();
+  if (!nuevo) throw new Error('El nombre nuevo no puede estar vacío');
+  const hp = ss.getSheetByName('Proveedores');
+  const fp = hp.getDataRange().getValues();
+  for (let i = 1; i < fp.length; i++) {
+    if (_renNorm(fp[i][0]) === _renNorm(nuevo) && _renNorm(fp[i][0]) !== viejo)
+      throw new Error('Ya existe un proveedor "' + nuevo + '"');
+  }
+  for (let i = 1; i < fp.length; i++) {
+    if (_renNorm(fp[i][0]) === viejo) { hp.getRange(i + 1, 1).setValue(nuevo); break; }
+  }
+  let tot = 0;
+  tot += _renReescribir(ss, 'Compras', 3, viejo, nuevo);
+  tot += _renReescribir(ss, 'Pagos Proveedores', 3, viejo, nuevo);
+  tot += _renReescribir(ss, 'Devoluciones', 4, viejo, nuevo, 3, 'proveedor');
+  tot += _renReescribir(ss, 'Productos', 5, viejo, nuevo);
+  SpreadsheetApp.flush();
+  return { mensaje: 'Proveedor renombrado a "' + nuevo + '" (' + tot + ' referencias actualizadas)' };
+}
+
+function renombrarCliente(ss, d) {
+  const full = (n, a) => [n, a].filter(Boolean).map(x => x.toString().trim()).join(' ');
+  const viejoFull = full(d.nombre, d.apellido);
+  const nuevoNombre = (d.nombre_nuevo || '').toString().trim();
+  const nuevoApellido = (d.apellido_nuevo || '').toString().trim();
+  if (!nuevoNombre) throw new Error('El nombre no puede estar vacío');
+  const nuevoFull = full(nuevoNombre, nuevoApellido);
+  const viejoNorm = _renNorm(viejoFull);
+  const hc = ss.getSheetByName('Clientes');
+  const fc = hc.getDataRange().getValues();
+  for (let i = 1; i < fc.length; i++) {
+    const f = _renNorm(full(fc[i][0], fc[i][1]));
+    if (f === _renNorm(nuevoFull) && f !== viejoNorm) throw new Error('Ya existe un cliente "' + nuevoFull + '"');
+  }
+  for (let i = 1; i < fc.length; i++) {
+    if (_renNorm(full(fc[i][0], fc[i][1])) === viejoNorm) {
+      hc.getRange(i + 1, 1).setValue(nuevoNombre);
+      hc.getRange(i + 1, 2).setValue(nuevoApellido);
+      break;
+    }
+  }
+  let tot = 0;
+  tot += _renReescribir(ss, 'Pedidos', 3, viejoNorm, nuevoFull);
+  tot += _renReescribir(ss, 'Pagos Clientes', 3, viejoNorm, nuevoFull);
+  tot += _renReescribir(ss, 'Devoluciones', 4, viejoNorm, nuevoFull, 3, 'cliente');
+  SpreadsheetApp.flush();
+  return { mensaje: 'Cliente renombrado a "' + nuevoFull + '" (' + tot + ' referencias actualizadas)' };
 }
 
 // ==========================================

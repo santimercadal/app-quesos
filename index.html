@@ -360,6 +360,9 @@
       <button class="btn btn-s" onclick="cerrarModal('modal-editar-pedido')">Cancelar</button>
       <button class="btn btn-p" id="btn-guardar-edicion" onclick="confirmarEdicion()">Guardar cambios</button>
     </div>
+    <div style="margin-top:12px"><div class="sep"></div>
+      <button class="btn btn-r" onclick="eliminarPedidoActual()" style="margin-top:12px">🗑️ Eliminar pedido</button>
+    </div>
   </div>
 </div>
 
@@ -398,7 +401,8 @@
 <div class="modal-fondo" id="modal-devolucion">
   <div class="modal">
     <div style="text-align:center;font-size:28px;margin-bottom:4px">↩️</div>
-    <div class="modal-titulo" style="text-align:center">Registrar devolución</div>
+    <div class="modal-titulo" style="text-align:center" id="dev-modal-titulo">Registrar devolución</div>
+    <input type="hidden" id="dev-edit-id"/>
 
     <div class="campo">
       <label>Tipo</label>
@@ -532,6 +536,11 @@
       <button class="btn btn-s" onclick="cerrarModal('modal-proveedor')">Cancelar</button>
       <button class="btn btn-p" onclick="guardarProveedor()">Guardar</button>
     </div>
+    <div id="prov-eliminar-zona" style="display:none;margin-top:12px">
+      <div class="sep"></div>
+      <button class="btn btn-r" onclick="confirmarEliminarProveedor()" style="margin-top:12px">🗑️ Eliminar proveedor</button>
+      <div class="nota">⚠️ Las compras anteriores a este proveedor no se borran, solo se elimina del listado.</div>
+    </div>
   </div>
 </div>
 
@@ -611,6 +620,50 @@
       </div>
     </div>
     <button class="btn btn-s" id="btn-cerrar-op" onclick="cerrarModal('modal-operador')" style="margin-top:12px">Cancelar</button>
+  </div>
+</div>
+
+<!-- EDITAR COMPRA -->
+<div class="modal-fondo" id="modal-editar-compra">
+  <div class="modal">
+    <div class="modal-titulo">Editar compra</div>
+    <input type="hidden" id="ec-id"/>
+    <div class="campo"><label>Proveedor</label><select id="ec-proveedor"></select></div>
+    <div class="campo"><label>Producto / Insumo</label><input type="text" id="ec-producto"/></div>
+    <div class="fila">
+      <div class="campo"><label>Cantidad</label><input type="number" id="ec-cantidad" min="0.01" step="0.01"/></div>
+      <div class="campo"><label>Precio total ($)</label><input type="number" id="ec-total" min="0" step="1"/></div>
+    </div>
+    <div class="campo"><label>Forma de pago</label>
+      <select id="ec-pago"><option value="efectivo">Efectivo</option><option value="transferencia">Transferencia</option><option value="crédito">Crédito</option></select>
+    </div>
+    <div class="campo"><label>Monto pagado</label><input type="number" id="ec-pagado" min="0" step="1"/></div>
+    <div class="campo"><label>Fecha</label><input type="date" id="ec-fecha"/></div>
+    <div class="fila" style="gap:10px;margin-top:8px">
+      <button class="btn btn-s" onclick="cerrarModal('modal-editar-compra')">Cancelar</button>
+      <button class="btn btn-p" onclick="guardarEdicionCompra()">Guardar</button>
+    </div>
+    <div style="margin-top:12px"><div class="sep"></div>
+      <button class="btn btn-r" onclick="eliminarCompraActual()" style="margin-top:12px">🗑️ Eliminar compra</button>
+    </div>
+  </div>
+</div>
+
+<!-- EDITAR PAGO (abono cliente / pago proveedor) -->
+<div class="modal-fondo" id="modal-editar-pago">
+  <div class="modal">
+    <div class="modal-titulo" id="ep-titulo">Editar pago</div>
+    <input type="hidden" id="ep-id"/>
+    <input type="hidden" id="ep-tipo"/>
+    <div class="campo"><label>Monto</label><input type="number" id="ep-monto" min="1" step="1"/></div>
+    <div class="campo"><label>Fecha</label><input type="date" id="ep-fecha"/></div>
+    <div class="fila" style="gap:10px;margin-top:8px">
+      <button class="btn btn-s" onclick="cerrarModal('modal-editar-pago')">Cancelar</button>
+      <button class="btn btn-p" onclick="guardarEdicionPago()">Guardar</button>
+    </div>
+    <div style="margin-top:12px"><div class="sep"></div>
+      <button class="btn btn-r" onclick="eliminarPagoActual()" style="margin-top:12px">🗑️ Eliminar pago</button>
+    </div>
   </div>
 </div>
 

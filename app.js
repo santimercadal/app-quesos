@@ -22,6 +22,12 @@ let _deudaProv = [];
 let _contTeDeben = [];
 let _contLeDebes = [];
 let _cuentaSaldo = 0;
+let _histCompras = [];
+let _devsRender = [];
+let _cuentaMovs = [];
+let _cuentaNombre = '';
+let _origNombre = '';
+let _origApellido = '';
 
 // ==========================================
 // OPERADORES
@@ -163,6 +169,7 @@ function hoy(){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argenti
 function fmtFecha(f){if(!f)return'';const[y,m,d]=f.split('-');return`${d}/${m}/${y}`}
 function escH(s){return String(s).replace(/'/g,"\\'")}
 function nombreCompleto(c){return [c.nombre,c.apellido].filter(Boolean).join(' ')}
+function _norm(s){return (s||'').toString().normalize('NFC').trim().toLowerCase().replace(/\s+/g,' ')}
 
 // ==========================================
 // NAVEGACIÓN
@@ -563,8 +570,9 @@ async function cargarHistorialCompras(){
   try{
     const r=await apiGet('getCompras',{desde:'2000-01-01',hasta:'2099-12-31'});
     const compras=(r.compras||[]).slice().reverse().slice(0,15);
+    _histCompras=compras;
     if(!compras.length){lista.innerHTML='<div class="vacio"><span class="ico">📦</span>Sin compras registradas</div>';return;}
-    lista.innerHTML=compras.map(c=>{
+    lista.innerHTML=compras.map((c,i)=>{
       const deuda=Number(c.total)-Number(c.monto_pagado);
       const badge=c.forma_pago==='efectivo'?'badge-efectivo':c.forma_pago==='transferencia'?'badge-trans':'badge-credito';
       return `<div class="item">
@@ -573,7 +581,10 @@ async function cargarHistorialCompras(){
             <div class="item-nombre">${escH(c.proveedor)} <span class="badge ${badge}">${c.forma_pago||''}</span></div>
             <div class="item-det">${escH(c.producto_insumo)} · ${c.cantidad} · ${fmtFecha(c.fecha)}</div>
             ${deuda>0?`<div class="item-det" style="color:var(--rojo)">Pendiente: ${$$(deuda)}</div>`:''}
-            <button class="btn btn-s btn-sm" style="margin-top:6px" onclick="abrirModalDevolucion('${escH(c.id)}','proveedor')">↩️ Devolver</button>
+            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-s btn-sm" onclick="abrirEdicionCompra(${i})">✏️ Editar</button>
+              <button class="btn btn-s btn-sm" onclick="abrirModalDevolucion('${escH(c.id)}','proveedor')">↩️ Devolver</button>
+            </div>
           </div>
           <div class="item-val">${$$(c.total)}</div>
         </div>
@@ -779,6 +790,7 @@ function renderLeDebes(lista){
 async function abrirCuentaContacto(nombre){
   document.getElementById('cuenta-titulo').textContent='Cuenta: '+nombre;
   document.getElementById('cuenta-nombre').value=nombre;
+  _cuentaNombre=nombre;
   document.getElementById('cuenta-tabla').innerHTML='<div class="vacio"><span class="ico">⏳</span></div>';
   document.getElementById('modal-contacto').classList.add('visible');
   try{
@@ -789,7 +801,8 @@ async function abrirCuentaContacto(nombre){
 }
 
 function renderCuentaContacto(h){
-  const rows=h.movimientos.map(m=>{
+  _cuentaMovs=h.movimientos; _cuentaNombre=h.contacto;
+  const rows=h.movimientos.map((m,i)=>{
     const pos=m.delta>=0;
     const colorMonto=pos?'var(--rojo)':'var(--verde-c)';
     const colorSaldo=m.saldo>0.01?'var(--rojo)':(m.saldo<-0.01?'var(--azul)':'var(--gris)');
@@ -797,6 +810,7 @@ function renderCuentaContacto(h){
       <div style="flex:1">
         <div style="font-weight:500">${fmtFecha(m.fecha)}</div>
         <div style="font-size:12px;color:var(--gris)">${m.descripcion}</div>
+        ${(m.tipo==='pago_cli'||m.tipo==='pago_prov')?`<div style="margin-top:4px;display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="editarPagoMov(${i})">✏️</button><button class="btn btn-s btn-sm" onclick="borrarPagoMov(${i})">🗑️</button></div>`:''}
       </div>
       <div style="text-align:right;color:${colorMonto};font-weight:600;white-space:nowrap">${pos?'+':'−'}${$$(Math.abs(m.delta))}</div>
       <div class="ledger-saldo" style="width:84px;text-align:right;color:${colorSaldo}">${$$(Math.abs(m.saldo))}</div>
@@ -1112,8 +1126,9 @@ async function abrirModalProducto(p){
   document.getElementById('titulo-modal-prod').textContent=editar?'Editar producto':'Agregar producto';
   document.getElementById('p-modo').value=editar?'editar':'agregar';
   document.getElementById('p-nombre').value=editar?p.nombre:'';
-  document.getElementById('p-nombre').readOnly=editar;
-  document.getElementById('p-nombre').style.background=editar?'var(--gris-c)':'';
+  document.getElementById('p-nombre').readOnly=false;
+  document.getElementById('p-nombre').style.background='';
+  _origNombre=editar?p.nombre:'';
   document.getElementById('p-unidad').value=editar?p.unidad:'kg';
   document.getElementById('p-precio').value=editar?p.precio:'';
   document.getElementById('p-costo').value=editar?p.precio_costo:'';
@@ -1151,7 +1166,14 @@ async function guardarProducto(){
   if(!(precio>0)){toast('El precio de venta debe ser mayor a 0','error');return;}
   toast('Guardando...','guardando');
   try{
-    await apiPost(modo==='agregar'?'agregarProducto':'editarProducto',{nombre,unidad,precio,precio_costo:costo,proveedor});
+    if(modo==='agregar'){
+      await apiPost('agregarProducto',{nombre,unidad,precio,precio_costo:costo,proveedor});
+    }else{
+      if(_origNombre && _norm(nombre)!==_norm(_origNombre)){
+        await apiPost('renombrarProducto',{nombre:_origNombre, nombre_nuevo:nombre});
+      }
+      await apiPost('editarProducto',{nombre,unidad,precio,precio_costo:costo,proveedor});
+    }
     cerrarModal('modal-producto'); ocultarToast(); toast('✅ Producto guardado','exito');
     cargarProductos();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
@@ -1185,16 +1207,18 @@ function abrirModalCliente(c){
   document.getElementById('titulo-modal-cli').textContent=editar?'Editar cliente':'Agregar cliente';
   document.getElementById('cli-modo').value=editar?'editar':'agregar';
   document.getElementById('cli-nombre').value=editar?c.nombre:'';
-  document.getElementById('cli-nombre').readOnly=editar;
-  document.getElementById('cli-nombre').style.background=editar?'var(--gris-c)':'';
+  document.getElementById('cli-nombre').readOnly=false;
+  document.getElementById('cli-nombre').style.background='';
   document.getElementById('cli-apellido').value=editar?c.apellido:'';
+  _origNombre=editar?(c.nombre||''):'';
+  _origApellido=editar?(c.apellido||''):'';
   document.getElementById('cli-celular').value=editar?c.celular:'';
   document.getElementById('cli-eliminar-zona').style.display=editar?'block':'none';
   document.getElementById('modal-cliente').classList.add('visible');
 }
 
 async function confirmarEliminarCliente(){
-  const nombre=document.getElementById('cli-nombre').value;
+  const nombre=_origNombre||document.getElementById('cli-nombre').value;
   if(!confirm(`¿Eliminar a ${nombre} del listado de clientes?\n\nSus ventas anteriores no se borran.`)) return;
   toast('Eliminando...','guardando');
   try{
@@ -1213,7 +1237,16 @@ async function guardarCliente(){
   if(!nombre){toast('El nombre es obligatorio','error');return;}
   toast('Guardando...','guardando');
   try{
-    await apiPost(modo==='agregar'?'agregarCliente':'editarCliente',{nombre,apellido,celular});
+    if(modo==='agregar'){
+      await apiPost('agregarCliente',{nombre,apellido,celular});
+    }else{
+      const fv=_norm([_origNombre,_origApellido].filter(Boolean).join(' '));
+      const fn=_norm([nombre,apellido].filter(Boolean).join(' '));
+      if(fv && fv!==fn){
+        await apiPost('renombrarCliente',{nombre:_origNombre, apellido:_origApellido, nombre_nuevo:nombre, apellido_nuevo:apellido});
+      }
+      await apiPost('editarCliente',{nombre,apellido,celular});
+    }
     cerrarModal('modal-cliente'); ocultarToast(); toast('✅ Cliente guardado','exito');
     cargarClientes();
     clientesCache=await apiGet('getClientes');
@@ -1479,9 +1512,11 @@ function abrirModalProveedor(p){
   document.getElementById('titulo-modal-prov').textContent=editar?'Editar proveedor':'Agregar proveedor';
   document.getElementById('prov-modo').value=editar?'editar':'agregar';
   document.getElementById('prov-nombre').value=editar?p.nombre:'';
-  document.getElementById('prov-nombre').readOnly=editar;
-  document.getElementById('prov-nombre').style.background=editar?'var(--gris-c)':'';
+  document.getElementById('prov-nombre').readOnly=false;
+  document.getElementById('prov-nombre').style.background='';
   document.getElementById('prov-contacto').value=editar?p.contacto:'';
+  document.getElementById('prov-eliminar-zona').style.display=editar?'block':'none';
+  _origNombre=editar?(p.nombre||''):'';
   document.getElementById('modal-proveedor').classList.add('visible');
 }
 
@@ -1492,7 +1527,14 @@ async function guardarProveedor(){
   if(!nombre){toast('El nombre es obligatorio','error');return;}
   toast('Guardando...','guardando');
   try{
-    await apiPost(modo==='agregar'?'agregarProveedor':'editarProveedor',{nombre,contacto});
+    if(modo==='agregar'){
+      await apiPost('agregarProveedor',{nombre,contacto});
+    }else{
+      if(_origNombre && _norm(nombre)!==_norm(_origNombre)){
+        await apiPost('renombrarProveedor',{nombre:_origNombre, nombre_nuevo:nombre});
+      }
+      await apiPost('editarProveedor',{nombre,contacto});
+    }
     cerrarModal('modal-proveedor'); ocultarToast(); toast('✅ Proveedor guardado','exito');
     cargarProveedoresMgt();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
@@ -1504,6 +1546,8 @@ async function guardarProveedor(){
 let _devolucionesCache = null;
 
 async function abrirModalDevolucion(refId='', tipo='proveedor'){
+  document.getElementById('dev-edit-id').value = '';
+  document.getElementById('dev-modal-titulo').textContent = 'Registrar devolución';
   document.getElementById('dev-tipo').value = tipo;
   document.getElementById('dev-referencia').value = refId;
   document.getElementById('dev-fecha').value = hoy();
@@ -1562,16 +1606,17 @@ async function guardarDevolucion(){
   if(!(monto > 0)){ toast('Ingresá el monto', 'error'); return; }
   if(!motivo){ toast('Describí el motivo', 'error'); return; }
 
+  const editId=document.getElementById('dev-edit-id').value;
   toast('Guardando...','guardando');
   try {
-    const r = await apiPost('registrarDevolucion', {
-      tipo, contraparte, referencia_id: referencia,
-      producto, cantidad, monto, motivo, resolucion, fecha,
-      operador: operadorActual
-    });
+    if(editId){
+      await apiPost('editarDevolucion', { id:editId, contraparte, referencia_id: referencia, producto, cantidad, monto, motivo, resolucion, fecha });
+    } else {
+      await apiPost('registrarDevolucion', { tipo, contraparte, referencia_id: referencia, producto, cantidad, monto, motivo, resolucion, fecha, operador: operadorActual });
+    }
     cerrarModal('modal-devolucion');
     ocultarToast();
-    toast(`↩️ Devolución registrada (${r.id})`, 'exito');
+    toast(editId?'✅ Devolución actualizada':'↩️ Devolución registrada', 'exito');
     _devolucionesCache = null;
     invalidarCacheDeudas();
     if(document.getElementById('pantalla-devoluciones').classList.contains('activa')){
@@ -1612,6 +1657,7 @@ function filtrarDevoluciones(filtro){
 
   const devs = filtro === 'todos' ? _todasDevoluciones
                : _todasDevoluciones.filter(d => d.tipo === filtro);
+  _devsRender = devs;
 
   const lista = document.getElementById('lista-devoluciones');
   const resumen = document.getElementById('resumen-devoluciones');
@@ -1644,7 +1690,7 @@ function filtrarDevoluciones(filtro){
   const labelRes = { pendiente:'⏳ Pendiente', acreditado:'✅ Acreditado', devuelto_dinero:'💰 Dinero devuelto' };
   const colorRes = { pendiente:'var(--rojo)', acreditado:'var(--verde-c)', devuelto_dinero:'var(--verde-c)' };
 
-  lista.innerHTML = devs.map(d => `
+  lista.innerHTML = devs.map((d,i) => `
     <div class="item">
       <div class="item-head">
         <div style="font-size:22px;margin-right:10px;flex-shrink:0">${iconTipo[d.tipo]||'↩️'}</div>
@@ -1659,11 +1705,162 @@ function filtrarDevoluciones(filtro){
               <button class="btn btn-s btn-sm" onclick="resolverDevolucion('${escH(d.id)}','acreditado')">Acreditado</button>
               <button class="btn btn-s btn-sm" onclick="resolverDevolucion('${escH(d.id)}','devuelto_dinero')">Devolvieron $$</button>
             `:''}
+            <button class="btn btn-s btn-sm" onclick="abrirEditarDevolucion(${i})">✏️ Editar</button>
+            <button class="btn btn-s btn-sm" onclick="borrarDevolucion('${escH(d.id)}')">🗑️</button>
           </div>
         </div>
         <div class="item-val" style="color:var(--rojo);flex-shrink:0">${$$(d.monto)}</div>
       </div>
     </div>`).join('');
+}
+
+// ==========================================
+// CORRECCIONES (editar / borrar)
+// ==========================================
+async function abrirEdicionCompra(i){
+  const c=_histCompras[i]; if(!c) return;
+  document.getElementById('ec-id').value=c.id;
+  document.getElementById('ec-producto').value=c.producto_insumo||'';
+  document.getElementById('ec-cantidad').value=c.cantidad;
+  document.getElementById('ec-total').value=c.total;
+  document.getElementById('ec-pago').value=c.forma_pago||'efectivo';
+  document.getElementById('ec-pagado').value=c.monto_pagado;
+  document.getElementById('ec-fecha').value=c.fecha;
+  try{
+    const provs=await apiGet('getProveedores');
+    document.getElementById('ec-proveedor').innerHTML='<option value="">Sin proveedor</option>'+
+      provs.map(p=>`<option value="${escH(p.nombre)}" ${c.proveedor===p.nombre?'selected':''}>${p.nombre}</option>`).join('');
+  }catch(e){}
+  document.getElementById('modal-editar-compra').classList.add('visible');
+}
+async function guardarEdicionCompra(){
+  const id=document.getElementById('ec-id').value;
+  const proveedor=document.getElementById('ec-proveedor').value;
+  const producto_insumo=document.getElementById('ec-producto').value.trim();
+  const cantidad=parseFloat(document.getElementById('ec-cantidad').value);
+  const total=parseFloat(document.getElementById('ec-total').value);
+  const forma_pago=document.getElementById('ec-pago').value;
+  const monto_pagado=parseFloat(document.getElementById('ec-pagado').value)||0;
+  const fecha=document.getElementById('ec-fecha').value||hoy();
+  if(!proveedor){toast('Ingresá el proveedor','error');return;}
+  if(!producto_insumo){toast('Ingresá el producto','error');return;}
+  if(!(cantidad>0)){toast('Ingresá la cantidad','error');return;}
+  if(!(total>0)){toast('Ingresá el total','error');return;}
+  if(monto_pagado>total){toast('Monto pagado no puede superar el total','error');return;}
+  const costo_unitario=cantidad>0?total/cantidad:0;
+  toast('Guardando...','guardando');
+  try{
+    await apiPost('editarCompra',{id,proveedor,producto_insumo,cantidad,total,costo_unitario,forma_pago,monto_pagado,fecha});
+    cerrarModal('modal-editar-compra'); ocultarToast(); toast('✅ Compra actualizada','exito');
+    cargarHistorialCompras();
+  }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
+}
+async function eliminarCompraActual(){
+  const id=document.getElementById('ec-id').value;
+  if(!confirm('¿Eliminar esta compra?\n\nNo se puede deshacer.')) return;
+  toast('Eliminando...','guardando');
+  try{
+    await apiPost('eliminarCompra',{id});
+    cerrarModal('modal-editar-compra'); ocultarToast(); toast('✅ Compra eliminada','exito');
+    cargarHistorialCompras();
+  }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
+}
+
+async function eliminarPedidoActual(){
+  const pedido_id=document.getElementById('edit-pedido-id').value;
+  if(!confirm('¿Eliminar este pedido completo?\n\nSe borra la venta y sus productos. No se puede deshacer.')) return;
+  toast('Eliminando...','guardando');
+  try{
+    await apiPost('eliminarPedido',{pedido_id});
+    cerrarModal('modal-editar-pedido'); ocultarToast(); toast('✅ Pedido eliminado','exito');
+    cargarInicio();
+  }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
+}
+
+async function abrirEditarDevolucion(i){
+  const d=_devsRender[i]; if(!d) return;
+  document.getElementById('dev-edit-id').value=d.id;
+  document.getElementById('dev-modal-titulo').textContent='Editar devolución';
+  document.getElementById('dev-tipo').value=d.tipo;
+  document.getElementById('dev-referencia').value=d.referencia_id||'';
+  document.getElementById('dev-fecha').value=d.fecha;
+  document.getElementById('dev-resolucion').value=d.resolucion||'pendiente';
+  document.getElementById('dev-cantidad').value=d.cantidad;
+  document.getElementById('dev-monto').value=d.monto;
+  const sel=document.getElementById('dev-motivo-sel'); let found=false;
+  for(let k=0;k<sel.options.length;k++){ if(sel.options[k].value===d.motivo){ sel.selectedIndex=k; found=true; break; } }
+  if(found){ document.getElementById('dev-motivo-custom').style.display='none'; }
+  else { sel.value='otro'; document.getElementById('dev-motivo-custom').style.display='block'; document.getElementById('dev-motivo-custom').value=d.motivo||''; }
+  try{
+    const [prods, clis, provs]=await Promise.all([apiGet('getProductos'),apiGet('getClientes'),apiGet('getProveedores')]);
+    document.getElementById('dev-producto').innerHTML=prods.map(p=>`<option value="${p.nombre}" ${p.nombre===d.producto?'selected':''}>${p.nombre}</option>`).join('');
+    actualizarModalDev(clis, provs);
+    document.getElementById('dev-contraparte').value=d.contraparte;
+  }catch(e){}
+  document.getElementById('modal-devolucion').classList.add('visible');
+}
+async function borrarDevolucion(id){
+  if(!confirm('¿Eliminar esta devolución?\n\nNo se puede deshacer.')) return;
+  toast('Eliminando...','guardando');
+  try{
+    await apiPost('eliminarDevolucion',{id});
+    ocultarToast(); toast('✅ Devolución eliminada','exito');
+    _devolucionesCache=null; invalidarCacheDeudas();
+    cargarDevoluciones(_filtroDevActual||'todos');
+  }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
+}
+
+function editarPagoMov(i){
+  const m=_cuentaMovs[i]; if(!m) return;
+  document.getElementById('ep-id').value=m.id;
+  document.getElementById('ep-tipo').value=m.tipo;
+  document.getElementById('ep-monto').value=Math.round(Math.abs(m.delta));
+  document.getElementById('ep-fecha').value=m.fecha;
+  document.getElementById('ep-titulo').textContent=m.tipo==='pago_cli'?'Editar pago del cliente':'Editar pago al proveedor';
+  document.getElementById('modal-editar-pago').classList.add('visible');
+}
+async function guardarEdicionPago(){
+  const id=document.getElementById('ep-id').value;
+  const tipo=document.getElementById('ep-tipo').value;
+  const monto=parseFloat(document.getElementById('ep-monto').value);
+  const fecha=document.getElementById('ep-fecha').value||hoy();
+  if(!(monto>0)){toast('Ingresá un monto válido','error');return;}
+  const accion=tipo==='pago_cli'?'editarPagoCliente':'editarPagoProveedor';
+  toast('Guardando...','guardando');
+  try{
+    await apiPost(accion,{id,monto,fecha});
+    cerrarModal('modal-editar-pago'); ocultarToast(); toast('✅ Pago actualizado','exito');
+    if(_cuentaNombre) abrirCuentaContacto(_cuentaNombre);
+  }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
+}
+async function eliminarPagoActual(){
+  const id=document.getElementById('ep-id').value;
+  const tipo=document.getElementById('ep-tipo').value;
+  if(!confirm('¿Eliminar este pago?\n\nNo se puede deshacer.')) return;
+  const accion=tipo==='pago_cli'?'eliminarPagoCliente':'eliminarPagoProveedor';
+  toast('Eliminando...','guardando');
+  try{
+    await apiPost(accion,{id});
+    cerrarModal('modal-editar-pago'); ocultarToast(); toast('✅ Pago eliminado','exito');
+    if(_cuentaNombre) abrirCuentaContacto(_cuentaNombre);
+  }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
+}
+function borrarPagoMov(i){
+  const m=_cuentaMovs[i]; if(!m) return;
+  document.getElementById('ep-id').value=m.id;
+  document.getElementById('ep-tipo').value=m.tipo;
+  eliminarPagoActual();
+}
+
+async function confirmarEliminarProveedor(){
+  const nombre=_origNombre||document.getElementById('prov-nombre').value;
+  if(!confirm('¿Eliminar a '+nombre+' del listado de proveedores?\n\nSus compras anteriores no se borran.')) return;
+  toast('Eliminando...','guardando');
+  try{
+    await apiPost('eliminarProveedor',{nombre});
+    cerrarModal('modal-proveedor'); ocultarToast(); toast('✅ Proveedor eliminado','exito');
+    cargarProveedoresMgt();
+  }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
 
 // ==========================================
