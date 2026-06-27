@@ -378,6 +378,9 @@ function registrarPedido(ss, d) {
     ]);
   });
 
+  // Descontar stock por cada ítem (si el producto está en el catálogo)
+  d.items.forEach(item => { _moverStock(ss, item.producto, -(Number(item.cantidad) || 0)); });
+
   SpreadsheetApp.flush();
   return { pedido_id, mensaje: 'Pedido registrado: ' + pedido_id };
 }
@@ -405,6 +408,10 @@ function editarPedido(ss, d) {
 
     const hojaVentas = ss.getSheetByName('Ventas');
     const filasVentas = hojaVentas.getDataRange().getValues();
+    // Devolver al stock las cantidades viejas antes de reemplazar
+    for (let i = 1; i < filasVentas.length; i++) {
+      if (filasVentas[i][1] === d.pedido_id) _moverStock(ss, filasVentas[i][2], Number(filasVentas[i][3]) || 0);
+    }
     // Borrar las líneas existentes de este pedido (de abajo hacia arriba)
     for (let i = filasVentas.length - 1; i >= 1; i--) {
       if (filasVentas[i][1] === d.pedido_id) hojaVentas.deleteRow(i + 1);
@@ -418,6 +425,8 @@ function editarPedido(ss, d) {
         Number(item.cantidad) || 0, Number(item.precio_unitario) || 0, Number(item.subtotal) || 0
       ]);
     });
+    // Descontar el stock de las cantidades nuevas
+    d.items.forEach(item => { _moverStock(ss, item.producto, -(Number(item.cantidad) || 0)); });
 
     // Recalcular total y descripción
     const nuevoTotal = d.items.reduce((s, it) => s + (Number(it.subtotal) || 0), 0);
@@ -749,19 +758,59 @@ function registrarPagoProveedor(ss, d) {
 // COMPRAS
 // ==========================================
 
+function _colCompraId(hoja) {
+  const enc = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
+  const i = enc.indexOf('compra_id');
+  return i === -1 ? -1 : i + 1;
+}
+function _asegurarColumnaCompraId(ss) {
+  const hoja = ss.getSheetByName('Compras');
+  if (_colCompraId(hoja) !== -1) return;
+  const col = hoja.getLastColumn() + 1;
+  hoja.getRange(1, col).setValue('compra_id').setFontWeight('bold').setBackground('#f0f0f0');
+  const n = hoja.getLastRow() - 1;
+  if (n > 0) { // cada compra vieja = su propio id (col 1)
+    const ids = hoja.getRange(2, 1, n, 1).getValues();
+    hoja.getRange(2, col, n, 1).setValues(ids);
+  }
+}
+
+// Multi-producto. d = { fecha, proveedor, forma_pago, monto_pagado, items:[{producto, cantidad, total, costo_unitario}] }
+// (acepta también el formato viejo de un solo producto). Cada línea suma stock si el producto está en el catálogo.
 function registrarCompra(ss, d) {
-  if (!d.proveedor)       throw new Error('Proveedor obligatorio');
-  if (!d.producto_insumo) throw new Error('Producto/insumo obligatorio');
-  validarPositivo(Number(d.cantidad), 'Cantidad');
-  validarPositivo(Number(d.total), 'Total');
-  validarNoNegativo(Number(d.monto_pagado), 'Monto pagado');
-  if (Number(d.monto_pagado) > Number(d.total)) throw new Error('Monto pagado no puede superar el total');
+  if (!d.proveedor) throw new Error('Proveedor obligatorio');
+  const items = (Array.isArray(d.items) && d.items.length)
+    ? d.items
+    : [{ producto: d.producto_insumo, cantidad: d.cantidad, total: d.total, costo_unitario: d.costo_unitario }];
+  if (!items.length || items.some(it => !it.producto)) throw new Error('Cada línea de la compra debe tener producto');
+
+  const totalCompra = items.reduce((sm, it) => sm + (Number(it.total) || 0), 0);
+  validarPositivo(totalCompra, 'Total');
+  const monto_pagado = Number(d.monto_pagado) || 0;
+  validarNoNegativo(monto_pagado, 'Monto pagado');
+  if (monto_pagado > totalCompra) throw new Error('Monto pagado no puede superar el total');
 
   const hoja = ss.getSheetByName('Compras');
-  const id = generarId(hoja, 'C');
-  hoja.appendRow([id, d.fecha || hoyStr(), d.proveedor, d.producto_insumo,
-    Number(d.cantidad), Number(d.costo_unitario), Number(d.total), d.forma_pago, Number(d.monto_pagado), d.operador?.trim() || '']);
-  return { id, mensaje: 'Compra registrada' };
+  _asegurarColumnaCompraId(ss);
+  const colCid = _colCompraId(hoja);
+  const compra_id = generarId(hoja, 'C');
+  const fecha = d.fecha || hoyStr();
+  const forma_pago = d.forma_pago || 'efectivo';
+
+  items.forEach((it, idx) => {
+    const cantidad = Number(it.cantidad) || 0;
+    const total = Number(it.total) || 0;
+    const costo = Number(it.costo_unitario) || (cantidad > 0 ? total / cantidad : 0);
+    const pagoLinea = idx === 0 ? monto_pagado : 0; // el pago se asienta en la primera línea
+    const id = generarId(hoja, 'C');
+    const fila = [id, fecha, d.proveedor, it.producto, cantidad, costo, total, forma_pago, pagoLinea, (d.operador || '').toString().trim()];
+    fila[colCid - 1] = compra_id;
+    hoja.appendRow(fila);
+    _moverStock(ss, it.producto, cantidad);
+  });
+
+  SpreadsheetApp.flush();
+  return { id: compra_id, compra_id: compra_id, mensaje: 'Compra registrada: ' + compra_id };
 }
 
 function getCompras(ss, desde, hasta) {
@@ -952,6 +1001,23 @@ function _asegurarColumnaStock(ss) {
   if (n > 0) hoja.getRange(2, col, n, 1).setValue(0);
 }
 
+// Mueve el stock de un producto del catálogo en +/- delta. Si el nombre no está
+// en el catálogo (insumo / texto libre), no hace nada.
+function _moverStock(ss, producto, delta) {
+  if (!producto || !delta) return;
+  _asegurarColumnaStock(ss);
+  const hoja = ss.getSheetByName('Productos');
+  const colStock = _colStock(hoja);
+  const filas = hoja.getDataRange().getValues();
+  for (let i = 1; i < filas.length; i++) {
+    if (_renNorm(filas[i][0]) === _renNorm(producto)) {
+      const actual = Number(filas[i][colStock - 1]) || 0;
+      hoja.getRange(i + 1, colStock).setValue(actual + delta);
+      return;
+    }
+  }
+}
+
 function getStock(ss) {
   _asegurarColumnaStock(ss);
   return getProductos(ss); // incluye la columna stock
@@ -1042,6 +1108,8 @@ function editarCompra(ss, d) {
   const hoja = ss.getSheetByName('Compras');
   const fila = _buscarFilaPorId(hoja, d.id);
   if (fila === -1) throw new Error('Compra no encontrada: ' + d.id);
+  const oldProd = hoja.getRange(fila, 4).getValue();
+  const oldCant = Number(hoja.getRange(fila, 5).getValue()) || 0;
   if (d.fecha !== undefined)           hoja.getRange(fila, 2).setValue(d.fecha);
   if (d.proveedor !== undefined)       hoja.getRange(fila, 3).setValue(d.proveedor);
   if (d.producto_insumo !== undefined) hoja.getRange(fila, 4).setValue(d.producto_insumo);
@@ -1055,6 +1123,13 @@ function editarCompra(ss, d) {
     if (Number(d.monto_pagado) > total) throw new Error('Monto pagado no puede superar el total (' + total + ')');
     hoja.getRange(fila, 9).setValue(Number(d.monto_pagado));
   }
+  // Ajustar stock por la diferencia (la compra sumaba stock)
+  const newProd = hoja.getRange(fila, 4).getValue();
+  const newCant = Number(hoja.getRange(fila, 5).getValue()) || 0;
+  if (_renNorm(oldProd) !== _renNorm(newProd) || oldCant !== newCant) {
+    _moverStock(ss, oldProd, -oldCant);
+    _moverStock(ss, newProd, newCant);
+  }
   SpreadsheetApp.flush();
   return { mensaje: 'Compra actualizada: ' + d.id };
 }
@@ -1064,6 +1139,9 @@ function eliminarCompra(ss, d) {
   const hoja = ss.getSheetByName('Compras');
   const fila = _buscarFilaPorId(hoja, d.id);
   if (fila === -1) throw new Error('Compra no encontrada: ' + d.id);
+  const prod = hoja.getRange(fila, 4).getValue();
+  const cant = Number(hoja.getRange(fila, 5).getValue()) || 0;
+  _moverStock(ss, prod, -cant); // quitar del stock lo que sumaba
   hoja.deleteRow(fila);
   return { mensaje: 'Compra eliminada: ' + d.id };
 }
@@ -1076,6 +1154,10 @@ function eliminarPedido(ss, d) {
   if (filaP === -1) throw new Error('Pedido no encontrado: ' + d.pedido_id);
   const hojaV = ss.getSheetByName('Ventas');
   const fv = hojaV.getDataRange().getValues();
+  // Devolver al stock lo que descontaba este pedido
+  for (let i = 1; i < fv.length; i++) {
+    if (fv[i][1] === d.pedido_id) _moverStock(ss, fv[i][2], Number(fv[i][3]) || 0);
+  }
   for (let i = fv.length - 1; i >= 1; i--) {
     if (fv[i][1] === d.pedido_id) hojaV.deleteRow(i + 1);
   }

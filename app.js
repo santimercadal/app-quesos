@@ -29,6 +29,7 @@ let _cuentaNombre = '';
 let _origNombre = '';
 let _origApellido = '';
 let _stockList = [];
+let compraCarrito = [];
 
 // ==========================================
 // OPERADORES
@@ -276,7 +277,7 @@ async function cargarDatosVenta(){
     document.getElementById('lista-clientes').innerHTML=clientesCache.map(c=>`<option value="${escH(nombreCompleto(c))}">`).join('');
     renderPreciosInicio();
   }catch(e){toast('Error cargando datos: '+e.message,'error');}
-  if(carrito.length===0){carrito=[{producto:'',precio_unitario:0,unidad:'kg',monto:'',cantidad:0}];}
+  if(carrito.length===0){carrito=[{producto:'',precio_unitario:0,unidad:'kg',kg:'',monto:''}];}
   renderCarrito();
 }
 
@@ -302,7 +303,7 @@ function togglePrecios() {
 }
 
 function agregarItemCarrito(){
-  carrito.push({producto:'',precio_unitario:0,unidad:'kg',monto:'',cantidad:0});
+  carrito.push({producto:'',precio_unitario:0,unidad:'kg',kg:'',monto:''});
   renderCarrito();
 }
 
@@ -312,9 +313,21 @@ function quitarDelCarrito(i){
   renderCarrito();
 }
 
+function _hintVenta(item){
+  const precio=Number(item.precio_unitario)||0, kg=Number(item.kg)||0, monto=Number(item.monto)||0;
+  if(!(precio>0&&kg>0)) return '';
+  const lista=Math.round(kg*precio);
+  const red=monto-lista;
+  let txt='Precio lista: '+$$(lista);
+  if(monto>0&&red!==0) txt+=' · Redondeo: '+(red>0?'+':'−')+$$(Math.abs(red));
+  return txt;
+}
+
 function renderCarrito(){
   const el=document.getElementById('carrito-items');
-  el.innerHTML=carrito.map((item,i)=>`
+  el.innerHTML=carrito.map((item,i)=>{
+    const unidLabel=item.unidad==='unidad'?'Cantidad (unid)':'Peso (kg)';
+    return `
     <div class="carrito-item">
       <div style="display:flex;align-items:flex-start;gap:8px">
         <div style="flex:1">
@@ -325,18 +338,24 @@ function renderCarrito(){
               ${productos.map(p=>`<option value="${p.nombre}" data-precio="${p.precio}" data-unidad="${p.unidad}" ${item.producto===p.nombre?'selected':''}>${p.nombre}</option>`).join('')}
             </select>
           </div>
-          <div class="campo" style="margin-bottom:${item.precio_unitario>0?'4':'0'}px">
-            <label>Monto en pesos ($)</label>
-            <input type="number" value="${item.monto}" placeholder="0" min="0" step="1"
-              oninput="alCambiarMontoCarrito(${i},this.value)" style="font-size:18px;font-weight:600"/>
+          <div class="fila" style="gap:8px">
+            <div class="campo" style="margin-bottom:0">
+              <label>${unidLabel}</label>
+              <input type="number" id="kg-${i}" value="${item.kg}" placeholder="0" min="0" step="0.01"
+                oninput="alCambiarKgCarrito(${i},this.value)" style="font-size:18px;font-weight:600"/>
+            </div>
+            <div class="campo" style="margin-bottom:0">
+              <label>Monto a cobrar ($)</label>
+              <input type="number" id="monto-${i}" value="${item.monto}" placeholder="0" min="0" step="1"
+                oninput="alCambiarMontoVenta(${i},this.value)" style="font-size:18px;font-weight:600"/>
+            </div>
           </div>
-          ${item.precio_unitario>0&&Number(item.monto)>0?
-            `<div class="hint">≈ ${(Number(item.monto)/item.precio_unitario).toFixed(2)} ${item.unidad}</div>`:''}
+          <div class="hint" id="hint-${i}">${_hintVenta(item)}</div>
         </div>
         <button onclick="quitarDelCarrito(${i})" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--rojo);padding:24px 0 0;line-height:1">×</button>
       </div>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
   actualizarTotalCarrito();
 }
 
@@ -345,21 +364,24 @@ function alElegirProdCarrito(i,sel){
   carrito[i].producto=sel.value;
   carrito[i].precio_unitario=Number(opt.dataset.precio)||0;
   carrito[i].unidad=opt.dataset.unidad||'kg';
+  if(carrito[i].precio_unitario>0&&Number(carrito[i].kg)>0) carrito[i].monto=Math.round(Number(carrito[i].kg)*carrito[i].precio_unitario);
   renderCarrito();
 }
 
-function alCambiarMontoCarrito(i,val){
-  carrito[i].monto=val;
-  carrito[i].cantidad=carrito[i].precio_unitario>0?Number(val)/carrito[i].precio_unitario:0;
-  actualizarTotalCarrito();
-  const items=document.querySelectorAll('#carrito-items .carrito-item');
-  if(!items[i])return;
-  let hint=items[i].querySelector('.hint');
+function alCambiarKgCarrito(i,val){
+  carrito[i].kg=val;
   if(carrito[i].precio_unitario>0&&Number(val)>0){
-    const txt=`≈ ${(Number(val)/carrito[i].precio_unitario).toFixed(2)} ${carrito[i].unidad}`;
-    if(hint){hint.textContent=txt;}
-    else{const h=document.createElement('div');h.className='hint';h.textContent=txt;items[i].querySelector('.campo:last-of-type').after(h);}
-  }else if(hint){hint.remove();}
+    carrito[i].monto=Math.round(Number(val)*carrito[i].precio_unitario);
+    const mi=document.getElementById('monto-'+i); if(mi) mi.value=carrito[i].monto;
+  }
+  const hi=document.getElementById('hint-'+i); if(hi) hi.textContent=_hintVenta(carrito[i]);
+  actualizarTotalCarrito();
+}
+
+function alCambiarMontoVenta(i,val){
+  carrito[i].monto=val;
+  const hi=document.getElementById('hint-'+i); if(hi) hi.textContent=_hintVenta(carrito[i]);
+  actualizarTotalCarrito();
 }
 
 function actualizarTotalCarrito(){
@@ -377,7 +399,7 @@ function alCambiarPagoVenta(){
 
 function abrirConfirmacion(){
   if(carrito.length===0){toast('Agregá al menos un producto','error');return;}
-  if(carrito.some(i=>!i.producto||!(Number(i.monto)>0))){toast('Completá todos los productos del pedido','error');return;}
+  if(carrito.some(i=>!i.producto||!(Number(i.kg)>0)||!(Number(i.monto)>0))){toast('Completá producto, kg y monto de cada renglón','error');return;}
   const total=carrito.reduce((s,i)=>s+Number(i.monto),0);
   const pagado=parseFloat(document.getElementById('v-pagado').value)||0;
   const pago=document.getElementById('v-pago').value;
@@ -386,7 +408,7 @@ function abrirConfirmacion(){
   if(pago==='crédito'&&!cliente){toast('Para ventas a crédito el cliente es obligatorio','error');return;}
   document.getElementById('conf-items').innerHTML=carrito.map(i=>
     `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee">
-      <span>${i.producto}${i.precio_unitario>0&&Number(i.monto)>0?` <span style="color:var(--gris);font-size:12px">(≈${(Number(i.monto)/i.precio_unitario).toFixed(2)} ${i.unidad})</span>`:''}</span>
+      <span>${i.producto} <span style="color:var(--gris);font-size:12px">(${Number(i.kg)} ${i.unidad})</span></span>
       <strong>${$$(i.monto)}</strong>
     </div>`
   ).join('');
@@ -409,21 +431,18 @@ async function guardarVenta(){
   const fecha=document.getElementById('v-fecha').value||hoy();
   const items=carrito.map(i=>({
     producto:i.producto,
-    cantidad:i.precio_unitario>0?Number(i.monto)/i.precio_unitario:1,
+    cantidad:Number(i.kg)||0,
     precio_unitario:i.precio_unitario,
     subtotal:Number(i.monto)
   }));
-  const descripcion=carrito.map(i=>{
-    const cant=i.precio_unitario>0?(Number(i.monto)/i.precio_unitario).toFixed(2)+' '+i.unidad:'';
-    return i.producto+(cant?' ('+cant+')':'');
-  }).join(', ');
+  const descripcion=carrito.map(i=>i.producto+' ('+(Number(i.kg)||0)+' '+i.unidad+')').join(', ');
 
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Guardando...';
   try{
     await apiPost('registrarPedido',{fecha,cliente,forma_pago,monto_pagado,total,descripcion,items,operador:operadorActual});
     cerrarModal('modal-confirmar');
     toast('✅ Pedido guardado','exito');
-    carrito=[{producto:'',precio_unitario:0,unidad:'kg',monto:'',cantidad:0}];
+    carrito=[{producto:'',precio_unitario:0,unidad:'kg',kg:'',monto:''}];
     document.getElementById('v-cliente').value='';
     document.getElementById('v-pago').value='efectivo';
     document.getElementById('v-pagado').value='';
@@ -451,17 +470,20 @@ async function abrirEdicionPedido(p){
       producto:it.producto,
       precio_unitario:Number(it.precio_unitario)||(prod?Number(prod.precio):0)||0,
       unidad:(prod&&prod.unidad)||it.unidad||'kg',
+      kg:Number(it.cantidad)||'',
       monto:Number(it.subtotal)||''
     };
   });
-  if(!carritoEdit.length) carritoEdit=[{producto:'',precio_unitario:0,unidad:'kg',monto:''}];
+  if(!carritoEdit.length) carritoEdit=[{producto:'',precio_unitario:0,unidad:'kg',kg:'',monto:''}];
   renderCarritoEdit();
   document.getElementById('modal-editar-pedido').classList.add('visible');
 }
 
 function renderCarritoEdit(){
   const el=document.getElementById('edit-items-lista');
-  el.innerHTML=carritoEdit.map((item,i)=>`
+  el.innerHTML=carritoEdit.map((item,i)=>{
+    const unidLabel=item.unidad==='unidad'?'Cantidad (unid)':'Peso (kg)';
+    return `
     <div class="carrito-item">
       <div style="display:flex;align-items:flex-start;gap:8px">
         <div style="flex:1">
@@ -472,17 +494,22 @@ function renderCarritoEdit(){
               ${productos.map(p=>`<option value="${p.nombre}" data-precio="${p.precio}" data-unidad="${p.unidad}" ${item.producto===p.nombre?'selected':''}>${p.nombre}</option>`).join('')}
             </select>
           </div>
-          <div class="campo" style="margin-bottom:0">
-            <label>Monto en pesos ($)</label>
-            <input type="number" value="${item.monto}" placeholder="0" min="0" step="1"
-              oninput="alCambiarMontoEdit(${i},this.value)" style="font-size:18px;font-weight:600"/>
+          <div class="fila" style="gap:8px">
+            <div class="campo" style="margin-bottom:0">
+              <label>${unidLabel}</label>
+              <input type="number" id="ekg-${i}" value="${item.kg}" placeholder="0" min="0" step="0.01" oninput="alCambiarKgEdit(${i},this.value)" style="font-size:18px;font-weight:600"/>
+            </div>
+            <div class="campo" style="margin-bottom:0">
+              <label>Monto ($)</label>
+              <input type="number" id="emonto-${i}" value="${item.monto}" placeholder="0" min="0" step="1" oninput="alCambiarMontoEdit(${i},this.value)" style="font-size:18px;font-weight:600"/>
+            </div>
           </div>
-          ${item.precio_unitario>0&&Number(item.monto)>0?
-            `<div class="hint">≈ ${(Number(item.monto)/item.precio_unitario).toFixed(2)} ${item.unidad}</div>`:''}
+          <div class="hint" id="ehint-${i}">${_hintVenta(item)}</div>
         </div>
         <button onclick="quitarItemEdit(${i})" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--rojo);padding:24px 0 0;line-height:1">×</button>
       </div>
-    </div>`).join('')
+    </div>`;
+  }).join('')
     + `<button class="btn btn-s" onclick="agregarItemEdit()" style="margin-bottom:6px">+ Agregar producto</button>`;
 }
 
@@ -491,23 +518,26 @@ function alElegirProdEdit(i,sel){
   carritoEdit[i].producto=sel.value;
   carritoEdit[i].precio_unitario=Number(opt.dataset.precio)||0;
   carritoEdit[i].unidad=opt.dataset.unidad||'kg';
+  if(carritoEdit[i].precio_unitario>0&&Number(carritoEdit[i].kg)>0) carritoEdit[i].monto=Math.round(Number(carritoEdit[i].kg)*carritoEdit[i].precio_unitario);
   renderCarritoEdit();
+}
+
+function alCambiarKgEdit(i,val){
+  carritoEdit[i].kg=val;
+  if(carritoEdit[i].precio_unitario>0&&Number(val)>0){
+    carritoEdit[i].monto=Math.round(Number(val)*carritoEdit[i].precio_unitario);
+    const mi=document.getElementById('emonto-'+i); if(mi) mi.value=carritoEdit[i].monto;
+  }
+  const hi=document.getElementById('ehint-'+i); if(hi) hi.textContent=_hintVenta(carritoEdit[i]);
 }
 
 function alCambiarMontoEdit(i,val){
   carritoEdit[i].monto=val;
-  const items=document.querySelectorAll('#edit-items-lista .carrito-item');
-  if(!items[i])return;
-  let hint=items[i].querySelector('.hint');
-  if(carritoEdit[i].precio_unitario>0&&Number(val)>0){
-    const txt=`≈ ${(Number(val)/carritoEdit[i].precio_unitario).toFixed(2)} ${carritoEdit[i].unidad}`;
-    if(hint){hint.textContent=txt;}
-    else{const h=document.createElement('div');h.className='hint';h.textContent=txt;items[i].querySelector('.campo:last-of-type').after(h);}
-  }else if(hint){hint.remove();}
+  const hi=document.getElementById('ehint-'+i); if(hi) hi.textContent=_hintVenta(carritoEdit[i]);
 }
 
 function agregarItemEdit(){
-  carritoEdit.push({producto:'',precio_unitario:0,unidad:'kg',monto:''});
+  carritoEdit.push({producto:'',precio_unitario:0,unidad:'kg',kg:'',monto:''});
   renderCarritoEdit();
 }
 
@@ -524,13 +554,13 @@ async function confirmarEdicion(){
   const forma_pago=document.getElementById('edit-pago').value;
   const monto_pagado=parseFloat(document.getElementById('edit-pagado').value)||0;
   const fecha=document.getElementById('edit-fecha').value;
-  if(carritoEdit.some(it=>!it.producto||!(Number(it.monto)>0))){toast('Completá todos los productos del pedido','error');return;}
+  if(carritoEdit.some(it=>!it.producto||!(Number(it.kg)>0)||!(Number(it.monto)>0))){toast('Completá producto, kg y monto de cada renglón','error');return;}
   const total=carritoEdit.reduce((s,it)=>s+Number(it.monto),0);
   if(monto_pagado>total){toast('El monto pagado no puede superar el total','error');return;}
   if(forma_pago==='crédito'&&!cliente){toast('Para ventas a crédito el cliente es obligatorio','error');return;}
   const items=carritoEdit.map(it=>({
     producto:it.producto,
-    cantidad:it.precio_unitario>0?Number(it.monto)/it.precio_unitario:1,
+    cantidad:Number(it.kg)||0,
     precio_unitario:it.precio_unitario,
     subtotal:Number(it.monto),
     unidad:it.unidad
@@ -564,6 +594,8 @@ async function cargarDatosCompra(){
     selProv.innerHTML='<option value="">Sin proveedor</option>'+
       provs.map(p=>`<option value="${escH(p.nombre)}">${p.nombre}${p.contacto?' · '+p.contacto:''}</option>`).join('');
   }catch(e){}
+  if(!compraCarrito.length) compraCarrito=[{producto:'',cantidad:'',total:''}];
+  renderCompraItems();
   cargarHistorialCompras();
 }
 
@@ -597,66 +629,124 @@ async function cargarHistorialCompras(){
   }catch(e){lista.innerHTML='<div class="vacio"><span class="ico">❌</span>Error al cargar</div>';}
 }
 
-function alElegirProdCompra(){
-  const val = document.getElementById('c-producto').value.trim();
-  const prod = productosCompraCache.find(p => p.nombre.toLowerCase() === val.toLowerCase());
-  document.getElementById('c-prod-hint').textContent = '';
-  if(prod && prod.proveedor){
-    const selProv=document.getElementById('c-proveedor');
-    for(let i=0;i<selProv.options.length;i++){
-      if(selProv.options[i].value===prod.proveedor){selProv.selectedIndex=i;break;}
-    }
-    document.getElementById('c-prov-hint').textContent='Pre-llenado desde el producto';
-  } else if(val) {
-    document.getElementById('c-prov-hint').textContent='Insumo sin proveedor asignado';
-  }
+function _prodCat(nombre){
+  const n=(nombre||'').toString().trim().toLowerCase();
+  return (productosCompraCache||[]).find(p=>p.nombre.toLowerCase()===n)||null;
 }
 
-function calcCompra(){
-  const cant=parseFloat(document.getElementById('c-cantidad').value)||0;
-  const total=parseFloat(document.getElementById('c-total').value)||0;
-  const costo=cant>0&&total>0?total/cant:0;
-  document.getElementById('c-costo').value=costo>0?costo.toFixed(2):'';
-  document.getElementById('c-costo-hint').textContent=costo>0?`$${costo.toFixed(2)} por unidad/kg`:'';
+function _hintCompra(i){
+  const item=compraCarrito[i]; if(!item) return '';
+  const cant=Number(item.cantidad)||0, total=Number(item.total)||0;
+  const costo= cant>0&&total>0? total/cant : 0;
+  const cat=_prodCat(item.producto);
+  const unid= cat? cat.unidad : 'u';
+  let hint = costo>0 ? ('Costo: $'+costo.toFixed(2)+'/'+unid) : '';
+  if(cat && cat.precio_costo!==undefined && cat.precio_costo!=='') hint += (hint?' · ':'') + 'catálogo $'+Number(cat.precio_costo);
+  const mostrar = cat && costo>0 && Math.abs(costo-Number(cat.precio_costo||0))>=1;
+  if(mostrar) hint += ` <button class="btn btn-s btn-sm" style="padding:2px 8px;font-size:11px" onclick="actualizarCostoLinea(${i})">Actualizar costo</button>`;
+  return hint;
+}
+
+function renderCompraItems(){
+  const el=document.getElementById('compra-items'); if(!el) return;
+  el.innerHTML=compraCarrito.map((item,i)=>`
+    <div class="carrito-item">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div class="campo" style="margin-bottom:8px">
+            <label>Producto / Insumo</label>
+            <input type="text" list="lista-productos-compra" value="${escH(item.producto)}" placeholder="Ej: Mozzarella, leche cruda..." autocomplete="off" oninput="alCambiarProdCompra(${i},this.value)"/>
+          </div>
+          <div class="fila" style="gap:8px">
+            <div class="campo" style="margin-bottom:0">
+              <label>Peso / Cantidad</label>
+              <input type="number" id="cqty-${i}" value="${item.cantidad}" min="0" step="0.01" placeholder="0" oninput="alCambiarCantCompra(${i},this.value)" style="font-size:18px;font-weight:600"/>
+            </div>
+            <div class="campo" style="margin-bottom:0">
+              <label>Precio total ($)</label>
+              <input type="number" id="ctot-${i}" value="${item.total}" min="0" step="1" placeholder="0" oninput="alCambiarTotalCompra(${i},this.value)" style="font-size:18px;font-weight:600"/>
+            </div>
+          </div>
+          <div class="hint gris" id="chint-${i}">${_hintCompra(i)}</div>
+        </div>
+        <button onclick="quitarItemCompra(${i})" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--rojo);padding:24px 0 0;line-height:1">×</button>
+      </div>
+    </div>`).join('');
+  actualizarTotalCompra();
+}
+
+function agregarItemCompra(){ compraCarrito.push({producto:'',cantidad:'',total:''}); renderCompraItems(); }
+function quitarItemCompra(i){ if(compraCarrito.length===1){toast('La compra debe tener al menos un producto','error');return;} compraCarrito.splice(i,1); renderCompraItems(); }
+
+function alCambiarProdCompra(i,val){
+  compraCarrito[i].producto=val;
+  const cat=_prodCat(val);
+  if(cat&&cat.proveedor){
+    const selProv=document.getElementById('c-proveedor');
+    for(let k=0;k<selProv.options.length;k++){ if(selProv.options[k].value===cat.proveedor){ selProv.selectedIndex=k; break; } }
+    document.getElementById('c-prov-hint').textContent='Pre-llenado desde el producto';
+  }
+  const hi=document.getElementById('chint-'+i); if(hi) hi.innerHTML=_hintCompra(i);
+}
+function alCambiarCantCompra(i,val){
+  compraCarrito[i].cantidad=val;
+  const hi=document.getElementById('chint-'+i); if(hi) hi.innerHTML=_hintCompra(i);
+}
+function alCambiarTotalCompra(i,val){
+  compraCarrito[i].total=val;
+  const hi=document.getElementById('chint-'+i); if(hi) hi.innerHTML=_hintCompra(i);
+  actualizarTotalCompra();
+}
+function actualizarTotalCompra(){
+  const total=compraCarrito.reduce((s,i)=>s+(Number(i.total)||0),0);
+  const el=document.getElementById('c-total-display'); if(el) el.textContent=$$(total);
   alCambiarPagoCompra();
+}
+
+async function actualizarCostoLinea(i){
+  const item=compraCarrito[i]; const cat=_prodCat(item&&item.producto);
+  if(!cat) return;
+  const cant=Number(item.cantidad)||0, total=Number(item.total)||0;
+  const costo=cant>0?total/cant:0;
+  if(!(costo>0)) return;
+  toast('Actualizando costo...','guardando');
+  try{
+    await apiPost('editarProducto',{nombre:cat.nombre, precio:Number(cat.precio), unidad:cat.unidad, precio_costo:Math.round(costo), proveedor:cat.proveedor||''});
+    productosCompraCache=await apiGet('getProductos'); productos=productosCompraCache;
+    renderCompraItems();
+    ocultarToast(); toast('✅ Costo de '+cat.nombre+' actualizado','exito');
+  }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
 
 function alCambiarPagoCompra(){
   const pago=document.getElementById('c-pago').value;
-  const total=parseFloat(document.getElementById('c-total').value)||0;
+  const total=compraCarrito.reduce((s,i)=>s+(Number(i.total)||0),0);
   if(pago!=='crédito') document.getElementById('c-pagado').value=total>0?Math.round(total):'';
 }
 
 // Abre modal de confirmación antes de guardar
 function abrirConfirmacionCompra(){
   const proveedor=document.getElementById('c-proveedor').value;
-  const producto_insumo=document.getElementById('c-producto').value.trim();
-  const cantidad=parseFloat(document.getElementById('c-cantidad').value);
-  const total=parseFloat(document.getElementById('c-total').value);
-  const costo_unitario=parseFloat(document.getElementById('c-costo').value)||0;
   const forma_pago=document.getElementById('c-pago').value;
   const monto_pagado=parseFloat(document.getElementById('c-pagado').value)||0;
   const fecha=document.getElementById('c-fecha').value||hoy();
-
   if(!proveedor){toast('Ingresá el proveedor','error');return;}
-  if(!producto_insumo){toast('Ingresá el producto o insumo','error');return;}
-  if(!(cantidad>0)){toast('Ingresá el peso o cantidad','error');return;}
-  if(!(total>0)){toast('Ingresá el precio total','error');return;}
+  if(compraCarrito.some(it=>!it.producto||!(Number(it.cantidad)>0)||!(Number(it.total)>0))){toast('Completá producto, cantidad y precio de cada renglón','error');return;}
+  const total=compraCarrito.reduce((s,it)=>s+Number(it.total),0);
   if(monto_pagado>total){toast('Monto pagado no puede superar el total','error');return;}
-
   const badge=forma_pago==='efectivo'?'badge-efectivo':forma_pago==='transferencia'?'badge-trans':'badge-credito';
   const resta=total-monto_pagado;
-
+  const lineas=compraCarrito.map(it=>{
+    const costo=Number(it.cantidad)>0?Number(it.total)/Number(it.cantidad):0;
+    return `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee">
+      <span>${escH(it.producto)} <span style="color:var(--gris);font-size:12px">(${Number(it.cantidad)}${costo>0?' · $'+costo.toFixed(2)+'/u':''})</span></span>
+      <strong>${$$(it.total)}</strong></div>`;
+  }).join('');
   document.getElementById('cc-resumen').innerHTML=`
     <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee">
       <span style="color:var(--gris)">Proveedor</span><strong>${escH(proveedor)}</strong>
     </div>
-    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee">
-      <span style="color:var(--gris)">Producto</span><strong>${escH(producto_insumo)}</strong>
-    </div>
-    <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee">
-      <span style="color:var(--gris)">Cantidad</span><strong>${cantidad}${costo_unitario>0?' · $'+costo_unitario.toFixed(2)+'/u':''}</strong>
-    </div>
+    ${lineas}
     <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee">
       <span style="color:var(--gris)">Forma de pago</span><span class="badge ${badge}">${forma_pago}</span>
     </div>
@@ -670,36 +760,35 @@ function abrirConfirmacionCompra(){
       <span style="color:var(--gris)">Resta pagar</span>
       <strong style="color:${resta>0?'var(--rojo)':'var(--verde-c)'}">${resta>0?$$(resta)+' pendiente':'Pagado completo ✅'}</strong>
     </div>
-    <div style="font-size:12px;color:var(--gris);margin-top:4px">Fecha: ${fmtFecha(fecha)}</div>
-  `;
+    <div style="font-size:12px;color:var(--gris);margin-top:4px">Fecha: ${fmtFecha(fecha)}</div>`;
   document.getElementById('modal-confirmar-compra').classList.add('visible');
 }
 
 async function guardarCompra(){
   const btn=document.getElementById('btn-confirmar-compra');
   const proveedor=document.getElementById('c-proveedor').value;
-  const producto_insumo=document.getElementById('c-producto').value.trim();
-  const cantidad=parseFloat(document.getElementById('c-cantidad').value);
-  const total=parseFloat(document.getElementById('c-total').value);
-  const costo_unitario=parseFloat(document.getElementById('c-costo').value)||0;
   const forma_pago=document.getElementById('c-pago').value;
   const monto_pagado=parseFloat(document.getElementById('c-pagado').value)||0;
   const fecha=document.getElementById('c-fecha').value||hoy();
+  const items=compraCarrito.map(it=>{
+    const cantidad=Number(it.cantidad)||0, total=Number(it.total)||0;
+    return {producto:(it.producto||'').trim(), cantidad, total, costo_unitario: cantidad>0?total/cantidad:0};
+  });
+  const total=items.reduce((s,it)=>s+it.total,0);
 
   btn.disabled=true; btn.innerHTML='<span class="spin"></span>Guardando...';
   toast('Guardando...','guardando');
   try{
-    await apiPost('registrarCompra',{fecha,proveedor,producto_insumo,cantidad,costo_unitario,total,forma_pago,monto_pagado,operador:operadorActual});
-    cerrarModal('modal-confirmar-compra');
-    ocultarToast();
-    // Mostrar ticket de confirmación
+    await apiPost('registrarCompra',{fecha,proveedor,forma_pago,monto_pagado,items});
+    cerrarModal('modal-confirmar-compra'); ocultarToast();
     const deuda=total-monto_pagado;
     const badge=forma_pago==='efectivo'?'badge-efectivo':forma_pago==='transferencia'?'badge-trans':'badge-credito';
+    const lineasTicket=items.map(it=>`<div style="color:var(--gris)">${escH(it.producto)} · ${it.cantidad}</div>`).join('');
     document.getElementById('ticket-compra-body').innerHTML=`
       <div class="item" style="background:var(--gris-c);border-radius:10px;padding:12px;margin-bottom:10px">
         <div style="font-size:13px;color:var(--gris);margin-bottom:6px">${fmtFecha(fecha)}</div>
         <div style="font-weight:600;font-size:16px;margin-bottom:2px">${escH(proveedor)}</div>
-        <div style="color:var(--gris);margin-bottom:8px">${escH(producto_insumo)} · ${cantidad}</div>
+        <div style="margin-bottom:8px">${lineasTicket}</div>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span class="badge ${badge}">${forma_pago}</span>
           <span style="font-size:18px;font-weight:700">${$$(total)}</span>
@@ -709,16 +798,15 @@ async function guardarCompra(){
         ${monto_pagado>=total?`<div style="font-size:13px;color:var(--verde-c);margin-top:6px">✅ Pagado en su totalidad</div>`:''}
       </div>`;
     document.getElementById('modal-ticket-compra').classList.add('visible');
-    // Limpiar formulario
-    document.getElementById('c-producto').value='';
-    ['c-cantidad','c-total','c-costo','c-pagado'].forEach(id=>document.getElementById(id).value='');
+    compraCarrito=[{producto:'',cantidad:'',total:''}];
+    renderCompraItems();
+    document.getElementById('c-pagado').value='';
     document.getElementById('c-proveedor').selectedIndex=0;
-    document.getElementById('c-costo-hint').textContent='';
-    document.getElementById('c-prod-hint').textContent='';
     document.getElementById('c-prov-hint').textContent='Se pre-llena según el producto elegido';
     document.getElementById('c-pago').value='efectivo';
     document.getElementById('c-fecha').value=hoy();
     cargarHistorialCompras();
+    productos=await apiGet('getProductos'); productosCompraCache=productos;
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
   finally{btn.disabled=false;btn.innerHTML='Confirmar compra';}
 }
@@ -2021,7 +2109,7 @@ function init(){
 
   document.getElementById('v-fecha').value=hoy();
   document.getElementById('c-fecha').value=hoy();
-  carrito=[{producto:'',precio_unitario:0,unidad:'kg',monto:'',cantidad:0}];
+  carrito=[{producto:'',precio_unitario:0,unidad:'kg',kg:'',monto:''}];
   cargarDatosVenta();
   cargarDatosCompra();
   cargarInicio();

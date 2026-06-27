@@ -118,27 +118,10 @@
       </select>
       <div class="hint gris" id="c-prov-hint">Se pre-llena según el producto elegido</div>
     </div>
-    <div class="campo">
-      <label>Producto / Insumo</label>
-      <input type="text" id="c-producto" list="lista-productos-compra" placeholder="Ej: Leche cruda, packaging..." autocomplete="off" oninput="alElegirProdCompra()"/>
-      <datalist id="lista-productos-compra"></datalist>
-      <div class="hint gris" id="c-prod-hint">Escribí libremente o elegí de la lista</div>
-    </div>
-    <div class="fila">
-      <div class="campo">
-        <label>Peso / Cantidad</label>
-        <input type="number" id="c-cantidad" min="0.01" step="0.01" placeholder="Ej: 10" oninput="calcCompra()"/>
-      </div>
-      <div class="campo">
-        <label>Precio total ($)</label>
-        <input type="number" id="c-total" min="0" step="1" placeholder="Ej: 5000" oninput="calcCompra()"/>
-      </div>
-    </div>
-    <div class="campo campo-auto">
-      <label>Costo unitario (auto)</label>
-      <input type="number" id="c-costo" readonly placeholder="0"/>
-      <div class="hint gris" id="c-costo-hint"></div>
-    </div>
+    <div id="compra-items"></div>
+    <datalist id="lista-productos-compra"></datalist>
+    <button class="btn btn-s" onclick="agregarItemCompra()" style="margin-bottom:14px">+ Agregar producto</button>
+    <div class="sep"></div>
     <div class="campo">
       <label>Forma de pago</label>
       <select id="c-pago" onchange="alCambiarPagoCompra()">
@@ -154,6 +137,10 @@
     <div class="campo">
       <label>Fecha</label>
       <input type="date" id="c-fecha"/>
+    </div>
+    <div style="background:var(--rojo-s);border-radius:var(--radio);padding:12px;display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:14px;color:var(--rojo);font-weight:600">TOTAL DE LA COMPRA</span>
+      <span style="font-size:24px;font-weight:700;color:var(--rojo)" id="c-total-display">$0</span>
     </div>
   </div>
   <button class="btn btn-p" onclick="abrirConfirmacionCompra()">Revisar y guardar compra →</button>
