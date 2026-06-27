@@ -28,6 +28,7 @@ let _cuentaMovs = [];
 let _cuentaNombre = '';
 let _origNombre = '';
 let _origApellido = '';
+let _stockList = [];
 
 // ==========================================
 // OPERADORES
@@ -175,8 +176,8 @@ function _norm(s){return (s||'').toString().normalize('NFC').trim().toLowerCase(
 // ==========================================
 // NAVEGACIÓN
 // ==========================================
-const TITULOS={inicio:'App Quesos 🧀',venta:'Nueva Venta',compra:'Nueva Compra',deudas:'Deudas',mas:'Más opciones',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes',devoluciones:'Devoluciones',historial:'Historial'};
-const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas','proveedores-mgt':'nav-mas',reportes:'nav-mas',devoluciones:'nav-mas',historial:'nav-mas'};
+const TITULOS={inicio:'App Quesos 🧀',venta:'Nueva Venta',compra:'Nueva Compra',deudas:'Deudas',mas:'Más opciones',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes',devoluciones:'Devoluciones',historial:'Historial',stock:'Stock'};
+const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas','proveedores-mgt':'nav-mas',reportes:'nav-mas',devoluciones:'nav-mas',historial:'nav-mas',stock:'nav-mas'};
 
 function irA(p, tab){
   document.querySelectorAll('.pantalla').forEach(x=>x.classList.remove('activa'));
@@ -195,6 +196,7 @@ function irA(p, tab){
   if(p==='reportes') cargarReporte();
   if(p==='devoluciones') cargarDevoluciones('todos');
   if(p==='historial') cargarHistorial();
+  if(p==='stock') cargarStock();
 }
 
 // ==========================================
@@ -1110,7 +1112,7 @@ async function cargarProductos(){
         <div class="item-head">
           <div class="item-info" style="flex:1">
             <div class="item-nombre">${p.nombre}</div>
-            <div class="item-det">Costo: ${$$(p.precio_costo)} · ${p.unidad}${margen?' · Margen: '+margen:''}</div>
+            <div class="item-det">Costo: ${$$(p.precio_costo)} · ${p.unidad}${margen?' · Margen: '+margen:''}${(p.stock!==undefined&&p.stock!=='')?' · Stock: '+Number(p.stock).toLocaleString('es-AR')+' '+p.unidad:''}</div>
             ${p.proveedor?`<div class="item-det" style="color:var(--verde-c)">🏭 ${p.proveedor}</div>`:''}
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
@@ -1896,7 +1898,8 @@ const HIST_META={
   editarDevolucion:{ico:'✏️',label:'Devolución editada'},
   eliminarDevolucion:{ico:'🗑️',label:'Devolución eliminada'},
   resolverDevolucion:{ico:'✅',label:'Devolución resuelta'},
-  guardarOperadores:{ico:'👥',label:'Operadores'}
+  guardarOperadores:{ico:'👥',label:'Operadores'},
+  ajustarStock:{ico:'📦',label:'Ajuste de stock'}
 };
 
 async function cargarHistorial(periodo='semana', btn){
@@ -1933,6 +1936,70 @@ function renderHistorial(movs){
       </div>
     </div>`;
   }).join('');
+}
+
+// ==========================================
+// STOCK (Fase 4A)
+// ==========================================
+async function cargarStock(){
+  const cont=document.getElementById('cont-stock');
+  cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  try{
+    const lista=await apiGet('getStock');
+    _stockList=lista;
+    if(!lista.length){ cont.innerHTML='<div class="vacio"><span class="ico">🧀</span>No hay productos. Agregá productos primero.</div>'; document.getElementById('stock-resumen').innerHTML=''; return; }
+    const valorTotal=lista.reduce((s,p)=>s+(Number(p.stock)||0)*(Number(p.precio_costo)||0),0);
+    document.getElementById('stock-resumen').innerHTML=
+      `<div class="card" style="background:var(--azul-s);border-left:4px solid var(--azul-c)">
+        <div class="card-titulo">Valor del stock (a costo)</div>
+        <div class="card-valor" style="color:var(--azul)">${$$(valorTotal)}</div>
+      </div>`;
+    cont.innerHTML=lista.map((p,i)=>{
+      const stock=Number(p.stock)||0;
+      const bajo=stock<=0;
+      return `<div class="item">
+        <div class="item-head">
+          <div class="item-info" style="flex:1">
+            <div class="item-nombre">${p.nombre}</div>
+            <div class="item-det">Costo: ${$$(p.precio_costo)} · ${p.unidad}</div>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+            <div class="item-val" style="color:${bajo?'var(--rojo)':'var(--verde-c)'}">${stock.toLocaleString('es-AR')} ${p.unidad}</div>
+            <button class="btn btn-s btn-sm" onclick="abrirAjusteStock(${i})">Ajustar</button>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  }catch(e){ cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>'; }
+}
+
+function abrirAjusteStock(i){
+  const p=_stockList[i]; if(!p) return;
+  document.getElementById('aj-titulo').textContent='Ajustar: '+p.nombre;
+  document.getElementById('aj-producto').value=p.nombre;
+  document.getElementById('aj-modo').value='set';
+  document.getElementById('aj-cantidad').value=Number(p.stock)||0;
+  document.getElementById('aj-motivo').value='';
+  ajCambioModo();
+  document.getElementById('modal-ajuste-stock').classList.add('visible');
+}
+function ajCambioModo(){
+  const modo=document.getElementById('aj-modo').value;
+  document.getElementById('aj-cant-label').textContent= modo==='set'?'Stock contado (cantidad real)':'Cantidad a sumar (negativo para restar)';
+  document.getElementById('aj-hint').textContent= modo==='set'?'Reemplaza el stock por este número (ideal para recuento/inventario).':'Suma al stock actual. Ej: -3 para descontar una merma.';
+}
+async function guardarAjusteStock(){
+  const producto=document.getElementById('aj-producto').value;
+  const modo=document.getElementById('aj-modo').value;
+  const cantidad=parseFloat(document.getElementById('aj-cantidad').value);
+  const motivo=document.getElementById('aj-motivo').value.trim();
+  if(isNaN(cantidad)){ toast('Ingresá una cantidad','error'); return; }
+  toast('Guardando...','guardando');
+  try{
+    await apiPost('ajustarStock',{producto,modo,cantidad,motivo});
+    cerrarModal('modal-ajuste-stock'); ocultarToast(); toast('✅ Stock actualizado','exito');
+    cargarStock();
+  }catch(e){ ocultarToast(); toast('❌ '+e.message,'error'); }
 }
 
 // ==========================================

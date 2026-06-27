@@ -133,6 +133,7 @@ function doGet(e) {
       case 'getDevoluciones':       resultado = getDevoluciones(ss, e.parameter.desde, e.parameter.hasta, e.parameter.tipo); break;
       case 'getOperadores':         resultado = getOperadoresList(ss); break;
       case 'getAuditoria':          resultado = getAuditoria(ss, e.parameter.desde, e.parameter.hasta); break;
+      case 'getStock':              resultado = getStock(ss); break;
       default: throw new Error('Acción no reconocida: ' + accion);
     }
 
@@ -182,6 +183,7 @@ function doPost(e) {
       case 'renombrarProducto':      resultado = renombrarProducto(ss, body.datos); break;
       case 'renombrarCliente':       resultado = renombrarCliente(ss, body.datos); break;
       case 'renombrarProveedor':     resultado = renombrarProveedor(ss, body.datos); break;
+      case 'ajustarStock':           resultado = ajustarStock(ss, body.datos); break;
       case 'agregarCliente':         resultado = agregarCliente(ss, body.datos); break;
       case 'editarCliente':          resultado = editarCliente(ss, body.datos); break;
       case 'eliminarCliente':        resultado = eliminarCliente(ss, body.datos); break;
@@ -302,7 +304,8 @@ function agregarProducto(ss, d) {
     throw new Error('Ya existe ese producto. Usá Editar para modificarlo.');
   }
 
-  hoja.appendRow([d.nombre.trim(), d.unidad, Number(d.precio), Number(d.precio_costo) || 0, d.proveedor?.trim() || '']);
+  _asegurarColumnaStock(ss);
+  hoja.appendRow([d.nombre.trim(), d.unidad, Number(d.precio), Number(d.precio_costo) || 0, d.proveedor?.trim() || '', Number(d.stock) || 0]);
   return { mensaje: 'Producto agregado: ' + d.nombre };
 }
 
@@ -929,6 +932,58 @@ function getHistorialProveedor(ss, proveedor) {
     movimientos: movimientos.reverse(),
     saldo_total: saldo
   };
+}
+
+// ==========================================
+// STOCK (Fase 4A)
+// ==========================================
+function _colStock(hoja) {
+  const enc = hoja.getRange(1, 1, 1, hoja.getLastColumn()).getValues()[0];
+  const i = enc.indexOf('stock');
+  return i === -1 ? -1 : i + 1;
+}
+
+function _asegurarColumnaStock(ss) {
+  const hoja = ss.getSheetByName('Productos');
+  if (_colStock(hoja) !== -1) return;
+  const col = hoja.getLastColumn() + 1;
+  hoja.getRange(1, col).setValue('stock').setFontWeight('bold').setBackground('#f0f0f0');
+  const n = hoja.getLastRow() - 1;
+  if (n > 0) hoja.getRange(2, col, n, 1).setValue(0);
+}
+
+function getStock(ss) {
+  _asegurarColumnaStock(ss);
+  return getProductos(ss); // incluye la columna stock
+}
+
+// d = { producto, modo: 'set'|'delta', cantidad, motivo?, fecha?, operador? }
+function ajustarStock(ss, d) {
+  if (!d.producto) throw new Error('Producto obligatorio');
+  if (d.cantidad === undefined || isNaN(Number(d.cantidad))) throw new Error('Cantidad inválida');
+  _asegurarColumnaStock(ss);
+  const hoja = ss.getSheetByName('Productos');
+  const colStock = _colStock(hoja);
+  const filas = hoja.getDataRange().getValues();
+  let fila = -1;
+  for (let i = 1; i < filas.length; i++) {
+    if (_renNorm(filas[i][0]) === _renNorm(d.producto)) { fila = i + 1; break; }
+  }
+  if (fila === -1) throw new Error('Producto no encontrado: ' + d.producto);
+  const anterior = Number(hoja.getRange(fila, colStock).getValue()) || 0;
+  const modo = d.modo === 'set' ? 'set' : 'delta';
+  const nueva = modo === 'set' ? Number(d.cantidad) : anterior + Number(d.cantidad);
+  hoja.getRange(fila, colStock).setValue(nueva);
+
+  let log = ss.getSheetByName('Ajustes Stock');
+  if (!log) {
+    log = ss.insertSheet('Ajustes Stock');
+    log.appendRow(['fecha', 'producto', 'modo', 'anterior', 'nueva', 'motivo', 'operador']);
+    log.getRange(1, 1, 1, 7).setFontWeight('bold').setBackground('#f0f0f0');
+  }
+  log.appendRow([d.fecha || hoyStr(), d.producto, modo, anterior, nueva, d.motivo || '', (d.operador || '').toString().trim()]);
+  SpreadsheetApp.flush();
+  return { mensaje: 'Stock de ' + d.producto + ': ' + anterior + ' → ' + nueva, anterior: anterior, nueva: nueva };
 }
 
 // ==========================================

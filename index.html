@@ -195,6 +195,9 @@
     <button class="btn-grande" onclick="irA('historial')">
       <span class="ico">📜</span>Historial
     </button>
+    <button class="btn-grande" onclick="irA('stock')">
+      <span class="ico">📦</span>Stock
+    </button>
   </div>
   <!-- Devoluciones -->
   <div style="font-size:11px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px">Devoluciones</div>
@@ -276,6 +279,13 @@
     </div>
   </div>
   <div id="cont-reporte"><div class="vacio"><span class="ico">📊</span>Seleccioná un período</div></div>
+</div>
+
+<!-- STOCK -->
+<div class="pantalla" id="pantalla-stock">
+  <div class="titulo-sec">Stock</div>
+  <div id="stock-resumen" style="margin-bottom:12px"></div>
+  <div id="cont-stock"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
 </div>
 
 <!-- HISTORIAL DE MOVIMIENTOS -->
@@ -635,6 +645,34 @@
       </div>
     </div>
     <button class="btn btn-s" id="btn-cerrar-op" onclick="cerrarModal('modal-operador')" style="margin-top:12px">Cancelar</button>
+  </div>
+</div>
+
+<!-- AJUSTE DE STOCK -->
+<div class="modal-fondo" id="modal-ajuste-stock">
+  <div class="modal">
+    <div class="modal-titulo" id="aj-titulo">Ajustar stock</div>
+    <input type="hidden" id="aj-producto"/>
+    <div class="campo">
+      <label>Tipo de ajuste</label>
+      <select id="aj-modo" onchange="ajCambioModo()">
+        <option value="set">📋 Fijar stock (recuento / inventario)</option>
+        <option value="delta">➕➖ Sumar o restar (merma, corrección)</option>
+      </select>
+    </div>
+    <div class="campo">
+      <label id="aj-cant-label">Stock contado</label>
+      <input type="number" id="aj-cantidad" step="0.01" placeholder="0"/>
+      <div class="hint gris" id="aj-hint"></div>
+    </div>
+    <div class="campo">
+      <label>Motivo (opcional)</label>
+      <input type="text" id="aj-motivo" placeholder="Ej: inventario inicial, merma, rotura"/>
+    </div>
+    <div class="fila" style="gap:10px;margin-top:8px">
+      <button class="btn btn-s" onclick="cerrarModal('modal-ajuste-stock')">Cancelar</button>
+      <button class="btn btn-p" onclick="guardarAjusteStock()">Guardar</button>
+    </div>
   </div>
 </div>
 
