@@ -839,6 +839,20 @@ function getGanancia(ss, desde, hasta) {
   const ventasNetas  = totalVentas - devDeClientes;
   const comprasNetas = totalCompras - devAProveedores;
 
+  // Costo de la mercadería vendida (COGS) y redondeo, desde las líneas de venta del período.
+  const productosMap = {};
+  hojaAObjetos(ss.getSheetByName('Productos')).forEach(p => { productosMap[_renNorm(p.nombre)] = Number(p.precio_costo) || 0; });
+  const pedidoIds = {};
+  pedidos.forEach(p => { pedidoIds[p.pedido_id] = true; });
+  const lineas = hojaAObjetos(ss.getSheetByName('Ventas')).filter(v => pedidoIds[v.pedido_id]);
+  let cogs = 0, redondeo = 0;
+  lineas.forEach(v => {
+    const cant = Number(v.cantidad) || 0;
+    cogs += cant * (productosMap[_renNorm(v.producto)] || 0);
+    redondeo += Number(v.subtotal || 0) - cant * (Number(v.precio_unitario) || 0);
+  });
+  const gananciaReal = ventasNetas - cogs;
+
   return {
     desde: desde || 'inicio',
     hasta: hasta || hoyStr(),
@@ -849,6 +863,9 @@ function getGanancia(ss, desde, hasta) {
     abonos_clientes:      totalAbonos,
     ventas_netas:         ventasNetas,
     compras_netas:        comprasNetas,
+    costo_mercaderia:     cogs,
+    redondeo:             redondeo,
+    ganancia_real:        gananciaReal,
     ganancia:             ventasNetas - comprasNetas,
     cantidad_ventas:      pedidos.length,
     cantidad_compras:     compras.length

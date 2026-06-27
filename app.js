@@ -1453,16 +1453,18 @@ async function cargarReporte(){
       </div>`;
     }
 
-    const neg=g.ganancia<0;
-    const hayDev = g.dev_a_proveedores > 0 || g.dev_de_clientes > 0;
+    const gananciaReal=(g.ganancia_real!==undefined)?Number(g.ganancia_real):Number(g.ganancia);
+    const neg=gananciaReal<0;
+    const cogs=Number(g.costo_mercaderia||0);
+    const redondeo=Number(g.redondeo||0);
 
     cont.innerHTML=`
       <!-- GANANCIA PRINCIPAL -->
       <div class="rep-grid">
         <div class="rep-card grande">
-          <div class="rt">Ganancia del período ${hayDev?'<span style="font-size:10px">(neta, con devoluciones)</span>':''}</div>
-          <div class="rv ${neg?'rojo':''}">${$$(g.ganancia)}</div>
-          <div style="font-size:11px;color:var(--gris);margin-top:4px">Ventas: ${$$(g.ventas_netas)} · Compras: ${$$(g.compras_netas)}</div>
+          <div class="rt">Ganancia real del período <span style="font-size:10px">(ventas − costo de lo vendido)</span></div>
+          <div class="rv ${neg?'rojo':''}">${$$(gananciaReal)}</div>
+          <div style="font-size:11px;color:var(--gris);margin-top:4px">Ventas: ${$$(g.ventas_netas)} · Costo merc.: ${$$(cogs)}</div>
         </div>
         <div class="rep-card">
           <div class="rt">Ventas (${g.cantidad_ventas})</div>
@@ -1473,6 +1475,15 @@ async function cargarReporte(){
           <div class="rv rojo">${$$(g.total_compras)}</div>
         </div>
       </div>
+
+      ${(g.redondeo!==undefined)?`
+      <div class="card" style="display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div class="card-titulo">Redondeo del período</div>
+          <div style="font-size:11px;color:var(--gris)">Diferencia entre el precio de lista y lo que cobraste</div>
+        </div>
+        <div style="font-size:20px;font-weight:700;color:${redondeo<0?'var(--rojo)':'var(--verde-c)'}">${redondeo>=0?'+':'−'}${$$(Math.abs(redondeo))}</div>
+      </div>`:''}
 
       <!-- MÉTRICAS CLAVE -->
       <div class="rep-grid-3" style="margin-bottom:12px">

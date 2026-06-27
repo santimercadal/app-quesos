@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="App Quesos">
+  <rect width="512" height="512" rx="112" fill="#16324a"/>
+  <polygon points="130,358 432,358 130,150" fill="#f7e6b5" stroke="#f7e6b5" stroke-width="30" stroke-linejoin="round"/>
+  <circle cx="210" cy="255" r="17" fill="#12b2ac"/>
+  <circle cx="258" cy="300" r="14" fill="#12b2ac"/>
+  <circle cx="205" cy="316" r="12" fill="#12b2ac"/>
+  <circle cx="293" cy="333" r="11" fill="#12b2ac"/>
+</svg>
