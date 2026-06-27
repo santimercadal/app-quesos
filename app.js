@@ -9,9 +9,15 @@ const API = 'https://script.google.com/macros/s/AKfycbyFQZz8DgsMEfJlCYgOYZrdIK8P
 let productos = [];
 let productosCompraCache = [];
 let clientesCache = [];
+let proveedoresCache = [];
 let carrito = [];
 let periodoReporte = 'hoy';
 let pedidoEnEdicion = null;
+// Listas en pantalla referenciadas por índice desde los onclick (evita inyectar
+// nombres/objetos en el HTML, que rompía botones con apóstrofos, ej: "D'Angelo").
+let _pedidosHoy = [];
+let _deudaCli = [];
+let _deudaProv = [];
 
 // ==========================================
 // OPERADORES
@@ -147,7 +153,9 @@ function ocultarToast(){clearTimeout(toastTimer);document.getElementById('toast'
 // FORMATO
 // ==========================================
 function $$(n){return '$'+Number(n).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})}
-function hoy(){return new Date().toISOString().split('T')[0]}
+// Fecha local de Argentina en formato yyyy-mm-dd (no UTC).
+// Evita que las ventas de la noche queden con fecha del día siguiente.
+function hoy(){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires'}).format(new Date())}
 function fmtFecha(f){if(!f)return'';const[y,m,d]=f.split('-');return`${d}/${m}/${y}`}
 function escH(s){return String(s).replace(/'/g,"\\'")}
 function nombreCompleto(c){return [c.nombre,c.apellido].filter(Boolean).join(' ')}
@@ -193,6 +201,7 @@ async function cargarInicio(){
     document.getElementById('total-por-cobrar').textContent=porCobrar>0?$$(porCobrar):'✅ Al día';
     document.getElementById('total-por-pagar').textContent=porPagar>0?$$(porPagar):'✅ Al día';
     const lista=document.getElementById('ventas-hoy-lista');
+    _pedidosHoy=d.pedidos||[];
     const hayVentas=d.pedidos&&d.pedidos.length>0;
     const hayAbonos=d.pagos_clientes&&d.pagos_clientes.length>0;
     if(!hayVentas&&!hayAbonos){
@@ -201,7 +210,7 @@ async function cargarInicio(){
 
     const htmlVentas=hayVentas
       ? `<div style="font-size:12px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px">🛒 Ventas</div>`+
-        d.pedidos.map(p=>{
+        d.pedidos.map((p,idx)=>{
           const badge=p.forma_pago==='efectivo'?'badge-efectivo':p.forma_pago==='transferencia'?'badge-trans':'badge-credito';
           const deudaOriginal=Number(p.total)-Number(p.monto_pagado);
           return `<div class="item">
@@ -214,7 +223,7 @@ async function cargarInicio(){
               </div>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
                 <div class="item-val">${$$(p.total)}</div>
-                <button class="btn btn-s btn-sm" onclick='abrirEdicionPedido(${JSON.stringify(p)})'>Editar</button>
+                <button class="btn btn-s btn-sm" onclick="abrirEdicionPedido(_pedidosHoy[${idx}])">Editar</button>
               </div>
             </div>
           </div>`;
@@ -657,6 +666,7 @@ function cambiarTabDeuda(tab){
 }
 
 function renderDeudaClientes(lista){
+  _deudaCli=lista;
   const cont=document.getElementById('cont-clientes-deuda');
   if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🎉</span>¡Ningún cliente debe nada!</div>';return;}
   const total=lista.reduce((s,d)=>s+d.deuda,0);
@@ -665,8 +675,8 @@ function renderDeudaClientes(lista){
        <div class="card-titulo">Total por cobrar</div>
        <div class="card-valor" style="color:var(--azul)">${$$(total)}</div>
      </div>`+
-    lista.map(d=>`
-      <div class="item" style="cursor:pointer" onclick="abrirLedger('${escH(d.cliente)}',${d.deuda})">
+    lista.map((d,i)=>`
+      <div class="item" style="cursor:pointer" onclick="abrirLedger(_deudaCli[${i}].cliente,${d.deuda})">
         <div class="item-info" style="flex:1">
           <div class="item-nombre">${d.cliente}</div>
           <div class="item-det">Total histórico: ${$$(d.total_ventas)}</div>
@@ -774,6 +784,7 @@ async function guardarAbono(){
 // DEUDA PROVEEDORES
 // ==========================================
 function renderDeudaProveedores(lista){
+  _deudaProv=lista;
   const cont=document.getElementById('cont-proveedores');
   if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🎉</span>¡No debemos nada a proveedores!</div>';return;}
   const total=lista.reduce((s,d)=>s+d.deuda,0);
@@ -782,8 +793,8 @@ function renderDeudaProveedores(lista){
        <div class="card-titulo">Total por pagar</div>
        <div class="card-valor" style="color:var(--rojo)">${$$(total)}</div>
      </div>`+
-    lista.map(d=>`
-      <div class="item" style="cursor:pointer" onclick="abrirLedgerProv('${escH(d.proveedor)}',${d.deuda})">
+    lista.map((d,i)=>`
+      <div class="item" style="cursor:pointer" onclick="abrirLedgerProv(_deudaProv[${i}].proveedor,${d.deuda})">
         <div class="item-info" style="flex:1">
           <div class="item-nombre">${d.proveedor}</div>
           <div class="item-det">Total compras: ${$$(d.total_compras)}</div>
@@ -879,7 +890,7 @@ async function cargarProductos(){
   try{
     productos=await apiGet('getProductos');
     if(!productos.length){cont.innerHTML='<div class="vacio"><span class="ico">🧀</span>No hay productos todavía.<br>Agregá el primero.</div>';return;}
-    cont.innerHTML=productos.map(p=>{
+    cont.innerHTML=productos.map((p,i)=>{
       const margen=p.precio>0&&p.precio_costo>0?Math.round((p.precio-p.precio_costo)/p.precio*100)+'%':null;
       return `<div class="item">
         <div class="item-head">
@@ -890,7 +901,7 @@ async function cargarProductos(){
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
             <div class="item-val">${$$(p.precio)}</div>
-            <button class="btn btn-s btn-sm" onclick='abrirModalProducto(${JSON.stringify(p)})'>Editar</button>
+            <button class="btn btn-s btn-sm" onclick="abrirModalProducto(productos[${i}])">Editar</button>
           </div>
         </div>
       </div>`;
@@ -956,15 +967,16 @@ async function cargarClientes(){
   cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
   try{
     const lista=await apiGet('getClientes');
+    clientesCache=lista;
     if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">👤</span>No hay clientes todavía.</div>';return;}
-    cont.innerHTML=lista.map(c=>`
+    cont.innerHTML=lista.map((c,i)=>`
       <div class="item">
         <div class="item-head">
           <div class="item-info" style="flex:1">
             <div class="item-nombre">${nombreCompleto(c)}</div>
             <div class="item-det">${c.celular||'Sin celular'}</div>
           </div>
-          <button class="btn btn-s btn-sm" onclick='abrirModalCliente(${JSON.stringify(c)})'>Editar</button>
+          <button class="btn btn-s btn-sm" onclick="abrirModalCliente(clientesCache[${i}])">Editar</button>
         </div>
       </div>`).join('');
   }catch(e){cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';}
@@ -1246,15 +1258,16 @@ async function cargarProveedoresMgt(){
   cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
   try{
     const lista=await apiGet('getProveedores');
+    proveedoresCache=lista;
     if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🏭</span>No hay proveedores todavía.</div>';return;}
-    cont.innerHTML=lista.map(p=>`
+    cont.innerHTML=lista.map((p,i)=>`
       <div class="item">
         <div class="item-head">
           <div class="item-info" style="flex:1">
             <div class="item-nombre">${p.nombre}</div>
             <div class="item-det">${p.contacto||'Sin contacto'}</div>
           </div>
-          <button class="btn btn-s btn-sm" onclick='abrirModalProveedor(${JSON.stringify(p)})'>Editar</button>
+          <button class="btn btn-s btn-sm" onclick="abrirModalProveedor(proveedoresCache[${i}])">Editar</button>
         </div>
       </div>`).join('');
   }catch(e){cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';}

@@ -1,7 +1,7 @@
 // Service Worker — App Quesos
-// Permite instalar la app en el celular y que cargue rápido
+// Permite instalar la app en el celular y que funcione offline.
 
-const CACHE = 'quesos-v2';
+const CACHE = 'quesos-v3';
 const ARCHIVOS = ['./', './index.html', './style.css', './app.js', './manifest.json', './icon-192.png', './icon-512.png'];
 
 // Al instalar: guardar archivos en caché
@@ -22,15 +22,24 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// Al pedir recursos: para la API siempre ir a la red; para el resto, caché primero
+// Estrategia de red:
+//  - API (Apps Script): siempre red, datos en tiempo real.
+//  - App shell (HTML/CSS/JS/iconos): NETWORK-FIRST. Si hay red, trae la version
+//    nueva y la cachea (asi una actualizacion llega siempre a la PWA instalada
+//    y nunca queda codigo viejo). Si no hay red, sirve lo cacheado.
 self.addEventListener('fetch', e => {
   // Llamadas al Apps Script: siempre red (datos en tiempo real)
   if (e.request.url.includes('script.google.com')) return;
 
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      if (cached) return cached;
-      return fetch(e.request).catch(() => caches.match('./index.html'));
-    })
+    fetch(e.request)
+      .then(resp => {
+        const copia = resp.clone();
+        caches.open(CACHE).then(c => c.put(e.request, copia)).catch(() => {});
+        return resp;
+      })
+      .catch(() =>
+        caches.match(e.request).then(cached => cached || caches.match('./index.html'))
+      )
   );
 });
