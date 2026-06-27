@@ -760,7 +760,9 @@ function getGanancia(ss, desde, hasta) {
   const pedidos      = filtrarFecha(hojaAObjetos(ss.getSheetByName('Pedidos')), desde, hasta);
   const compras      = filtrarFecha(hojaAObjetos(ss.getSheetByName('Compras')), desde, hasta);
   const devoluciones = filtrarFecha(hojaAObjetos(ss.getSheetByName('Devoluciones')), desde, hasta);
+  const abonos       = filtrarFecha(hojaAObjetos(ss.getSheetByName('Pagos Clientes')), desde, hasta);
 
+  const totalAbonos       = abonos.reduce((s, p) => s + Number(p.monto), 0);
   const totalVentas       = pedidos.reduce((s, p) => s + Number(p.total), 0);
   const totalCompras      = compras.reduce((s, c) => s + Number(c.total), 0);
   const devAProveedores   = devoluciones.filter(d => d.tipo === 'proveedor').reduce((s, d) => s + Number(d.monto), 0);
@@ -777,6 +779,7 @@ function getGanancia(ss, desde, hasta) {
     total_compras:        totalCompras,
     dev_a_proveedores:    devAProveedores,
     dev_de_clientes:      devDeClientes,
+    abonos_clientes:      totalAbonos,
     ventas_netas:         ventasNetas,
     compras_netas:        comprasNetas,
     ganancia:             ventasNetas - comprasNetas,

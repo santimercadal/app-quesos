@@ -1278,8 +1278,11 @@ async function cargarReporte(){
       apiGet('getCompras',{desde,hasta})
     ]);
 
-    const cobrado = ventas.pedidos.reduce((s,p)=>s+Number(p.monto_pagado),0);
-    const pendienteDelPeriodo = g.total_ventas - cobrado;
+    // Cobrado real = lo pagado al momento de vender + abonos recibidos en el período.
+    // Pendiente = ventas - cobrado - devoluciones de clientes. Así coincide con Deudas.
+    const pagadoAlMomento = ventas.pedidos.reduce((s,p)=>s+Number(p.monto_pagado),0);
+    const cobrado = pagadoAlMomento + Number(g.abonos_clientes||0);
+    const pendienteDelPeriodo = Math.max(0, g.total_ventas - cobrado - Number(g.dev_de_clientes||0));
     const ticketPromedio = g.cantidad_ventas > 0 ? g.total_ventas / g.cantidad_ventas : 0;
     const pctCobrado = g.total_ventas > 0 ? Math.round(cobrado / g.total_ventas * 100) : 0;
 
