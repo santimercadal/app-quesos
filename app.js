@@ -1457,6 +1457,7 @@ async function cargarReporte(){
     const neg=gananciaReal<0;
     const cogs=Number(g.costo_mercaderia||0);
     const redondeo=Number(g.redondeo||0);
+    const hayDev = g.dev_a_proveedores > 0 || g.dev_de_clientes > 0;
 
     cont.innerHTML=`
       <!-- GANANCIA PRINCIPAL -->
