@@ -168,8 +168,8 @@
 <div class="pantalla" id="pantalla-deudas">
   <!-- Tabs -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
-    <button id="tab-clientes" class="btn btn-p" onclick="cambiarTabDeuda('clientes')" style="border-radius:10px">👥 Clientes</button>
-    <button id="tab-proveedores" class="btn btn-s" onclick="cambiarTabDeuda('proveedores')" style="border-radius:10px">🏭 Proveedores</button>
+    <button id="tab-clientes" class="btn btn-p" onclick="cambiarTabDeuda('clientes')" style="border-radius:10px">💰 Te deben</button>
+    <button id="tab-proveedores" class="btn btn-s" onclick="cambiarTabDeuda('proveedores')" style="border-radius:10px">📤 Les debés</button>
   </div>
   <div id="cont-clientes-deuda"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
   <div id="cont-proveedores" style="display:none"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
@@ -611,6 +611,22 @@
       </div>
     </div>
     <button class="btn btn-s" id="btn-cerrar-op" onclick="cerrarModal('modal-operador')" style="margin-top:12px">Cancelar</button>
+  </div>
+</div>
+
+<!-- CUENTA DE CONTACTO (cliente + proveedor unificado) -->
+<div class="modal-fondo" id="modal-contacto">
+  <div class="modal">
+    <div class="modal-titulo" id="cuenta-titulo">Cuenta</div>
+    <div id="cuenta-tabla" style="margin-bottom:16px"></div>
+    <div id="cuenta-saldo-box" style="border-radius:var(--radio);padding:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;background:var(--gris-c)">
+      <span style="font-weight:600" id="cuenta-saldo-label">Saldo</span>
+      <span style="font-size:22px;font-weight:700" id="cuenta-saldo"></span>
+    </div>
+    <input type="hidden" id="cuenta-nombre"/>
+    <button class="btn btn-p" id="btn-cuenta-total" onclick="cuentaSaldarTotal()" style="margin-bottom:8px"></button>
+    <button class="btn btn-s" id="btn-cuenta-parcial" onclick="cuentaSaldarParcial()">Registrar pago parcial</button>
+    <button class="btn btn-s" onclick="cerrarModal('modal-contacto')" style="margin-top:8px">Cerrar</button>
   </div>
 </div>
 

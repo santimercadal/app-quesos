@@ -19,6 +19,9 @@ let carritoEdit = [];
 let _pedidosHoy = [];
 let _deudaCli = [];
 let _deudaProv = [];
+let _contTeDeben = [];
+let _contLeDebes = [];
+let _cuentaSaldo = 0;
 
 // ==========================================
 // OPERADORES
@@ -190,15 +193,14 @@ function irA(p, tab){
 // ==========================================
 async function cargarInicio(){
   try{
-    const [d, deudaCli, deudaProv] = await Promise.all([
+    const [d, contactos] = await Promise.all([
       apiGet('getVentasHoy'),
-      apiGet('getDeudaClientes').catch(()=>[]),
-      apiGet('getDeudaProveedores').catch(()=>[])
+      apiGet('getDeudaContactos').catch(()=>[])
     ]);
     document.getElementById('total-hoy').textContent=$$(d.total_ventas);
     document.getElementById('cobrado-hoy').textContent=`Cobrado hoy: ${$$(d.total_cobrado)}`;
-    const porCobrar=deudaCli.reduce((s,x)=>s+x.deuda,0);
-    const porPagar=deudaProv.reduce((s,x)=>s+x.deuda,0);
+    const porCobrar=contactos.filter(c=>c.neto>0).reduce((s,x)=>s+x.neto,0);
+    const porPagar=contactos.filter(c=>c.neto<0).reduce((s,x)=>s-x.neto,0);
     document.getElementById('total-por-cobrar').textContent=porCobrar>0?$$(porCobrar):'✅ Al día';
     document.getElementById('total-por-pagar').textContent=porPagar>0?$$(porPagar):'✅ Al día';
     const lista=document.getElementById('ventas-hoy-lista');
@@ -715,12 +717,9 @@ async function cargarDeudas(tab){
   cambiarTabDeuda(tab);
   document.getElementById('cont-clientes-deuda').innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
   document.getElementById('cont-proveedores').innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
-  const [cli,prov]=await Promise.all([
-    apiGet('getDeudaClientes').catch(()=>[]),
-    apiGet('getDeudaProveedores').catch(()=>[])
-  ]);
-  renderDeudaClientes(cli);
-  renderDeudaProveedores(prov);
+  const contactos=await apiGet('getDeudaContactos').catch(()=>[]);
+  renderTeDeben(contactos.filter(c=>c.neto>0.01));
+  renderLeDebes(contactos.filter(c=>c.neto<-0.01));
 }
 
 function cambiarTabDeuda(tab){
@@ -730,6 +729,139 @@ function cambiarTabDeuda(tab){
   document.getElementById('tab-clientes').className='btn '+(esCli?'btn-p':'btn-s');
   document.getElementById('tab-proveedores').className='btn '+(esCli?'btn-s':'btn-p');
 }
+
+function renderTeDeben(lista){
+  _contTeDeben=lista;
+  const cont=document.getElementById('cont-clientes-deuda');
+  if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🎉</span>Nadie te debe nada</div>';return;}
+  const total=lista.reduce((s,d)=>s+d.neto,0);
+  cont.innerHTML=
+    `<div class="card" style="background:var(--azul-s);border-left:4px solid var(--azul-c);margin-bottom:16px">
+       <div class="card-titulo">Total por cobrar</div>
+       <div class="card-valor" style="color:var(--azul)">${$$(total)}</div>
+     </div>`+
+    lista.map((d,i)=>`
+      <div class="item" style="cursor:pointer" onclick="abrirCuentaContacto(_contTeDeben[${i}].contacto)">
+        <div class="item-info" style="flex:1">
+          <div class="item-nombre">${d.contacto}</div>
+          <div class="item-det">${d.total_compras>0?'🔁 También le comprás · ':''}Ventas: ${$$(d.total_ventas)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <div class="item-val rojo">${$$(d.neto)}</div>
+          <div style="font-size:12px;color:var(--gris)">Ver cuenta →</div>
+        </div>
+      </div>`).join('');
+}
+
+function renderLeDebes(lista){
+  _contLeDebes=lista;
+  const cont=document.getElementById('cont-proveedores');
+  if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🎉</span>No le debés nada a nadie</div>';return;}
+  const total=lista.reduce((s,d)=>s+Math.abs(d.neto),0);
+  cont.innerHTML=
+    `<div class="card" style="background:var(--rojo-s);margin-bottom:16px">
+       <div class="card-titulo">Total por pagar</div>
+       <div class="card-valor" style="color:var(--rojo)">${$$(total)}</div>
+     </div>`+
+    lista.map((d,i)=>`
+      <div class="item" style="cursor:pointer" onclick="abrirCuentaContacto(_contLeDebes[${i}].contacto)">
+        <div class="item-info" style="flex:1">
+          <div class="item-nombre">${d.contacto}</div>
+          <div class="item-det">${d.total_ventas>0?'🔁 También te compra · ':''}Compras: ${$$(d.total_compras)}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+          <div class="item-val rojo">${$$(Math.abs(d.neto))}</div>
+          <div style="font-size:12px;color:var(--gris)">Ver cuenta →</div>
+        </div>
+      </div>`).join('');
+}
+
+async function abrirCuentaContacto(nombre){
+  document.getElementById('cuenta-titulo').textContent='Cuenta: '+nombre;
+  document.getElementById('cuenta-nombre').value=nombre;
+  document.getElementById('cuenta-tabla').innerHTML='<div class="vacio"><span class="ico">⏳</span></div>';
+  document.getElementById('modal-contacto').classList.add('visible');
+  try{
+    const h=await apiGet('getHistorialContacto',{contacto:nombre});
+    _cuentaSaldo=h.saldo_total;
+    renderCuentaContacto(h);
+  }catch(e){document.getElementById('cuenta-tabla').innerHTML='<div class="vacio">Error: '+e.message+'</div>';}
+}
+
+function renderCuentaContacto(h){
+  const rows=h.movimientos.map(m=>{
+    const pos=m.delta>=0;
+    const colorMonto=pos?'var(--rojo)':'var(--verde-c)';
+    const colorSaldo=m.saldo>0.01?'var(--rojo)':(m.saldo<-0.01?'var(--azul)':'var(--gris)');
+    return `<div class="ledger-row">
+      <div style="flex:1">
+        <div style="font-weight:500">${fmtFecha(m.fecha)}</div>
+        <div style="font-size:12px;color:var(--gris)">${m.descripcion}</div>
+      </div>
+      <div style="text-align:right;color:${colorMonto};font-weight:600;white-space:nowrap">${pos?'+':'−'}${$$(Math.abs(m.delta))}</div>
+      <div class="ledger-saldo" style="width:84px;text-align:right;color:${colorSaldo}">${$$(Math.abs(m.saldo))}</div>
+    </div>`;
+  }).join('');
+  const header=`<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gris);font-weight:600;padding:0 0 8px;text-transform:uppercase;letter-spacing:.4px"><span>Movimiento</span><span style="width:84px;text-align:right">Saldo</span></div>`;
+  document.getElementById('cuenta-tabla').innerHTML=h.movimientos.length?header+rows:'<div class="vacio"><span class="ico">📋</span>Sin movimientos</div>';
+
+  const saldo=h.saldo_total;
+  const box=document.getElementById('cuenta-saldo-box');
+  const lbl=document.getElementById('cuenta-saldo-label');
+  const val=document.getElementById('cuenta-saldo');
+  const btnT=document.getElementById('btn-cuenta-total');
+  const btnP=document.getElementById('btn-cuenta-parcial');
+  if(saldo>0.01){
+    box.style.background='var(--rojo-s)'; lbl.textContent='Te debe'; lbl.style.color='var(--rojo)';
+    val.textContent=$$(saldo); val.style.color='var(--rojo)';
+    btnT.style.display='block'; btnT.textContent='Registrar cobro total ('+$$(saldo)+')';
+    btnP.style.display='block'; btnP.textContent='Registrar cobro parcial';
+  }else if(saldo<-0.01){
+    box.style.background='var(--azul-s)'; lbl.textContent='Le debés'; lbl.style.color='var(--azul)';
+    val.textContent=$$(-saldo); val.style.color='var(--azul)';
+    btnT.style.display='block'; btnT.textContent='Registrar pago total ('+$$(-saldo)+')';
+    btnP.style.display='block'; btnP.textContent='Registrar pago parcial';
+  }else{
+    box.style.background='var(--verde-s)'; lbl.textContent='Al día'; lbl.style.color='var(--verde-c)';
+    val.textContent=$$(0); val.style.color='var(--verde-c)';
+    btnT.style.display='none'; btnP.style.display='none';
+  }
+}
+
+function cuentaSaldarTotal(){
+  const nombre=document.getElementById('cuenta-nombre').value;
+  cerrarModal('modal-contacto');
+  if(_cuentaSaldo>0){
+    document.getElementById('ab-cliente').value=nombre;
+    document.getElementById('ab-monto').value=Math.round(_cuentaSaldo);
+    document.getElementById('ab-fecha').value=hoy();
+    document.getElementById('ab-nota').value='Liquidación total';
+    document.getElementById('modal-abono').classList.add('visible');
+  }else{
+    document.getElementById('ab-prov').value=nombre;
+    document.getElementById('ab-monto-prov').value=Math.round(-_cuentaSaldo);
+    document.getElementById('ab-fecha-prov').value=hoy();
+    document.getElementById('modal-abono-prov').classList.add('visible');
+  }
+}
+
+function cuentaSaldarParcial(){
+  const nombre=document.getElementById('cuenta-nombre').value;
+  cerrarModal('modal-contacto');
+  if(_cuentaSaldo>0){
+    document.getElementById('ab-cliente').value=nombre;
+    document.getElementById('ab-monto').value='';
+    document.getElementById('ab-fecha').value=hoy();
+    document.getElementById('ab-nota').value='';
+    document.getElementById('modal-abono').classList.add('visible');
+  }else{
+    document.getElementById('ab-prov').value=nombre;
+    document.getElementById('ab-monto-prov').value='';
+    document.getElementById('ab-fecha-prov').value=hoy();
+    document.getElementById('modal-abono-prov').classList.add('visible');
+  }
+}
+
 
 function renderDeudaClientes(lista){
   _deudaCli=lista;

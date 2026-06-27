@@ -125,6 +125,8 @@ function doGet(e) {
       case 'getGanancia':         resultado = getGanancia(ss, e.parameter.desde, e.parameter.hasta); break;
       case 'getDeudaClientes':    resultado = getDeudaClientes(ss); break;
       case 'getDeudaProveedores': resultado = getDeudaProveedores(ss); break;
+      case 'getDeudaContactos':    resultado = getDeudaContactos(ss); break;
+      case 'getHistorialContacto': resultado = getHistorialContacto(ss, e.parameter.contacto); break;
       case 'getHistorialCliente':   resultado = getHistorialCliente(ss, e.parameter.cliente); break;
       case 'getHistorialProveedor': resultado = getHistorialProveedor(ss, e.parameter.proveedor); break;
       case 'getDevoluciones':       resultado = getDevoluciones(ss, e.parameter.desde, e.parameter.hasta, e.parameter.tipo); break;
@@ -467,11 +469,15 @@ function getVentas(ss, desde, hasta) {
 // ==========================================
 
 function getClientes(ss) {
+  const norm = s => (s || '').toString().normalize('NFC').trim().toLowerCase().replace(/\s+/g, ' ');
   const deHoja = hojaAObjetos(ss.getSheetByName('Clientes'));
-  // También incluir clientes que aparecen en pedidos
+  // Identidades ya conocidas: el nombre COMPLETO normalizado de cada cliente de la hoja.
+  const conocidos = new Set(deHoja.map(cl => norm([cl.nombre, cl.apellido].filter(Boolean).join(' '))));
+  // Incluir nombres que aparecen en pedidos y NO coinciden con ningún cliente de la hoja
+  // (comparando por nombre completo normalizado → evita el fantasma "Juan" vs "Juan Pérez").
   const dePedidos = hojaAObjetos(ss.getSheetByName('Pedidos'))
     .map(p => p.cliente)
-    .filter(c => c && !deHoja.some(cl => cl.nombre === c));
+    .filter(c => c && !conocidos.has(norm(c)));
 
   const nombresExtra = [...new Set(dePedidos)].map(n => ({ nombre: n, apellido: '', celular: '' }));
   return [...deHoja, ...nombresExtra].sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -906,6 +912,210 @@ function getHistorialProveedor(ss, proveedor) {
     saldo_total: saldo
   };
 }
+
+// ==========================================
+// CUENTA ÚNICA POR CONTACTO (Fase 3)
+// Neto = (lo que te debe como cliente) - (lo que le debés como proveedor)
+// Positivo = te debe ; Negativo = le debés.
+// ==========================================
+
+function getDeudaContactos(ss) {
+  const norm = s => (s || '').toString().normalize('NFC').trim().toLowerCase().replace(/\s+/g, ' ');
+  const pedidos = hojaAObjetos(ss.getSheetByName('Pedidos'));
+  const pagosC  = hojaAObjetos(ss.getSheetByName('Pagos Clientes'));
+  const compras = hojaAObjetos(ss.getSheetByName('Compras'));
+  const pagosP  = hojaAObjetos(ss.getSheetByName('Pagos Proveedores'));
+  const devs    = hojaAObjetos(ss.getSheetByName('Devoluciones'));
+
+  const map = {};
+  const get = (name) => {
+    const k = norm(name);
+    if (!k) return null;
+    if (!map[k]) map[k] = { contacto: name, cli: 0, prov: 0, total_ventas: 0, total_compras: 0 };
+    return map[k];
+  };
+
+  pedidos.forEach(p => { const g = get(p.cliente); if (g) { g.cli += Number(p.total) - Number(p.monto_pagado); g.total_ventas += Number(p.total); } });
+  pagosC.forEach(p => { const g = get(p.cliente); if (g) g.cli -= Number(p.monto); });
+  devs.filter(d => d.tipo === 'cliente').forEach(d => { const g = get(d.contraparte); if (g) g.cli -= Number(d.monto); });
+
+  compras.forEach(c => { const g = get(c.proveedor); if (g) { g.prov += Number(c.total) - Number(c.monto_pagado); g.total_compras += Number(c.total); } });
+  pagosP.forEach(p => { const g = get(p.proveedor); if (g) g.prov -= Number(p.monto); });
+  devs.filter(d => d.tipo === 'proveedor').forEach(d => { const g = get(d.contraparte); if (g) g.prov -= Number(d.monto); });
+
+  return Object.values(map)
+    .map(g => ({
+      contacto: g.contacto,
+      neto: g.cli - g.prov,
+      debe_cliente: g.cli,
+      debe_proveedor: g.prov,
+      total_ventas: g.total_ventas,
+      total_compras: g.total_compras
+    }))
+    .filter(g => Math.abs(g.neto) > 0.01)
+    .sort((a, b) => b.neto - a.neto);
+}
+
+function getHistorialContacto(ss, contacto) {
+  if (!contacto) throw new Error('Contacto obligatorio');
+  const norm = s => (s || '').toString().normalize('NFC').trim().toLowerCase().replace(/\s+/g, ' ');
+  const key = norm(contacto);
+  const match = v => norm(v) === key;
+
+  const ventasItems = hojaAObjetos(ss.getSheetByName('Ventas'));
+  const pedidos = hojaAObjetos(ss.getSheetByName('Pedidos')).filter(p => match(p.cliente));
+  const pagosC  = hojaAObjetos(ss.getSheetByName('Pagos Clientes')).filter(p => match(p.cliente));
+  const compras = hojaAObjetos(ss.getSheetByName('Compras')).filter(c => match(c.proveedor));
+  const pagosP  = hojaAObjetos(ss.getSheetByName('Pagos Proveedores')).filter(p => match(p.proveedor));
+  const devs    = hojaAObjetos(ss.getSheetByName('Devoluciones')).filter(d => match(d.contraparte));
+
+  const mov = [];
+  pedidos.forEach(p => mov.push({
+    tipo: 'venta', fecha: p.fecha, id: p.pedido_id,
+    descripcion: p.descripcion || 'Venta',
+    delta: Number(p.total) - Number(p.monto_pagado),
+    total: Number(p.total), pagado: Number(p.monto_pagado),
+    items: ventasItems.filter(v => v.pedido_id === p.pedido_id)
+  }));
+  pagosC.forEach(p => mov.push({ tipo: 'pago_cli', fecha: p.fecha, id: p.id, descripcion: p.nota || 'Pago recibido', delta: -Number(p.monto) }));
+  compras.forEach(c => mov.push({ tipo: 'compra', fecha: c.fecha, id: c.id, descripcion: 'Compra: ' + c.producto_insumo + ' · ' + c.cantidad, delta: -(Number(c.total) - Number(c.monto_pagado)), total: Number(c.total), pagado: Number(c.monto_pagado) }));
+  pagosP.forEach(p => mov.push({ tipo: 'pago_prov', fecha: p.fecha, id: p.id, descripcion: 'Pago que le hiciste', delta: Number(p.monto) }));
+  devs.filter(d => d.tipo === 'cliente').forEach(d => mov.push({ tipo: 'dev_cli', fecha: d.fecha, id: d.id, descripcion: 'Devolución de cliente: ' + d.producto, delta: -Number(d.monto) }));
+  devs.filter(d => d.tipo === 'proveedor').forEach(d => mov.push({ tipo: 'dev_prov', fecha: d.fecha, id: d.id, descripcion: 'Devolución a proveedor: ' + d.producto, delta: Number(d.monto) }));
+
+  mov.sort((a, b) => (a.fecha || '').toString().localeCompare((b.fecha || '').toString()));
+  let saldo = 0;
+  mov.forEach(m => { saldo += m.delta; m.saldo = saldo; });
+
+  return { contacto, movimientos: mov, saldo_total: saldo };
+}
+
+// ==========================================
+// LIMPIEZA DE CONTACTOS (Fase 2)
+// Correr MANUALMENTE desde el editor. Hacé una COPIA de la planilla antes de
+// fusionar (Archivo → Hacer una copia). auditarContactos() es solo lectura.
+// ==========================================
+
+function _normNombre(s) {
+  return (s || '').toString().normalize('NFC').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+// 1) AUDITORÍA (solo lectura). Resultado en Ver → Registros (Logs).
+function auditarContactos() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  const clientes    = hojaAObjetos(ss.getSheetByName('Clientes'));
+  const proveedores = hojaAObjetos(ss.getSheetByName('Proveedores'));
+  const pedidos     = hojaAObjetos(ss.getSheetByName('Pedidos'));
+  const pagosC      = hojaAObjetos(ss.getSheetByName('Pagos Clientes'));
+  const compras     = hojaAObjetos(ss.getSheetByName('Compras'));
+  const pagosP      = hojaAObjetos(ss.getSheetByName('Pagos Proveedores'));
+  const devs        = hojaAObjetos(ss.getSheetByName('Devoluciones'));
+
+  function contar(nombres) {
+    const m = {};
+    nombres.filter(Boolean).forEach(n => {
+      const k = _normNombre(n);
+      if (!m[k]) m[k] = { display: n, usos: 0 };
+      m[k].usos++;
+    });
+    return m;
+  }
+
+  const usadosCli = contar([].concat(
+    pedidos.map(p => p.cliente),
+    pagosC.map(p => p.cliente),
+    devs.filter(d => d.tipo === 'cliente').map(d => d.contraparte)
+  ));
+  const usadosProv = contar([].concat(
+    compras.map(c => c.proveedor),
+    pagosP.map(p => p.proveedor),
+    devs.filter(d => d.tipo === 'proveedor').map(d => d.contraparte)
+  ));
+
+  function reporte(titulo, hojaObjs, keyFull, usados) {
+    Logger.log('=== ' + titulo + ' ===');
+    Logger.log('En la hoja (' + hojaObjs.length + '):');
+    hojaObjs.forEach(o => Logger.log('   - "' + keyFull(o) + '"'));
+    Logger.log('Usados en movimientos (' + Object.keys(usados).length + '):');
+    Object.values(usados).sort((a, b) => a.display.localeCompare(b.display))
+      .forEach(u => Logger.log('   - "' + u.display + '"  (' + u.usos + ' usos)'));
+    const lista = Object.values(usados).map(u => u.display);
+    const sosp = [];
+    for (let i = 0; i < lista.length; i++) for (let j = i + 1; j < lista.length; j++) {
+      const a = _normNombre(lista[i]), b = _normNombre(lista[j]);
+      if (a === b) continue;
+      if (a.startsWith(b + ' ') || b.startsWith(a + ' ') || a.split(' ')[0] === b.split(' ')[0])
+        sosp.push('   ? "' + lista[i] + '"  <->  "' + lista[j] + '"');
+    }
+    Logger.log('Posibles duplicados a revisar:');
+    (sosp.length ? sosp : ['   (ninguno obvio)']).forEach(x => Logger.log(x));
+    Logger.log('');
+  }
+
+  reporte('CLIENTES', clientes, c => [c.nombre, c.apellido].filter(Boolean).join(' '), usadosCli);
+  reporte('PROVEEDORES', proveedores, p => p.nombre, usadosProv);
+  Logger.log('Para fusionar:  fusionarNombres({ "Juan": "Juan Perez" }, "cliente")');
+}
+
+// 2) FUSIÓN. Reescribe TODAS las apariciones del nombre viejo por el canónico y
+//    borra la fila duplicada de la hoja de contactos. tipo = "cliente" | "proveedor".
+//    Ej:  fusionarNombres({ "Juan": "Juan Perez", "JUAN PEREZ": "Juan Perez" }, "cliente")
+function fusionarNombres(mapa, tipo) {
+  if (!mapa || typeof mapa !== 'object') throw new Error('Pasá un mapa { "viejo": "canónico", ... }');
+  if (['cliente', 'proveedor'].indexOf(tipo) === -1) throw new Error('tipo debe ser "cliente" o "proveedor"');
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  const mapaNorm = {};
+  Object.keys(mapa).forEach(k => { mapaNorm[_normNombre(k)] = mapa[k]; });
+
+  function reescribirCol(nombreHoja, col, condCol, tipoEsperado) {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja || hoja.getLastRow() < 2) return 0;
+    const rng = hoja.getRange(2, 1, hoja.getLastRow() - 1, hoja.getLastColumn());
+    const vals = rng.getValues();
+    let cambios = 0;
+    for (let i = 0; i < vals.length; i++) {
+      if (condCol && vals[i][condCol - 1] !== tipoEsperado) continue;
+      const actual = vals[i][col - 1];
+      const dest = mapaNorm[_normNombre(actual)];
+      if (dest && dest !== actual) { vals[i][col - 1] = dest; cambios++; }
+    }
+    if (cambios) rng.setValues(vals);
+    return cambios;
+  }
+
+  let total = 0;
+  if (tipo === 'cliente') {
+    total += reescribirCol('Pedidos', 3);
+    total += reescribirCol('Pagos Clientes', 3);
+    total += reescribirCol('Devoluciones', 4, 3, 'cliente');
+  } else {
+    total += reescribirCol('Compras', 3);
+    total += reescribirCol('Pagos Proveedores', 3);
+    total += reescribirCol('Devoluciones', 4, 3, 'proveedor');
+  }
+
+  // Borrar de la hoja de contactos solo las filas cuyo NOMBRE COMPLETO es una
+  // clave del mapa que apunta a un canónico distinto (la fila vieja duplicada).
+  const hojaC = ss.getSheetByName(tipo === 'cliente' ? 'Clientes' : 'Proveedores');
+  let borradas = 0;
+  if (hojaC && hojaC.getLastRow() > 1) {
+    const filas = hojaC.getDataRange().getValues();
+    for (let i = filas.length - 1; i >= 1; i--) {
+      const full = tipo === 'cliente'
+        ? _normNombre([filas[i][0], filas[i][1]].filter(Boolean).join(' '))
+        : _normNombre(filas[i][0]);
+      const dest = mapaNorm[full];
+      if (dest && _normNombre(dest) !== full) { hojaC.deleteRow(i + 1); borradas++; }
+    }
+  }
+
+  SpreadsheetApp.flush();
+  Logger.log('OK fusión (' + tipo + '): ' + total + ' celdas reescritas, ' + borradas + ' filas borradas.');
+  return { celdas_reescritas: total, filas_borradas: borradas };
+}
+
 ```
 
 ---
