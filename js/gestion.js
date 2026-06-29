@@ -239,50 +239,82 @@ function filtrarDevoluciones(filtro){
 // ==========================================
 // CORRECCIONES (editar / borrar)
 // ==========================================
+let compraCarritoEdit=[];
 async function abrirEdicionCompra(i){
   const c=_histCompras[i]; if(!c) return;
-  document.getElementById('ec-id').value=c.id;
-  document.getElementById('ec-producto').value=c.producto_insumo||'';
-  document.getElementById('ec-cantidad').value=c.cantidad;
-  document.getElementById('ec-total').value=c.total;
+  document.getElementById('ec-id').value=c.compra_id||c.id;
   document.getElementById('ec-pago').value=c.forma_pago||'efectivo';
   document.getElementById('ec-pagado').value=c.monto_pagado;
   document.getElementById('ec-fecha').value=c.fecha;
+  compraCarritoEdit=(c.items||[]).map(it=>({producto:it.producto_insumo, cantidad:it.cantidad, total:it.total}));
+  if(!compraCarritoEdit.length) compraCarritoEdit=[{producto:'',cantidad:'',total:''}];
   try{
     const provs=await apiGetCached('getProveedores');
     document.getElementById('ec-proveedor').innerHTML='<option value="">Sin proveedor</option>'+
       provs.map(p=>`<option value="${escH(p.nombre)}" ${c.proveedor===p.nombre?'selected':''}>${p.nombre}</option>`).join('');
   }catch(e){}
+  renderCompraEditItems();
   document.getElementById('modal-editar-compra').classList.add('visible');
 }
+
+function renderCompraEditItems(){
+  const el=document.getElementById('ec-items'); if(!el) return;
+  el.innerHTML=compraCarritoEdit.map((item,i)=>`
+    <div class="carrito-item">
+      <div style="display:flex;align-items:flex-start;gap:8px">
+        <div style="flex:1">
+          <div class="campo" style="margin-bottom:8px">
+            <label>Producto / Insumo</label>
+            <input type="text" list="lista-productos-compra" value="${escH(item.producto)}" placeholder="Producto..." autocomplete="off" oninput="alCambiarProdCompraEdit(${i},this.value)"/>
+          </div>
+          <div class="fila" style="gap:8px">
+            <div class="campo" style="margin-bottom:0"><label>Cantidad</label>
+              <input type="number" value="${item.cantidad}" min="0" step="0.01" placeholder="0" oninput="alCambiarCantCompraEdit(${i},this.value)" style="font-size:18px;font-weight:600"/></div>
+            <div class="campo" style="margin-bottom:0"><label>Precio total ($)</label>
+              <input type="number" value="${item.total}" min="0" step="1" placeholder="0" oninput="alCambiarTotalCompraEdit(${i},this.value)" style="font-size:18px;font-weight:600"/></div>
+          </div>
+          <div class="hint gris" id="echint-${i}">${_echintTxt(i)}</div>
+        </div>
+        <button onclick="quitarItemCompraEdit(${i})" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--rojo);padding:24px 0 0;line-height:1">×</button>
+      </div>
+    </div>`).join('');
+}
+function _echintTxt(i){
+  const it=compraCarritoEdit[i]; if(!it) return '';
+  const cant=Number(it.cantidad)||0,total=Number(it.total)||0,costo=cant>0&&total>0?total/cant:0;
+  const cat=_prodCat(it.producto);
+  return costo>0?('Costo: $'+costo.toFixed(2)+'/'+(cat?cat.unidad:'u')):'';
+}
+function _echintUpd(i){ const e=document.getElementById('echint-'+i); if(e) e.textContent=_echintTxt(i); }
+function alCambiarProdCompraEdit(i,v){ compraCarritoEdit[i].producto=v; _echintUpd(i); }
+function alCambiarCantCompraEdit(i,v){ compraCarritoEdit[i].cantidad=v; _echintUpd(i); }
+function alCambiarTotalCompraEdit(i,v){ compraCarritoEdit[i].total=v; _echintUpd(i); }
+function agregarItemCompraEdit(){ compraCarritoEdit.push({producto:'',cantidad:'',total:''}); renderCompraEditItems(); }
+function quitarItemCompraEdit(i){ if(compraCarritoEdit.length===1){toast('La compra debe tener al menos un producto','error');return;} compraCarritoEdit.splice(i,1); renderCompraEditItems(); }
 async function guardarEdicionCompra(){
-  const id=document.getElementById('ec-id').value;
+  const compra_id=document.getElementById('ec-id').value;
   const proveedor=document.getElementById('ec-proveedor').value;
-  const producto_insumo=document.getElementById('ec-producto').value.trim();
-  const cantidad=parseFloat(document.getElementById('ec-cantidad').value);
-  const total=parseFloat(document.getElementById('ec-total').value);
   const forma_pago=document.getElementById('ec-pago').value;
   const monto_pagado=parseFloat(document.getElementById('ec-pagado').value)||0;
   const fecha=document.getElementById('ec-fecha').value||hoy();
   if(!proveedor){toast('Ingresá el proveedor','error');return;}
-  if(!producto_insumo){toast('Ingresá el producto','error');return;}
-  if(!(cantidad>0)){toast('Ingresá la cantidad','error');return;}
-  if(!(total>0)){toast('Ingresá el total','error');return;}
+  if(compraCarritoEdit.some(it=>!it.producto||!(Number(it.cantidad)>0)||!(Number(it.total)>0))){toast('Completá producto, cantidad y precio de cada renglón','error');return;}
+  const total=compraCarritoEdit.reduce((s,it)=>s+Number(it.total),0);
   if(monto_pagado>total){toast('Monto pagado no puede superar el total','error');return;}
-  const costo_unitario=cantidad>0?total/cantidad:0;
+  const items=compraCarritoEdit.map(it=>{ const c=Number(it.cantidad)||0,t=Number(it.total)||0; return {producto:(it.producto||'').trim(),cantidad:c,total:t,costo_unitario:c>0?t/c:0}; });
   toast('Guardando...','guardando');
   try{
-    await apiPost('editarCompra',{id,proveedor,producto_insumo,cantidad,total,costo_unitario,forma_pago,monto_pagado,fecha});
+    await apiPost('editarCompraGrupo',{compra_id,proveedor,forma_pago,monto_pagado,fecha,items});
     cerrarModal('modal-editar-compra'); ocultarToast(); toast('✅ Compra actualizada','exito');
     cargarHistorialCompras();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
 async function eliminarCompraActual(){
-  const id=document.getElementById('ec-id').value;
-  if(!confirm('¿Eliminar esta compra?\n\nNo se puede deshacer.')) return;
+  const compra_id=document.getElementById('ec-id').value;
+  if(!confirm('¿Eliminar esta compra completa?\n\nNo se puede deshacer.')) return;
   toast('Eliminando...','guardando');
   try{
-    await apiPost('eliminarCompra',{id});
+    await apiPost('eliminarCompraGrupo',{compra_id});
     cerrarModal('modal-editar-compra'); ocultarToast(); toast('✅ Compra eliminada','exito');
     cargarHistorialCompras();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}

@@ -31,15 +31,16 @@ async function cargarHistorialCompras(){
     lista.innerHTML=compras.map((c,i)=>{
       const deuda=Number(c.total)-Number(c.monto_pagado);
       const badge=c.forma_pago==='efectivo'?'badge-efectivo':c.forma_pago==='transferencia'?'badge-trans':'badge-credito';
+      const itemsTxt=(c.items||[]).map(it=>escH(it.producto_insumo)+' ('+it.cantidad+')').join(', ');
       return `<div class="item">
         <div class="item-head">
           <div class="item-info" style="flex:1">
             <div class="item-nombre">${escH(c.proveedor)} <span class="badge ${badge}">${c.forma_pago||''}</span></div>
-            <div class="item-det">${escH(c.producto_insumo)} · ${c.cantidad} · ${fmtFecha(c.fecha)}</div>
+            <div class="item-det">${itemsTxt} · ${fmtFecha(c.fecha)}</div>
             ${deuda>0?`<div class="item-det" style="color:var(--rojo)">Pendiente: ${$$(deuda)}</div>`:''}
             <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn btn-s btn-sm" onclick="abrirEdicionCompra(${i})">✏️ Editar</button>
-              <button class="btn btn-s btn-sm" onclick="abrirModalDevolucion('${escH(c.id)}','proveedor')">↩️ Devolver</button>
+              <button class="btn btn-s btn-sm" onclick="abrirModalDevolucion('${escH(c.compra_id||c.id)}','proveedor')">↩️ Devolver</button>
             </div>
           </div>
           <div class="item-val">${$$(c.total)}</div>
