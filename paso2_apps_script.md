@@ -173,6 +173,8 @@ function doPost(e) {
       case 'registrarPagoProveedor': resultado = registrarPagoProveedor(ss, body.datos); break;
       case 'editarCompra':           resultado = editarCompra(ss, body.datos); break;
       case 'eliminarCompra':         resultado = eliminarCompra(ss, body.datos); break;
+      case 'editarCompraGrupo':      resultado = editarCompraGrupo(ss, body.datos); break;
+      case 'eliminarCompraGrupo':    resultado = eliminarCompraGrupo(ss, body.datos); break;
       case 'eliminarPedido':         resultado = eliminarPedido(ss, body.datos); break;
       case 'editarPagoCliente':      resultado = editarPagoCliente(ss, body.datos); break;
       case 'eliminarPagoCliente':    resultado = eliminarPagoCliente(ss, body.datos); break;
@@ -815,7 +817,18 @@ function registrarCompra(ss, d) {
 
 function getCompras(ss, desde, hasta) {
   const todas = filtrarFecha(hojaAObjetos(ss.getSheetByName('Compras')), desde, hasta);
-  return { compras: todas, total: todas.reduce((s, c) => s + Number(c.total), 0), cantidad: todas.length };
+  // Agrupar líneas por compra_id (una compra puede tener varios productos).
+  const grupos = {}; const orden = [];
+  todas.forEach(c => {
+    const cid = c.compra_id || c.id;
+    if (!grupos[cid]) { grupos[cid] = { compra_id: cid, id: cid, fecha: c.fecha, proveedor: c.proveedor, forma_pago: c.forma_pago, monto_pagado: 0, total: 0, items: [] }; orden.push(cid); }
+    const g = grupos[cid];
+    g.monto_pagado += Number(c.monto_pagado) || 0;
+    g.total += Number(c.total) || 0;
+    g.items.push({ id: c.id, producto_insumo: c.producto_insumo, cantidad: c.cantidad, costo_unitario: c.costo_unitario, total: Number(c.total) || 0 });
+  });
+  const compras = orden.map(cid => grupos[cid]);
+  return { compras: compras, total: compras.reduce((s, c) => s + Number(c.total), 0), cantidad: compras.length };
 }
 
 
@@ -868,7 +881,7 @@ function getGanancia(ss, desde, hasta) {
     ganancia_real:        gananciaReal,
     ganancia:             ventasNetas - comprasNetas,
     cantidad_ventas:      pedidos.length,
-    cantidad_compras:     compras.length
+    cantidad_compras:     new Set(compras.map(c => c.compra_id || c.id)).size
   };
 }
 
@@ -1161,6 +1174,71 @@ function eliminarCompra(ss, d) {
   _moverStock(ss, prod, -cant); // quitar del stock lo que sumaba
   hoja.deleteRow(fila);
   return { mensaje: 'Compra eliminada: ' + d.id };
+}
+
+// ---- COMPRAS MULTI-PRODUCTO (por compra_id) ----
+function _filasDeCompra(hoja, colCid, compra_id) {
+  const filas = hoja.getDataRange().getValues();
+  const idx = [];
+  for (let i = 1; i < filas.length; i++) {
+    const cid = filas[i][colCid - 1] || filas[i][0];
+    if (cid === compra_id) idx.push(i);
+  }
+  return { filas: filas, idx: idx };
+}
+
+function editarCompraGrupo(ss, d) {
+  if (!d.compra_id) throw new Error('compra_id obligatorio');
+  if (!Array.isArray(d.items) || !d.items.length) throw new Error('La compra debe tener al menos un producto');
+  const hoja = ss.getSheetByName('Compras');
+  _asegurarColumnaCompraId(ss);
+  const colCid = _colCompraId(hoja);
+  const { filas, idx } = _filasDeCompra(hoja, colCid, d.compra_id);
+  if (!idx.length) throw new Error('Compra no encontrada: ' + d.compra_id);
+
+  const base = filas[idx[0]];
+  const fecha = d.fecha || base[1];
+  const proveedor = (d.proveedor !== undefined) ? d.proveedor : base[2];
+  const forma_pago = d.forma_pago || base[7];
+  const operador = base[9];
+
+  const totalCompra = d.items.reduce((s, it) => s + (Number(it.total) || 0), 0);
+  validarPositivo(totalCompra, 'Total');
+  const monto_pagado = (d.monto_pagado !== undefined) ? Number(d.monto_pagado) : Number(base[8]) || 0;
+  validarNoNegativo(monto_pagado, 'Monto pagado');
+  if (monto_pagado > totalCompra) throw new Error('Monto pagado no puede superar el total');
+
+  // 1) revertir stock de líneas viejas
+  idx.forEach(i => { _moverStock(ss, filas[i][3], -(Number(filas[i][4]) || 0)); });
+  // 2) borrar líneas viejas (de abajo hacia arriba)
+  idx.slice().sort((a, b) => b - a).forEach(i => hoja.deleteRow(i + 1));
+  // 3) insertar líneas nuevas (mismo compra_id)
+  d.items.forEach((it, j) => {
+    if (!it.producto) throw new Error('Cada línea debe tener producto');
+    const cantidad = Number(it.cantidad) || 0;
+    const total = Number(it.total) || 0;
+    const costo = Number(it.costo_unitario) || (cantidad > 0 ? total / cantidad : 0);
+    const id = generarId(hoja, 'C');
+    const fila = [id, fecha, proveedor, it.producto, cantidad, costo, total, forma_pago, (j === 0 ? monto_pagado : 0), operador];
+    fila[colCid - 1] = d.compra_id;
+    hoja.appendRow(fila);
+    _moverStock(ss, it.producto, cantidad);
+  });
+  SpreadsheetApp.flush();
+  return { mensaje: 'Compra actualizada: ' + d.compra_id };
+}
+
+function eliminarCompraGrupo(ss, d) {
+  if (!d.compra_id) throw new Error('compra_id obligatorio');
+  const hoja = ss.getSheetByName('Compras');
+  _asegurarColumnaCompraId(ss);
+  const colCid = _colCompraId(hoja);
+  const { filas, idx } = _filasDeCompra(hoja, colCid, d.compra_id);
+  if (!idx.length) throw new Error('Compra no encontrada: ' + d.compra_id);
+  idx.forEach(i => { _moverStock(ss, filas[i][3], -(Number(filas[i][4]) || 0)); });
+  idx.slice().sort((a, b) => b - a).forEach(i => hoja.deleteRow(i + 1));
+  SpreadsheetApp.flush();
+  return { mensaje: 'Compra eliminada: ' + d.compra_id };
 }
 
 // ---- PEDIDOS (VENTAS) ----
