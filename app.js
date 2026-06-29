@@ -178,7 +178,7 @@ function _norm(s){return (s||'').toString().normalize('NFC').trim().toLowerCase(
 // NAVEGACIÓN
 // ==========================================
 const TITULOS={inicio:'Quesos Los Weys',venta:'Nueva Venta',compra:'Nueva Compra',deudas:'Deudas',mas:'Más opciones',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes',devoluciones:'Devoluciones',historial:'Historial',stock:'Stock'};
-const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas','proveedores-mgt':'nav-mas',reportes:'nav-mas',devoluciones:'nav-mas',historial:'nav-mas',stock:'nav-mas'};
+const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas','proveedores-mgt':'nav-mas',reportes:'nav-mas',devoluciones:'nav-devoluciones',historial:'nav-mas',stock:'nav-mas'};
 
 function irA(p, tab){
   document.querySelectorAll('.pantalla').forEach(x=>x.classList.remove('activa'));
@@ -205,16 +205,7 @@ function irA(p, tab){
 // ==========================================
 async function cargarInicio(){
   try{
-    const [d, contactos] = await Promise.all([
-      apiGet('getVentasHoy'),
-      apiGet('getDeudaContactos').catch(()=>[])
-    ]);
-    document.getElementById('total-hoy').textContent=$$(d.total_ventas);
-    document.getElementById('cobrado-hoy').textContent=`Cobrado hoy: ${$$(d.total_cobrado)}`;
-    const porCobrar=contactos.filter(c=>c.neto>0).reduce((s,x)=>s+x.neto,0);
-    const porPagar=contactos.filter(c=>c.neto<0).reduce((s,x)=>s-x.neto,0);
-    document.getElementById('total-por-cobrar').textContent=porCobrar>0?$$(porCobrar):'✅ Al día';
-    document.getElementById('total-por-pagar').textContent=porPagar>0?$$(porPagar):'✅ Al día';
+    const d = await apiGet('getVentasHoy');
     const lista=document.getElementById('ventas-hoy-lista');
     _pedidosHoy=d.pedidos||[];
     const hayVentas=d.pedidos&&d.pedidos.length>0;
@@ -261,8 +252,8 @@ async function cargarInicio(){
 
     lista.innerHTML=htmlVentas+htmlAbonos;
   }catch(e){
-    document.getElementById('total-hoy').textContent='—';
-    document.getElementById('cobrado-hoy').textContent='Sin conexión · '+e.message;
+    const l=document.getElementById('ventas-hoy-lista');
+    if(l) l.innerHTML='<div class="vacio"><span class="ico">❌</span>Sin conexión · '+e.message+'</div>';
   }
 }
 
@@ -1349,24 +1340,27 @@ async function guardarCliente(){
 
 function abrirQuickCliente(){
   document.getElementById('qcli-nombre').value='';
+  document.getElementById('qcli-apellido').value='';
   document.getElementById('qcli-celular').value='';
   document.getElementById('modal-quick-cli').classList.add('visible');
 }
 
 async function guardarQuickCliente(){
   const nombre=document.getElementById('qcli-nombre').value.trim();
+  const apellido=document.getElementById('qcli-apellido').value.trim();
   const celular=document.getElementById('qcli-celular').value.trim();
   if(!nombre){toast('El nombre es obligatorio','error');return;}
-  const partes=nombre.split(' ');
-  const nom=partes[0];
-  const ape=partes.slice(1).join(' ');
+  const completo=[nombre,apellido].filter(Boolean).join(' ');
+  const yaExiste=(clientesCache||[]).some(c=>nombreCompleto(c).toLowerCase()===completo.toLowerCase());
   toast('Guardando...','guardando');
   try{
-    await apiPost('agregarCliente',{nombre:nom,apellido:ape,celular});
-    cerrarModal('modal-quick-cli'); ocultarToast(); toast('✅ '+nombre+' agregado','exito');
-    document.getElementById('v-cliente').value=nombre;
+    if(!yaExiste){
+      try{ await apiPost('agregarCliente',{nombre,apellido,celular}); }
+      catch(err){ if(!/existe/i.test(err.message||'')) throw err; } // si ya existía en el backend, lo usamos igual
+    }
+    cerrarModal('modal-quick-cli'); ocultarToast(); toast('✅ '+completo+' listo','exito');
+    document.getElementById('v-cliente').value=completo;
     clientesCache=await apiGet('getClientes');
-    // Autocomplete con nombre completo
     document.getElementById('lista-clientes').innerHTML=clientesCache.map(c=>`<option value="${escH(nombreCompleto(c))}">`).join('');
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
@@ -1397,30 +1391,17 @@ async function cargarReporte(){
   const cont=document.getElementById('cont-reporte');
   cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Calculando...</div>';
   try{
-    const [g, ventas, compras] = await Promise.all([
+    const [g, ventas, compras, contactos] = await Promise.all([
       apiGet('getGanancia',{desde,hasta}),
       apiGet('getVentas',{desde,hasta}),
-      apiGet('getCompras',{desde,hasta})
+      apiGet('getCompras',{desde,hasta}),
+      apiGet('getDeudaContactos').catch(()=>[])
     ]);
 
-    // Cobrado real = lo pagado al momento de vender + abonos recibidos en el período.
-    // Pendiente = ventas - cobrado - devoluciones de clientes. Así coincide con Deudas.
-    const pagadoAlMomento = ventas.pedidos.reduce((s,p)=>s+Number(p.monto_pagado),0);
-    const cobrado = pagadoAlMomento + Number(g.abonos_clientes||0);
-    const pendienteDelPeriodo = Math.max(0, g.total_ventas - cobrado - Number(g.dev_de_clientes||0));
     const ticketPromedio = g.cantidad_ventas > 0 ? g.total_ventas / g.cantidad_ventas : 0;
-    const pctCobrado = g.total_ventas > 0 ? Math.round(cobrado / g.total_ventas * 100) : 0;
-
-    // Clientes únicos que compraron en el período
-    const clientesUnicos = new Set(ventas.pedidos.map(p=>p.cliente).filter(Boolean)).size;
-
-    // Día con más ventas
-    const ventasPorDia = {};
-    ventas.pedidos.forEach(p=>{
-      const f = p.fecha||'';
-      ventasPorDia[f] = (ventasPorDia[f]||0) + Number(p.total);
-    });
-    const mejorDia = Object.entries(ventasPorDia).sort((a,b)=>b[1]-a[1])[0];
+    // Pendiente actual (total y al día, igual que en Deudas)
+    const pendienteCobro = (contactos||[]).filter(c=>c.neto>0).reduce((s,c)=>s+c.neto,0);
+    const pendientePago  = (contactos||[]).filter(c=>c.neto<0).reduce((s,c)=>s-c.neto,0);
 
     // Desglose por forma de pago
     const pagos = {};
@@ -1486,51 +1467,41 @@ async function cargarReporte(){
         <div style="font-size:20px;font-weight:700;color:${redondeo<0?'var(--rojo)':'var(--verde-c)'}">${redondeo>=0?'+':'−'}${$$(Math.abs(redondeo))}</div>
       </div>`:''}
 
-      <!-- MÉTRICAS CLAVE -->
-      <div class="rep-grid-3" style="margin-bottom:12px">
-        <div class="rep-card">
-          <div class="rt">Ticket promedio</div>
-          <div class="rv" style="font-size:16px">${ticketPromedio>0?$$(Math.round(ticketPromedio)):'—'}</div>
-        </div>
-        <div class="rep-card">
-          <div class="rt">Clientes únicos</div>
-          <div class="rv" style="font-size:22px">${clientesUnicos||'—'}</div>
-        </div>
-        <div class="rep-card">
-          <div class="rt">Mejor día</div>
-          <div class="rv" style="font-size:14px">${mejorDia?fmtFecha(mejorDia[0]):'—'}</div>
-          ${mejorDia?`<div style="font-size:11px;color:var(--gris)">${$$(mejorDia[1])}</div>`:''}
-        </div>
-      </div>
-
-      <!-- COBRADO VS PENDIENTE -->
+      <!-- PENDIENTE DE COBRO / PAGO (total y al día, igual que Deudas) -->
       <div class="card">
-        <div class="card-titulo">Cobrado vs. pendiente del período</div>
+        <div class="card-titulo">Pendiente (al día de hoy)</div>
         <div class="rep-grid" style="margin-top:10px">
           <div style="text-align:center">
-            <div style="font-size:12px;color:var(--gris)">Cobrado</div>
-            <div style="font-size:20px;font-weight:700;color:var(--verde-c)">${$$(cobrado)}</div>
+            <div style="font-size:12px;color:var(--gris)">Pendiente de cobro</div>
+            <div style="font-size:22px;font-weight:800;color:${pendienteCobro>0?'var(--rojo)':'var(--verde-c)'}">${pendienteCobro>0?$$(pendienteCobro):'✅ Al día'}</div>
           </div>
           <div style="text-align:center">
-            <div style="font-size:12px;color:var(--gris)">Pendiente de cobro</div>
-            <div style="font-size:20px;font-weight:700;color:${pendienteDelPeriodo>0?'var(--rojo)':'var(--verde-c)'}">${$$(pendienteDelPeriodo)}</div>
+            <div style="font-size:12px;color:var(--gris)">Pendiente de pago</div>
+            <div style="font-size:22px;font-weight:800;color:${pendientePago>0?'var(--rojo)':'var(--verde-c)'}">${pendientePago>0?$$(pendientePago):'✅ Al día'}</div>
           </div>
         </div>
-        ${g.total_ventas>0?barra(cobrado,g.total_ventas,'var(--verde-c)'):''}
-        <div style="font-size:11px;color:var(--gris);text-align:right;margin-top:4px">${pctCobrado}% cobrado</div>
+        <div style="font-size:11px;color:var(--gris);text-align:center;margin-top:6px">Lo que te deben y lo que debés, total y actualizado</div>
+      </div>
+
+      <!-- TICKET PROMEDIO -->
+      <div class="card" style="display:flex;justify-content:space-between;align-items:center">
+        <div class="card-titulo" style="margin:0">Ticket promedio</div>
+        <div style="font-size:20px;font-weight:800;color:var(--azul)">${ticketPromedio>0?$$(Math.round(ticketPromedio)):'—'}</div>
       </div>
 
       <!-- FORMA DE PAGO -->
       ${Object.keys(pagos).length?`
       <div class="card">
         <div class="card-titulo">Ventas por forma de pago</div>
-        ${Object.entries(pagos).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+        ${Object.entries(pagos).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{
+          const pct=g.total_ventas>0?Math.round(v/g.total_ventas*100):0;
+          return `
           <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
             <span style="font-size:14px">${k}</span>
-            <strong>${$$(v)}</strong>
+            <strong>${$$(v)} <span style="font-size:12px;color:var(--gris);font-weight:600">(${pct}%)</span></strong>
           </div>
-          ${barra(v,g.total_ventas,k==='efectivo'?'var(--verde-c)':k==='transferencia'?'var(--azul-c)':'var(--amarillo)')}
-        `).join('')}
+          ${barra(v,g.total_ventas,k==='efectivo'?'var(--verde-c)':k==='transferencia'?'var(--azul-c)':'var(--amarillo)')}`;
+        }).join('')}
       </div>`:''}
 
       <!-- TOP PRODUCTOS -->

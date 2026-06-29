@@ -26,20 +26,7 @@
 
 <!-- INICIO -->
 <div class="pantalla activa" id="pantalla-inicio">
-  <!-- Tarjetas resumen -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px">
-    <div class="card" style="margin:0">
-      <div class="card-titulo">Ventas de hoy</div>
-      <div class="card-valor" id="total-hoy">—</div>
-      <div id="cobrado-hoy" style="font-size:13px;color:var(--gris);margin-top:4px"></div>
-    </div>
-    <div class="card" style="margin:0">
-      <div class="card-titulo">Por cobrar</div>
-      <div class="card-valor" id="total-por-cobrar" style="color:var(--verde-c);font-size:1.6rem">—</div>
-      <div class="card-titulo" style="margin-top:10px">Por pagar</div>
-      <div class="card-valor" id="total-por-pagar" style="color:var(--rojo);font-size:1.4rem">—</div>
-    </div>
-  </div>
+  <!-- (tarjetas de resumen movidas a Reportes) -->
   <div class="grilla">
     <button class="btn-grande" onclick="irA('venta')"><span class="ico">🛒</span>Nueva venta</button>
     <button class="btn-grande" onclick="irA('compra')"><span class="ico">📦</span>Nueva compra</button>
@@ -187,16 +174,6 @@
       <span class="ico">📦</span>Stock
     </button>
   </div>
-  <!-- Devoluciones -->
-  <div style="font-size:11px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px">Devoluciones</div>
-  <div class="grilla">
-    <button class="btn-grande" onclick="abrirModalDevolucion()">
-      <span class="ico">↩️</span>Registrar devolución
-    </button>
-    <button class="btn-grande" onclick="irA('devoluciones')">
-      <span class="ico">📋</span>Historial
-    </button>
-  </div>
   <!-- Operador -->
   <div style="font-size:11px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px">Operador</div>
   <div class="card" style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
@@ -301,6 +278,9 @@
   </button>
   <button class="nav-btn" id="nav-deudas" onclick="irA('deudas')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Deudas
+  </button>
+  <button class="nav-btn" id="nav-devoluciones" onclick="irA('devoluciones')">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>Devol.
   </button>
   <button class="nav-btn" id="nav-mas" onclick="irA('mas')">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Más
@@ -581,7 +561,8 @@
 <div class="modal-fondo" id="modal-quick-cli">
   <div class="modal">
     <div class="modal-titulo">Agregar cliente rápido</div>
-    <div class="campo"><label>Nombre y apellido</label><input type="text" id="qcli-nombre" placeholder="Juan Pérez"/></div>
+    <div class="campo"><label>Nombre</label><input type="text" id="qcli-nombre" placeholder="Juan"/></div>
+    <div class="campo"><label>Apellido</label><input type="text" id="qcli-apellido" placeholder="Pérez"/></div>
     <div class="campo"><label>Celular</label><input type="tel" id="qcli-celular" placeholder="11 2345-6789"/></div>
     <div class="fila" style="gap:10px;margin-top:8px">
       <button class="btn btn-s" onclick="cerrarModal('modal-quick-cli')">Cancelar</button>
