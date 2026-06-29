@@ -162,6 +162,12 @@ function toast(msg,tipo='exito'){
 }
 function ocultarToast(){clearTimeout(toastTimer);document.getElementById('toast').className='';}
 
+function skeleton(n){
+  n=n||3; let h='';
+  for(let i=0;i<n;i++) h+='<div class="skel-item"><div class="skel skel-line" style="width:55%"></div><div class="skel skel-line" style="width:82%"></div><div class="skel skel-line" style="width:38%"></div></div>';
+  return h;
+}
+
 // ==========================================
 // FORMATO
 // ==========================================
@@ -593,7 +599,7 @@ async function cargarDatosCompra(){
 async function cargarHistorialCompras(){
   const lista=document.getElementById('hist-compras-lista');
   if(!lista) return;
-  lista.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  lista.innerHTML=skeleton();
   try{
     const r=await apiGet('getCompras',{desde:'2000-01-01',hasta:'2099-12-31'});
     const compras=(r.compras||[]).slice().reverse().slice(0,15);
@@ -809,8 +815,8 @@ function invalidarCacheDeudas(){ /* sin cache, siempre carga fresco */ }
 
 async function cargarDeudas(tab){
   cambiarTabDeuda(tab);
-  document.getElementById('cont-clientes-deuda').innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
-  document.getElementById('cont-proveedores').innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  document.getElementById('cont-clientes-deuda').innerHTML=skeleton();
+  document.getElementById('cont-proveedores').innerHTML=skeleton();
   const contactos=await apiGet('getDeudaContactos').catch(()=>[]);
   renderTeDeben(contactos.filter(c=>c.neto>0.01));
   renderLeDebes(contactos.filter(c=>c.neto<-0.01));
@@ -874,7 +880,7 @@ async function abrirCuentaContacto(nombre){
   document.getElementById('cuenta-titulo').textContent='Cuenta: '+nombre;
   document.getElementById('cuenta-nombre').value=nombre;
   _cuentaNombre=nombre;
-  document.getElementById('cuenta-tabla').innerHTML='<div class="vacio"><span class="ico">⏳</span></div>';
+  document.getElementById('cuenta-tabla').innerHTML=skeleton(2);
   document.getElementById('modal-contacto').classList.add('visible');
   try{
     const h=await apiGet('getHistorialContacto',{contacto:nombre});
@@ -990,7 +996,7 @@ async function abrirLedger(cliente, deudaActual){
   document.getElementById('ledger-cliente-nombre').value=cliente;
   document.getElementById('ledger-saldo').textContent=$$(deudaActual);
   document.getElementById('btn-liquidar-todo').textContent='Liquidar todo ('+$$(deudaActual)+')';
-  document.getElementById('ledger-tabla').innerHTML='<div class="vacio"><span class="ico">⏳</span></div>';
+  document.getElementById('ledger-tabla').innerHTML=skeleton(2);
   document.getElementById('modal-ledger').classList.add('visible');
   try{
     const h=await apiGet('getHistorialCliente',{cliente});
@@ -1109,7 +1115,7 @@ async function abrirLedgerProv(proveedor, deudaActual){
   document.getElementById('ledger-prov-nombre').value=proveedor;
   document.getElementById('ledger-prov-saldo').textContent=$$(deudaActual);
   document.getElementById('btn-pago-total-prov').textContent='Pagar todo ('+$$(deudaActual)+')';
-  document.getElementById('ledger-prov-tabla').innerHTML='<div class="vacio"><span class="ico">⏳</span></div>';
+  document.getElementById('ledger-prov-tabla').innerHTML=skeleton(2);
   document.getElementById('modal-ledger-prov').classList.add('visible');
   try{
     const h=await apiGet('getHistorialProveedor',{proveedor});
@@ -1181,7 +1187,7 @@ async function guardarAbonoProv(){
 // ==========================================
 async function cargarProductos(){
   const cont=document.getElementById('cont-productos');
-  cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  cont.innerHTML=skeleton();
   try{
     productos=await apiGet('getProductos');
     if(!productos.length){cont.innerHTML='<div class="vacio"><span class="ico">🧀</span>No hay productos todavía.<br>Agregá el primero.</div>';return;}
@@ -1267,7 +1273,7 @@ async function guardarProducto(){
 // ==========================================
 async function cargarClientes(){
   const cont=document.getElementById('cont-clientes');
-  cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  cont.innerHTML=skeleton();
   try{
     const lista=await apiGet('getClientes');
     clientesCache=lista;
@@ -1389,7 +1395,7 @@ async function cargarReporte(){
   const{desde,hasta}=getFechas();
   if(!desde||!hasta) return;
   const cont=document.getElementById('cont-reporte');
-  cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Calculando...</div>';
+  cont.innerHTML=skeleton(4);
   try{
     const [g, ventas, compras, contactos] = await Promise.all([
       apiGet('getGanancia',{desde,hasta}),
@@ -1564,7 +1570,7 @@ document.querySelectorAll('.modal-fondo').forEach(f=>{
 // ==========================================
 async function cargarProveedoresMgt(){
   const cont=document.getElementById('cont-proveedores-mgt');
-  cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  cont.innerHTML=skeleton();
   try{
     const lista=await apiGet('getProveedores');
     proveedoresCache=lista;
@@ -1715,7 +1721,7 @@ let _todasDevoluciones = [];
 async function cargarDevoluciones(filtro){
   _filtroDevActual = filtro;
   const lista = document.getElementById('lista-devoluciones');
-  lista.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  lista.innerHTML=skeleton();
   try {
     const r = await apiGet('getDevoluciones', { desde:'2000-01-01', hasta:'2099-12-31' });
     _todasDevoluciones = r.devoluciones || [];
@@ -1976,7 +1982,7 @@ const HIST_META={
 async function cargarHistorial(periodo='semana', btn){
   if(btn){ document.querySelectorAll('#pantalla-historial .tab').forEach(t=>t.classList.remove('activo')); btn.classList.add('activo'); }
   const cont=document.getElementById('cont-historial');
-  cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  cont.innerHTML=skeleton();
   let desde='2000-01-01', hasta='2099-12-31';
   const h=hoy();
   if(periodo==='hoy'){ desde=h; hasta=h; }
@@ -2014,7 +2020,7 @@ function renderHistorial(movs){
 // ==========================================
 async function cargarStock(){
   const cont=document.getElementById('cont-stock');
-  cont.innerHTML='<div class="vacio"><span class="ico">⏳</span>Cargando...</div>';
+  cont.innerHTML=skeleton();
   try{
     const lista=await apiGet('getStock');
     _stockList=lista;
