@@ -1,7 +1,7 @@
 // Service Worker — App Quesos
 // Permite instalar la app en el celular y que funcione offline.
 
-const CACHE = 'quesos-v10';
+const CACHE = 'quesos-v11';
 const ARCHIVOS = ['./', './index.html', './style.css', './app.js', './manifest.json', './logo-192.png', './logo-512.png'];
 
 // Al instalar: guardar archivos en caché

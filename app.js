@@ -30,6 +30,8 @@ let _origNombre = '';
 let _origApellido = '';
 let _stockList = [];
 let compraCarrito = [];
+let _clientesRender = [];
+let _histAll = [];
 
 // ==========================================
 // OPERADORES
@@ -147,7 +149,25 @@ async function apiPost(accion, datos) {
   if (!r.ok) throw new Error('Error de red ('+r.status+')');
   const d = await r.json();
   if (!d.ok) throw new Error(d.error||'Error del servidor');
+  invalidarCache(); // cualquier escritura invalida el cache de lecturas
   return d.datos;
+}
+
+// Cache liviano de datos maestros (productos/clientes/proveedores).
+// Navegación instantánea; cualquier escritura (apiPost) lo limpia, así nunca
+// quedás con datos viejos. TTL corto como red de seguridad.
+const _cache = {};
+const _CACHE_TTL = 90000;
+async function apiGetCached(accion, params){
+  const key = accion + '|' + JSON.stringify(params||{});
+  const e = _cache[key];
+  if(e && (Date.now() - e.ts) < _CACHE_TTL) return e.data;
+  const data = await apiGet(accion, params||{});
+  _cache[key] = {data, ts: Date.now()};
+  return data;
+}
+function invalidarCache(accion){
+  Object.keys(_cache).forEach(k=>{ if(!accion || k.indexOf(accion+'|')===0) delete _cache[k]; });
 }
 
 // ==========================================
@@ -269,8 +289,8 @@ async function cargarInicio(){
 async function cargarDatosVenta(){
   document.getElementById('v-fecha').value=hoy();
   try{
-    productos=await apiGet('getProductos');
-    clientesCache=await apiGet('getClientes');
+    productos=await apiGetCached('getProductos');
+    clientesCache=await apiGetCached('getClientes');
     document.getElementById('lista-clientes').innerHTML=clientesCache.map(c=>`<option value="${escH(nombreCompleto(c))}">`).join('');
     renderPreciosInicio();
   }catch(e){toast('Error cargando datos: '+e.message,'error');}
@@ -460,7 +480,7 @@ async function abrirEdicionPedido(p){
   document.getElementById('edit-pagado').value=p.monto_pagado;
   document.getElementById('edit-fecha').value=p.fecha;
   // Asegurar lista de productos para los selects
-  if(!productos.length){ try{ productos=await apiGet('getProductos'); }catch(e){} }
+  if(!productos.length){ try{ productos=await apiGetCached('getProductos'); }catch(e){} }
   carritoEdit=(p.items||[]).map(it=>{
     const prod=productos.find(x=>x.nombre===it.producto);
     return {
@@ -581,7 +601,7 @@ async function confirmarEdicion(){
 async function cargarDatosCompra(){
   document.getElementById('c-fecha').value=hoy();
   try{
-    const [prods, provs]=await Promise.all([apiGet('getProductos'),apiGet('getProveedores')]);
+    const [prods, provs]=await Promise.all([apiGetCached('getProductos'),apiGetCached('getProveedores')]);
     productosCompraCache = prods;
     // Llenar datalist de productos (texto libre + autocomplete)
     document.getElementById('lista-productos-compra').innerHTML=
@@ -709,7 +729,7 @@ async function actualizarCostoLinea(i){
   toast('Actualizando costo...','guardando');
   try{
     await apiPost('editarProducto',{nombre:cat.nombre, precio:Number(cat.precio), unidad:cat.unidad, precio_costo:Math.round(costo), proveedor:cat.proveedor||''});
-    productosCompraCache=await apiGet('getProductos'); productos=productosCompraCache;
+    productosCompraCache=await apiGetCached('getProductos'); productos=productosCompraCache;
     renderCompraItems();
     ocultarToast(); toast('✅ Costo de '+cat.nombre+' actualizado','exito');
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
@@ -803,7 +823,7 @@ async function guardarCompra(){
     document.getElementById('c-pago').value='efectivo';
     document.getElementById('c-fecha').value=hoy();
     cargarHistorialCompras();
-    productos=await apiGet('getProductos'); productosCompraCache=productos;
+    productos=await apiGetCached('getProductos'); productosCompraCache=productos;
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
   finally{btn.disabled=false;btn.innerHTML='Confirmar compra';}
 }
@@ -1189,7 +1209,7 @@ async function cargarProductos(){
   const cont=document.getElementById('cont-productos');
   cont.innerHTML=skeleton();
   try{
-    productos=await apiGet('getProductos');
+    productos=await apiGetCached('getProductos');
     if(!productos.length){cont.innerHTML='<div class="vacio"><span class="ico">🧀</span>No hay productos todavía.<br>Agregá el primero.</div>';return;}
     cont.innerHTML=productos.map((p,i)=>{
       const margen=p.precio>0&&p.precio_costo>0?Math.round((p.precio-p.precio_costo)/p.precio*100)+'%':null;
@@ -1223,7 +1243,7 @@ async function abrirModalProducto(p){
   document.getElementById('p-costo').value=editar?p.precio_costo:'';
   document.getElementById('p-margen').textContent='';
   try{
-    const provs=await apiGet('getProveedores');
+    const provs=await apiGetCached('getProveedores');
     document.getElementById('p-proveedor').innerHTML=
       '<option value="">Sin proveedor asignado</option>'+
       provs.map(pv=>`<option value="${pv.nombre}" ${editar&&p.proveedor===pv.nombre?'selected':''}>${pv.nombre}</option>`).join('');
@@ -1274,21 +1294,29 @@ async function guardarProducto(){
 async function cargarClientes(){
   const cont=document.getElementById('cont-clientes');
   cont.innerHTML=skeleton();
+  const bq=document.getElementById('buscar-clientes'); if(bq) bq.value='';
   try{
-    const lista=await apiGet('getClientes');
-    clientesCache=lista;
-    if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">👤</span>No hay clientes todavía.</div>';return;}
-    cont.innerHTML=lista.map((c,i)=>`
+    clientesCache=await apiGetCached('getClientes');
+    renderClientesLista('');
+  }catch(e){cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';}
+}
+function filtrarClientes(q){ renderClientesLista(q); }
+function renderClientesLista(q){
+  const cont=document.getElementById('cont-clientes');
+  if(!clientesCache.length){cont.innerHTML='<div class="vacio"><span class="ico">👤</span>No hay clientes todavía.</div>';return;}
+  const term=(q||'').trim().toLowerCase();
+  _clientesRender = term ? clientesCache.filter(c=>nombreCompleto(c).toLowerCase().includes(term)||String(c.celular||'').toLowerCase().includes(term)) : clientesCache;
+  if(!_clientesRender.length){cont.innerHTML='<div class="vacio"><span class="ico">🔎</span>Sin resultados</div>';return;}
+  cont.innerHTML=_clientesRender.map((c,i)=>`
       <div class="item">
         <div class="item-head">
           <div class="item-info" style="flex:1">
             <div class="item-nombre">${nombreCompleto(c)}</div>
             <div class="item-det">${c.celular||'Sin celular'}</div>
           </div>
-          <button class="btn btn-s btn-sm" onclick="abrirModalCliente(clientesCache[${i}])">Editar</button>
+          <button class="btn btn-s btn-sm" onclick="abrirModalCliente(_clientesRender[${i}])">Editar</button>
         </div>
       </div>`).join('');
-  }catch(e){cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';}
 }
 
 function abrirModalCliente(c){
@@ -1338,7 +1366,7 @@ async function guardarCliente(){
     }
     cerrarModal('modal-cliente'); ocultarToast(); toast('✅ Cliente guardado','exito');
     cargarClientes();
-    clientesCache=await apiGet('getClientes');
+    clientesCache=await apiGetCached('getClientes');
     // Autocomplete con nombre completo
     document.getElementById('lista-clientes').innerHTML=clientesCache.map(c=>`<option value="${escH(nombreCompleto(c))}">`).join('');
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
@@ -1366,7 +1394,7 @@ async function guardarQuickCliente(){
     }
     cerrarModal('modal-quick-cli'); ocultarToast(); toast('✅ '+completo+' listo','exito');
     document.getElementById('v-cliente').value=completo;
-    clientesCache=await apiGet('getClientes');
+    clientesCache=await apiGetCached('getClientes');
     document.getElementById('lista-clientes').innerHTML=clientesCache.map(c=>`<option value="${escH(nombreCompleto(c))}">`).join('');
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
@@ -1572,7 +1600,7 @@ async function cargarProveedoresMgt(){
   const cont=document.getElementById('cont-proveedores-mgt');
   cont.innerHTML=skeleton();
   try{
-    const lista=await apiGet('getProveedores');
+    const lista=await apiGetCached('getProveedores');
     proveedoresCache=lista;
     if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🏭</span>No hay proveedores todavía.</div>';return;}
     cont.innerHTML=lista.map((p,i)=>`
@@ -1639,9 +1667,9 @@ async function abrirModalDevolucion(refId='', tipo='proveedor'){
   document.getElementById('dev-monto').value = '';
   try {
     const [prods, clis, provs] = await Promise.all([
-      apiGet('getProductos'),
-      apiGet('getClientes'),
-      apiGet('getProveedores')
+      apiGetCached('getProductos'),
+      apiGetCached('getClientes'),
+      apiGetCached('getProveedores')
     ]);
     const selProd = document.getElementById('dev-producto');
     selProd.innerHTML = prods.map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('');
@@ -1808,7 +1836,7 @@ async function abrirEdicionCompra(i){
   document.getElementById('ec-pagado').value=c.monto_pagado;
   document.getElementById('ec-fecha').value=c.fecha;
   try{
-    const provs=await apiGet('getProveedores');
+    const provs=await apiGetCached('getProveedores');
     document.getElementById('ec-proveedor').innerHTML='<option value="">Sin proveedor</option>'+
       provs.map(p=>`<option value="${escH(p.nombre)}" ${c.proveedor===p.nombre?'selected':''}>${p.nombre}</option>`).join('');
   }catch(e){}
@@ -1873,7 +1901,7 @@ async function abrirEditarDevolucion(i){
   if(found){ document.getElementById('dev-motivo-custom').style.display='none'; }
   else { sel.value='otro'; document.getElementById('dev-motivo-custom').style.display='block'; document.getElementById('dev-motivo-custom').value=d.motivo||''; }
   try{
-    const [prods, clis, provs]=await Promise.all([apiGet('getProductos'),apiGet('getClientes'),apiGet('getProveedores')]);
+    const [prods, clis, provs]=await Promise.all([apiGetCached('getProductos'),apiGetCached('getClientes'),apiGetCached('getProveedores')]);
     document.getElementById('dev-producto').innerHTML=prods.map(p=>`<option value="${p.nombre}" ${p.nombre===d.producto?'selected':''}>${p.nombre}</option>`).join('');
     actualizarModalDev(clis, provs);
     document.getElementById('dev-contraparte').value=d.contraparte;
@@ -1990,8 +2018,19 @@ async function cargarHistorial(periodo='semana', btn){
   else if(periodo==='mes'){ const d=new Date(); desde=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; hasta=h; }
   try{
     const r=await apiGet('getAuditoria',{desde,hasta});
-    renderHistorial(r.movimientos||[]);
+    _histAll = r.movimientos||[];
+    const bq=document.getElementById('buscar-historial'); if(bq) bq.value='';
+    renderHistorial(_histAll);
   }catch(e){ cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>'; }
+}
+
+function filtrarHistorial(q){
+  const term=(q||'').trim().toLowerCase();
+  const lista = term ? _histAll.filter(m=>{
+    const label=(HIST_META[m.accion]?HIST_META[m.accion].label:m.accion)||'';
+    return ((m.detalle||'')+' '+(m.operador||'')+' '+label).toLowerCase().includes(term);
+  }) : _histAll;
+  renderHistorial(lista);
 }
 
 function renderHistorial(movs){

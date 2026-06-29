@@ -225,6 +225,7 @@
     <div class="titulo-sec" style="margin:0">Clientes</div>
     <button class="btn btn-p btn-sm" onclick="abrirModalCliente(null)">+ Agregar</button>
   </div>
+  <input type="text" id="buscar-clientes" placeholder="Buscar cliente..." autocomplete="off" oninput="filtrarClientes(this.value)" style="margin-bottom:12px"/>
   <div id="cont-clientes"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
 </div>
 
@@ -262,6 +263,7 @@
     <button class="tab" onclick="cargarHistorial('mes',this)">Mes</button>
     <button class="tab" onclick="cargarHistorial('todo',this)">Todo</button>
   </div>
+  <input type="text" id="buscar-historial" placeholder="Buscar en el historial..." autocomplete="off" oninput="filtrarHistorial(this.value)" style="margin-bottom:12px"/>
   <div id="cont-historial"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
 </div>
 
