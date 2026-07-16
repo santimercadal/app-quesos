@@ -243,6 +243,7 @@
       <div class="campo"><label>Desde</label><input type="date" id="r-desde" onchange="cargarReporte()"/></div>
       <div class="campo"><label>Hasta</label><input type="date" id="r-hasta" onchange="cargarReporte()"/></div>
     </div>
+    <button class="btn btn-s btn-sm" onclick="ticketReporte()" style="margin-top:8px">🎟️ Ticket resumen del período</button>
   </div>
   <div id="cont-reporte"><div class="vacio"><span class="ico">📊</span>Seleccioná un período</div></div>
 </div>
@@ -257,6 +258,12 @@
 <!-- HISTORIAL DE MOVIMIENTOS -->
 <div class="pantalla" id="pantalla-historial">
   <div class="titulo-sec">Historial de movimientos</div>
+  <!-- Tipo de vista: actividad (auditoría) / ventas / compras -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">
+    <button id="hv-actividad" class="btn btn-p btn-sm" onclick="cambiarVistaHistorial('actividad')" style="border-radius:10px;font-size:13px">📜 Actividad</button>
+    <button id="hv-ventas" class="btn btn-s btn-sm" onclick="cambiarVistaHistorial('ventas')" style="border-radius:10px;font-size:13px">🛒 Ventas</button>
+    <button id="hv-compras" class="btn btn-s btn-sm" onclick="cambiarVistaHistorial('compras')" style="border-radius:10px;font-size:13px">📦 Compras</button>
+  </div>
   <div class="tabs" style="margin-bottom:12px">
     <button class="tab" onclick="cargarHistorial('hoy',this)">Hoy</button>
     <button class="tab activo" onclick="cargarHistorial('semana',this)">Semana</button>
@@ -466,6 +473,7 @@
     <div style="text-align:center;font-size:32px;margin-bottom:4px">📦</div>
     <div class="modal-titulo" style="text-align:center">Compra registrada</div>
     <div id="ticket-compra-body" style="margin:12px 0;font-size:15px"></div>
+    <button class="btn btn-s" onclick="ticketCompra(_ultimaCompraTicket)" style="margin-bottom:8px">🎟️ Generar ticket</button>
     <div class="fila" style="gap:10px;margin-top:8px">
       <button class="btn btn-s" style="flex:1" onclick="cerrarModal('modal-ticket-compra');irA('inicio')">Ir al inicio</button>
       <button class="btn btn-p" style="flex:1" onclick="cerrarModal('modal-ticket-compra')">Nueva compra</button>
@@ -705,6 +713,21 @@
   </div>
 </div>
 
+<!-- VISTA PREVIA DE TICKET (compartir / imprimir) -->
+<div class="modal-fondo" id="modal-ticket-view">
+  <div class="modal">
+    <div class="modal-titulo" style="text-align:center">🎟️ Ticket</div>
+    <div style="max-height:52vh;overflow:auto;text-align:center;margin-bottom:12px;background:var(--gris-c);border-radius:10px;padding:10px">
+      <img id="ticket-img" alt="Ticket" style="width:100%;max-width:320px;border-radius:6px;box-shadow:0 2px 8px rgba(0,0,0,.2)"/>
+    </div>
+    <div class="fila" style="gap:10px">
+      <button class="btn btn-s" onclick="imprimirTicketActual()">🖨️ Imprimir</button>
+      <button class="btn btn-p" onclick="compartirTicketActual()">📤 Compartir</button>
+    </div>
+    <button class="btn btn-s" onclick="cerrarModal('modal-ticket-view')" style="margin-top:8px">Cerrar</button>
+  </div>
+</div>
+
 <div id="toast"></div>
 
 <!-- ====== JAVASCRIPT ====== -->
@@ -716,6 +739,7 @@
 <script src="js/reportes.js"></script>
 <script src="js/gestion.js"></script>
 <script src="js/extras.js"></script>
+<script src="js/tickets.js"></script>
 <script src="js/init.js"></script>
 </body>
 </html>
