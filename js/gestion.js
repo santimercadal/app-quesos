@@ -227,6 +227,7 @@ function filtrarDevoluciones(filtro){
               <button class="btn btn-s btn-sm" onclick="resolverDevolucion('${escH(d.id)}','acreditado')">Acreditado</button>
               <button class="btn btn-s btn-sm" onclick="resolverDevolucion('${escH(d.id)}','devuelto_dinero')">Devolvieron $$</button>
             `:''}
+            <button class="btn btn-s btn-sm" onclick="ticketDevolucion(_devsRender[${i}])">🎟️</button>
             <button class="btn btn-s btn-sm" onclick="abrirEditarDevolucion(${i})">✏️ Editar</button>
             <button class="btn btn-s btn-sm" onclick="borrarDevolucion('${escH(d.id)}')">🗑️</button>
           </div>
@@ -240,8 +241,9 @@ function filtrarDevoluciones(filtro){
 // CORRECCIONES (editar / borrar)
 // ==========================================
 let compraCarritoEdit=[];
-async function abrirEdicionCompra(i){
-  const c=_histCompras[i]; if(!c) return;
+function abrirEdicionCompra(i){ abrirEdicionCompraObj(_histCompras[i]); }
+async function abrirEdicionCompraObj(c){
+  if(!c) return;
   document.getElementById('ec-id').value=c.compra_id||c.id;
   document.getElementById('ec-pago').value=c.forma_pago||'efectivo';
   document.getElementById('ec-pagado').value=c.monto_pagado;
@@ -306,7 +308,7 @@ async function guardarEdicionCompra(){
   try{
     await apiPost('editarCompraGrupo',{compra_id,proveedor,forma_pago,monto_pagado,fecha,items});
     cerrarModal('modal-editar-compra'); ocultarToast(); toast('✅ Compra actualizada','exito');
-    cargarHistorialCompras();
+    cargarHistorialCompras(); _refrescarPantallaActiva();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
 async function eliminarCompraActual(){
@@ -316,8 +318,16 @@ async function eliminarCompraActual(){
   try{
     await apiPost('eliminarCompraGrupo',{compra_id});
     cerrarModal('modal-editar-compra'); ocultarToast(); toast('✅ Compra eliminada','exito');
-    cargarHistorialCompras();
+    cargarHistorialCompras(); _refrescarPantallaActiva();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
+}
+
+// Refresca inicio o historial si son la pantalla visible (tras editar/eliminar)
+function _refrescarPantallaActiva(){
+  const act=document.querySelector('.pantalla.activa');
+  if(!act) return;
+  if(act.id==='pantalla-inicio') cargarInicio();
+  else if(act.id==='pantalla-historial') cargarHistorial();
 }
 
 async function eliminarPedidoActual(){
@@ -327,7 +337,7 @@ async function eliminarPedidoActual(){
   try{
     await apiPost('eliminarPedido',{pedido_id});
     cerrarModal('modal-editar-pedido'); ocultarToast(); toast('✅ Pedido eliminado','exito');
-    cargarInicio();
+    _refrescarPantallaActiva();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
 

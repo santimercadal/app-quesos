@@ -39,6 +39,7 @@ async function cargarHistorialCompras(){
             <div class="item-det">${itemsTxt} · ${fmtFecha(c.fecha)}</div>
             ${deuda>0?`<div class="item-det" style="color:var(--rojo)">Pendiente: ${$$(deuda)}</div>`:''}
             <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-s btn-sm" onclick="ticketCompra(_histCompras[${i}])">🎟️</button>
               <button class="btn btn-s btn-sm" onclick="abrirEdicionCompra(${i})">✏️ Editar</button>
               <button class="btn btn-s btn-sm" onclick="abrirModalDevolucion('${escH(c.compra_id||c.id)}','proveedor')">↩️ Devolver</button>
             </div>
@@ -202,6 +203,9 @@ async function guardarCompra(){
   try{
     await apiPost('registrarCompra',{fecha,proveedor,forma_pago,monto_pagado,items});
     cerrarModal('modal-confirmar-compra'); ocultarToast();
+    // Datos para poder generar el ticket de esta compra desde el modal
+    _ultimaCompraTicket={fecha,proveedor,forma_pago,monto_pagado,total,
+      items:items.map(it=>({producto_insumo:it.producto,cantidad:it.cantidad,costo_unitario:it.costo_unitario,total:it.total}))};
     const deuda=total-monto_pagado;
     const badge=forma_pago==='efectivo'?'badge-efectivo':forma_pago==='transferencia'?'badge-trans':'badge-credito';
     const lineasTicket=items.map(it=>`<div style="color:var(--gris)">${escH(it.producto)} · ${it.cantidad}</div>`).join('');

@@ -1,14 +1,20 @@
 // ==========================================
-// INICIO
+// INICIO (feed: ventas + compras + pagos del día)
 // ==========================================
 async function cargarInicio(){
   try{
-    const d = await apiGet('getVentasHoy');
+    const h=hoy();
+    const [d, rc] = await Promise.all([
+      apiGet('getVentasHoy'),
+      apiGet('getCompras',{desde:h,hasta:h}).catch(()=>({compras:[]}))
+    ]);
     const lista=document.getElementById('ventas-hoy-lista');
     _pedidosHoy=d.pedidos||[];
+    _comprasHoy=(rc.compras||[]).slice().reverse();
     const hayVentas=d.pedidos&&d.pedidos.length>0;
     const hayAbonos=d.pagos_clientes&&d.pagos_clientes.length>0;
-    if(!hayVentas&&!hayAbonos){
+    const hayCompras=_comprasHoy.length>0;
+    if(!hayVentas&&!hayAbonos&&!hayCompras){
       lista.innerHTML='<div class="vacio"><span class="ico">🧀</span>Sin movimientos hoy todavía</div>';return;
     }
 
@@ -27,7 +33,35 @@ async function cargarInicio(){
               </div>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
                 <div class="item-val">${$$(p.total)}</div>
-                <button class="btn btn-s btn-sm" onclick="abrirEdicionPedido(_pedidosHoy[${idx}])">Editar</button>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-s btn-sm" onclick="ticketVenta(_pedidosHoy[${idx}])">🎟️</button>
+                  <button class="btn btn-s btn-sm" onclick="abrirEdicionPedido(_pedidosHoy[${idx}])">Editar</button>
+                </div>
+              </div>
+            </div>
+          </div>`;
+        }).join('')
+      : '';
+
+    const htmlCompras=hayCompras
+      ? `<div style="font-size:12px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px">📦 Compras</div>`+
+        _comprasHoy.map((c,idx)=>{
+          const badge=c.forma_pago==='efectivo'?'badge-efectivo':c.forma_pago==='transferencia'?'badge-trans':'badge-credito';
+          const deuda=Number(c.total)-Number(c.monto_pagado);
+          const itemsTxt=(c.items||[]).map(it=>escH(it.producto_insumo)+' ('+it.cantidad+')').join(', ');
+          return `<div class="item">
+            <div class="item-head">
+              <div class="item-info" style="flex:1">
+                <div class="item-nombre">${escH(c.proveedor)||'(sin proveedor)'} <span class="badge ${badge}">${c.forma_pago||''}</span></div>
+                <div class="item-det">${itemsTxt}</div>
+                ${deuda>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deuda)}</div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
+              </div>
+              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+                <div class="item-val" style="color:var(--rojo)">−${$$(c.total)}</div>
+                <div style="display:flex;gap:6px">
+                  <button class="btn btn-s btn-sm" onclick="ticketCompra(_comprasHoy[${idx}])">🎟️</button>
+                  <button class="btn btn-s btn-sm" onclick="abrirEdicionCompraObj(_comprasHoy[${idx}])">Editar</button>
+                </div>
               </div>
             </div>
           </div>`;
@@ -48,7 +82,7 @@ async function cargarInicio(){
           </div>`).join('')
       : '';
 
-    lista.innerHTML=htmlVentas+htmlAbonos;
+    lista.innerHTML=htmlVentas+htmlCompras+htmlAbonos;
   }catch(e){
     const l=document.getElementById('ventas-hoy-lista');
     if(l) l.innerHTML='<div class="vacio"><span class="ico">❌</span>Sin conexión · '+e.message+'</div>';
@@ -362,7 +396,7 @@ async function confirmarEdicion(){
     cerrarModal('modal-editar-pedido');
     ocultarToast();
     toast('✅ Pedido actualizado','exito');
-    cargarInicio();
+    _refrescarPantallaActiva();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
   finally{btn.disabled=false;btn.innerHTML='Guardar cambios';}
 }

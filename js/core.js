@@ -32,6 +32,10 @@ let _stockList = [];
 let compraCarrito = [];
 let _clientesRender = [];
 let _histAll = [];
+let _comprasHoy = [];          // compras del día en el feed de inicio
+let _histVR = [];              // ventas renderizadas en Historial
+let _histCR = [];              // compras renderizadas en Historial
+let _ultimaCompraTicket = null; // última compra guardada (para su ticket)
 
 // ==========================================
 // OPERADORES

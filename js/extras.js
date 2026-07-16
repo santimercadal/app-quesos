@@ -33,30 +33,138 @@ const HIST_META={
   ajustarStock:{ico:'📦',label:'Ajuste de stock'}
 };
 
-async function cargarHistorial(periodo='semana', btn){
-  if(btn){ document.querySelectorAll('#pantalla-historial .tab').forEach(t=>t.classList.remove('activo')); btn.classList.add('activo'); }
-  const cont=document.getElementById('cont-historial');
-  cont.innerHTML=skeleton();
+let _histVista='actividad';   // actividad | ventas | compras
+let _histPeriodo='semana';
+
+function _histRango(periodo){
   let desde='2000-01-01', hasta='2099-12-31';
   const h=hoy();
   if(periodo==='hoy'){ desde=h; hasta=h; }
   else if(periodo==='semana'){ const d=new Date(); const dia=d.getDay()||7; d.setDate(d.getDate()-dia+1); desde=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires'}).format(d); hasta=h; }
   else if(periodo==='mes'){ const d=new Date(); desde=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; hasta=h; }
+  return {desde,hasta};
+}
+
+function cambiarVistaHistorial(v){
+  _histVista=v;
+  ['actividad','ventas','compras'].forEach(k=>{
+    const btn=document.getElementById('hv-'+k);
+    if(btn) btn.className='btn btn-sm '+(k===v?'btn-p':'btn-s');
+  });
+  cargarHistorial(_histPeriodo);
+}
+
+async function cargarHistorial(periodo, btn){
+  periodo=periodo||_histPeriodo; _histPeriodo=periodo;
+  if(btn){ document.querySelectorAll('#pantalla-historial .tab').forEach(t=>t.classList.remove('activo')); btn.classList.add('activo'); }
+  const cont=document.getElementById('cont-historial');
+  cont.innerHTML=skeleton();
+  const {desde,hasta}=_histRango(periodo);
   try{
-    const r=await apiGet('getAuditoria',{desde,hasta});
-    _histAll = r.movimientos||[];
+    if(_histVista==='ventas'){
+      const r=await apiGet('getVentas',{desde,hasta});
+      _histVR=(r.pedidos||[]).slice().reverse(); // más reciente primero
+    } else if(_histVista==='compras'){
+      const r=await apiGet('getCompras',{desde,hasta});
+      _histCR=(r.compras||[]).slice().reverse();
+    } else {
+      const r=await apiGet('getAuditoria',{desde,hasta});
+      _histAll=r.movimientos||[];
+    }
     const bq=document.getElementById('buscar-historial'); if(bq) bq.value='';
-    renderHistorial(_histAll);
+    _renderHistorialVista('');
   }catch(e){ cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>'; }
 }
 
-function filtrarHistorial(q){
+function filtrarHistorial(q){ _renderHistorialVista(q); }
+
+function _renderHistorialVista(q){
   const term=(q||'').trim().toLowerCase();
-  const lista = term ? _histAll.filter(m=>{
-    const label=(HIST_META[m.accion]?HIST_META[m.accion].label:m.accion)||'';
-    return ((m.detalle||'')+' '+(m.operador||'')+' '+label).toLowerCase().includes(term);
-  }) : _histAll;
-  renderHistorial(lista);
+  if(_histVista==='ventas'){
+    const lista=term?_histVR.filter(p=>((p.cliente||'')+' '+(p.descripcion||'')+' '+(p.operador||'')+' '+(p.forma_pago||'')).toLowerCase().includes(term)):_histVR;
+    renderHistVentas(lista);
+  } else if(_histVista==='compras'){
+    const lista=term?_histCR.filter(c=>((c.proveedor||'')+' '+(c.forma_pago||'')+' '+(c.items||[]).map(i=>i.producto_insumo).join(' ')).toLowerCase().includes(term)):_histCR;
+    renderHistCompras(lista);
+  } else {
+    const lista=term?_histAll.filter(m=>{
+      const label=(HIST_META[m.accion]?HIST_META[m.accion].label:m.accion)||'';
+      return ((m.detalle||'')+' '+(m.operador||'')+' '+label).toLowerCase().includes(term);
+    }):_histAll;
+    renderHistorial(lista);
+  }
+}
+
+// Ventas pasadas con detalle completo (items, pagos) + ticket + edición
+function renderHistVentas(pedidos){
+  const cont=document.getElementById('cont-historial');
+  _histVR=pedidos;
+  if(!pedidos.length){ cont.innerHTML='<div class="vacio"><span class="ico">🛒</span>Sin ventas en este período</div>'; return; }
+  const total=pedidos.reduce((s,p)=>s+Number(p.total),0);
+  cont.innerHTML=
+    `<div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px">
+      <span style="font-size:13px;color:var(--gris)">${pedidos.length} venta/s del período</span>
+      <strong style="font-size:18px;color:var(--azul)">${$$(total)}</strong>
+    </div>`+
+    pedidos.map((p,idx)=>{
+      const badge=p.forma_pago==='efectivo'?'badge-efectivo':p.forma_pago==='transferencia'?'badge-trans':'badge-credito';
+      const deuda=Number(p.total)-Number(p.monto_pagado);
+      const itemsHtml=(p.items||[]).map(it=>
+        `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--gris);padding:1px 0">
+          <span>· ${escH(it.producto)} (${Number(it.cantidad)})</span><span>${$$(it.subtotal)}</span>
+        </div>`).join('');
+      return `<div class="item">
+        <div class="item-head">
+          <div class="item-info" style="flex:1">
+            <div class="item-nombre">${escH(p.cliente||'(sin nombre)')} <span class="badge ${badge}">${p.forma_pago||''}</span></div>
+            <div class="item-det" style="font-size:12px;color:var(--gris)">${fmtFecha(p.fecha)} · 👤 ${p.operador||'—'}</div>
+            ${itemsHtml}
+            ${deuda>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deuda)}</div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
+            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-s btn-sm" onclick="ticketVenta(_histVR[${idx}])">🎟️ Ticket</button>
+              <button class="btn btn-s btn-sm" onclick="abrirEdicionPedido(_histVR[${idx}])">✏️ Editar</button>
+            </div>
+          </div>
+          <div class="item-val">${$$(p.total)}</div>
+        </div>
+      </div>`;
+    }).join('');
+}
+
+// Compras pasadas con detalle + ticket + edición
+function renderHistCompras(compras){
+  const cont=document.getElementById('cont-historial');
+  _histCR=compras;
+  if(!compras.length){ cont.innerHTML='<div class="vacio"><span class="ico">📦</span>Sin compras en este período</div>'; return; }
+  const total=compras.reduce((s,c)=>s+Number(c.total),0);
+  cont.innerHTML=
+    `<div class="card" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px">
+      <span style="font-size:13px;color:var(--gris)">${compras.length} compra/s del período</span>
+      <strong style="font-size:18px;color:var(--rojo)">${$$(total)}</strong>
+    </div>`+
+    compras.map((c,idx)=>{
+      const badge=c.forma_pago==='efectivo'?'badge-efectivo':c.forma_pago==='transferencia'?'badge-trans':'badge-credito';
+      const deuda=Number(c.total)-Number(c.monto_pagado);
+      const itemsHtml=(c.items||[]).map(it=>
+        `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--gris);padding:1px 0">
+          <span>· ${escH(it.producto_insumo)} (${Number(it.cantidad)})</span><span>${$$(it.total)}</span>
+        </div>`).join('');
+      return `<div class="item">
+        <div class="item-head">
+          <div class="item-info" style="flex:1">
+            <div class="item-nombre">${escH(c.proveedor||'(sin proveedor)')} <span class="badge ${badge}">${c.forma_pago||''}</span></div>
+            <div class="item-det" style="font-size:12px;color:var(--gris)">${fmtFecha(c.fecha)}</div>
+            ${itemsHtml}
+            ${deuda>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deuda)}</div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
+            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+              <button class="btn btn-s btn-sm" onclick="ticketCompra(_histCR[${idx}])">🎟️ Ticket</button>
+              <button class="btn btn-s btn-sm" onclick="abrirEdicionCompraObj(_histCR[${idx}])">✏️ Editar</button>
+            </div>
+          </div>
+          <div class="item-val" style="color:var(--rojo)">−${$$(c.total)}</div>
+        </div>
+      </div>`;
+    }).join('');
 }
 
 function renderHistorial(movs){
