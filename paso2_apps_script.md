@@ -26,7 +26,7 @@
 // CONFIGURACIÓN
 // ==========================================
 const SHEET_ID = '1Zo43UB2Fop1h7EHE1J-kjW6fVJXwyWSkKumt1ID2YNc';
-const ZONA_HORARIA = 'America/Argentina/Buenos_Aires';
+const ZONA_HORARIA = 'America/Montevideo';
 
 
 // ==========================================
