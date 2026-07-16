@@ -29,8 +29,9 @@ function _tkRecortar(ctx, txt, max){
   return txt + '…';
 }
 
-function _dibujarTicket(bloques){
-  const alto = bloques.reduce((s, b) => s + _tkAlto(b), 0) + _TK_PAD * 2 + 40;
+function _dibujarTicket(bloques, opts){
+  opts = opts || {};
+  const alto = bloques.reduce((s, b) => s + _tkAlto(b), 0) + _TK_PAD * 2 + (opts.sinPie ? 6 : 40);
   const c = document.createElement('canvas');
   c.width = _TK_W; c.height = alto;
   const x = c.getContext('2d');
@@ -73,8 +74,10 @@ function _dibujarTicket(bloques){
     }
     y += _tkAlto(b);
   });
-  x.font = '12px Arial'; x.fillStyle = '#999'; x.textAlign = 'center';
-  x.fillText('Generado el ' + fmtFecha(hoy()) + ' · App Quesos Los Weys', _TK_W / 2, alto - 14);
+  if(!opts.sinPie){
+    x.font = '12px Arial'; x.fillStyle = '#999'; x.textAlign = 'center';
+    x.fillText('Generado el ' + fmtFecha(hoy()) + ' · App Quesos Los Weys', _TK_W / 2, alto - 14);
+  }
   return c;
 }
 
@@ -86,8 +89,8 @@ function _ticketBase(titulo, subtitulo){
 }
 
 // Dibuja y abre el modal de vista previa
-function mostrarTicket(bloques, nombre){
-  const c = _dibujarTicket(bloques);
+function mostrarTicket(bloques, nombre, opts){
+  const c = _dibujarTicket(bloques, opts);
   _ticketNombre = nombre;
   c.toBlob(blob => {
     _ticketBlob = blob;
@@ -127,12 +130,12 @@ function imprimirTicketActual(){
 }
 
 // ---------- TICKET DE VENTA / PEDIDO ----------
+// Versión simplificada: sin marca, sin N° de transacción, sin operador ni pie.
 function ticketVenta(p){
   if(!p) return;
-  const b = _ticketBase('TICKET DE VENTA', p.pedido_id ? 'N° ' + p.pedido_id : '');
+  const b = [{t:'sub', txt:'TICKET DE VENTA'}, {t:'sep'}];
   b.push({t:'kv', k:'Fecha', v: fmtFecha(p.fecha)});
   b.push({t:'kv', k:'Cliente', v: p.cliente || '(sin nombre)'});
-  if(p.operador) b.push({t:'kv', k:'Atendió', v: p.operador});
   b.push({t:'sep'});
   const items = p.items || [];
   items.forEach(it => b.push({
@@ -149,7 +152,7 @@ function ticketVenta(p){
   b.push({t:'kv', k:'Saldo pendiente', v: resta > 0 ? $$(resta) : '✅ Pagado'});
   b.push({t:'esp'});
   b.push({t:'nota', txt: '¡Gracias por su compra!'});
-  mostrarTicket(b, 'venta-' + (p.fecha || hoy()));
+  mostrarTicket(b, 'venta-' + (p.fecha || hoy()), {sinPie: true});
 }
 
 // ---------- TICKET DE COMPRA ----------
@@ -204,16 +207,34 @@ async function ticketReporte(){
     const g = await apiGet('getGanancia', {desde: f.desde, hasta: f.hasta});
     ocultarToast();
     const b = _ticketBase('RESUMEN DEL PERÍODO', fmtFecha(f.desde) + ' al ' + fmtFecha(f.hasta));
+
+    // --- Ventas ---
     b.push({t:'kv', k:'Ventas (' + g.cantidad_ventas + ')', v: $$(g.total_ventas)});
-    b.push({t:'kv', k:'Compras (' + g.cantidad_compras + ')', v: $$(g.total_compras)});
-    if(Number(g.dev_a_proveedores) > 0) b.push({t:'kv', k:'Dev. a proveedores', v: '−' + $$(g.dev_a_proveedores)});
-    if(Number(g.dev_de_clientes) > 0) b.push({t:'kv', k:'Dev. de clientes', v: '−' + $$(g.dev_de_clientes)});
+    const tProm = Number(g.cantidad_ventas) > 0 ? Math.round(Number(g.total_ventas) / Number(g.cantidad_ventas)) : 0;
+    b.push({t:'kv', k:'Ticket promedio', v: tProm > 0 ? $$(tProm) : '—'});
+    if(Number(g.dev_de_clientes) > 0){
+      b.push({t:'kv', k:'Dev. de clientes', v: '−' + $$(g.dev_de_clientes)});
+      b.push({t:'kv', k:'Ventas netas', v: $$(g.ventas_netas)});
+    }
+    if(Number(g.abonos_clientes) > 0) b.push({t:'kv', k:'Cobros de deudas', v: '+' + $$(g.abonos_clientes)});
     if(g.redondeo !== undefined) b.push({t:'kv', k:'Redondeo', v: (Number(g.redondeo) >= 0 ? '+' : '−') + $$(Math.abs(Number(g.redondeo)))});
     b.push({t:'sep'});
+
+    // --- Compras y costos ---
+    b.push({t:'kv', k:'Compras (' + g.cantidad_compras + ')', v: $$(g.total_compras)});
+    if(Number(g.dev_a_proveedores) > 0){
+      b.push({t:'kv', k:'Dev. a proveedores', v: '−' + $$(g.dev_a_proveedores)});
+      b.push({t:'kv', k:'Compras netas', v: $$(g.compras_netas)});
+    }
+    if(g.costo_mercaderia !== undefined) b.push({t:'kv', k:'Costo de lo vendido', v: $$(g.costo_mercaderia)});
+    b.push({t:'sep'});
+
+    // --- Resultados ---
     const gr = (g.ganancia_real !== undefined) ? Number(g.ganancia_real) : Number(g.ganancia);
-    b.push({t:'total', k:'GANANCIA', v: $$(gr)});
+    b.push({t:'total', k:'GANANCIA REAL', v: $$(gr)});
+    b.push({t:'kv', k:'Ganancia neta (vtas − compras)', v: $$(g.ganancia)});
     b.push({t:'esp'});
-    b.push({t:'nota', txt: 'Ganancia del período (ventas − costo de lo vendido)'});
+    b.push({t:'nota', txt: 'Ganancia real = ventas netas − costo de lo vendido'});
     b.push({t:'nota', txt: 'Documento de uso interno'});
     mostrarTicket(b, 'reporte-' + f.desde + '-al-' + f.hasta);
   }catch(e){ ocultarToast(); toast('❌ ' + e.message, 'error'); }

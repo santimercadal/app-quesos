@@ -196,9 +196,9 @@ function skeleton(n){
 // FORMATO
 // ==========================================
 function $$(n){return '$'+Number(n).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0})}
-// Fecha local de Argentina en formato yyyy-mm-dd (no UTC).
+// Fecha local (Uruguay) en formato yyyy-mm-dd (no UTC).
 // Evita que las ventas de la noche queden con fecha del día siguiente.
-function hoy(){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires'}).format(new Date())}
+function hoy(){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Montevideo'}).format(new Date())}
 function fmtFecha(f){if(!f)return'';const[y,m,d]=f.split('-');return`${d}/${m}/${y}`}
 function escH(s){return String(s).replace(/'/g,"\\'")}
 function nombreCompleto(c){return [c.nombre,c.apellido].filter(Boolean).join(' ')}

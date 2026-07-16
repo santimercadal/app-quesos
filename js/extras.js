@@ -40,7 +40,8 @@ function _histRango(periodo){
   let desde='2000-01-01', hasta='2099-12-31';
   const h=hoy();
   if(periodo==='hoy'){ desde=h; hasta=h; }
-  else if(periodo==='semana'){ const d=new Date(); const dia=d.getDay()||7; d.setDate(d.getDate()-dia+1); desde=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Argentina/Buenos_Aires'}).format(d); hasta=h; }
+  else if(periodo==='ayer'){ const d=new Date(); d.setDate(d.getDate()-1); const a=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Montevideo'}).format(d); desde=a; hasta=a; }
+  else if(periodo==='semana'){ const d=new Date(); const dia=d.getDay()||7; d.setDate(d.getDate()-dia+1); desde=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Montevideo'}).format(d); hasta=h; }
   else if(periodo==='mes'){ const d=new Date(); desde=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; hasta=h; }
   return {desde,hasta};
 }
@@ -119,7 +120,7 @@ function renderHistVentas(pedidos){
             <div class="item-nombre">${escH(p.cliente||'(sin nombre)')} <span class="badge ${badge}">${p.forma_pago||''}</span></div>
             <div class="item-det" style="font-size:12px;color:var(--gris)">${fmtFecha(p.fecha)} · 👤 ${p.operador||'—'}</div>
             ${itemsHtml}
-            ${deuda>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deuda)}</div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
+            ${deuda>0?`<div class="item-det" style="font-size:12px"><span style="color:var(--rojo)">Deuda al emitir: ${$$(deuda)}</span> · <span onclick="abrirLedger(_histVR[${idx}].cliente,0)" style="color:var(--azul-c);text-decoration:underline;cursor:pointer">Ver cuenta actual</span></div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
             <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn btn-s btn-sm" onclick="ticketVenta(_histVR[${idx}])">🎟️ Ticket</button>
               <button class="btn btn-s btn-sm" onclick="abrirEdicionPedido(_histVR[${idx}])">✏️ Editar</button>
@@ -155,7 +156,7 @@ function renderHistCompras(compras){
             <div class="item-nombre">${escH(c.proveedor||'(sin proveedor)')} <span class="badge ${badge}">${c.forma_pago||''}</span></div>
             <div class="item-det" style="font-size:12px;color:var(--gris)">${fmtFecha(c.fecha)}</div>
             ${itemsHtml}
-            ${deuda>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deuda)}</div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
+            ${deuda>0?`<div class="item-det" style="font-size:12px"><span style="color:var(--rojo)">Deuda al emitir: ${$$(deuda)}</span> · <span onclick="abrirLedgerProv(_histCR[${idx}].proveedor,0)" style="color:var(--azul-c);text-decoration:underline;cursor:pointer">Ver cuenta actual</span></div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
             <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn btn-s btn-sm" onclick="ticketCompra(_histCR[${idx}])">🎟️ Ticket</button>
               <button class="btn btn-s btn-sm" onclick="abrirEdicionCompraObj(_histCR[${idx}])">✏️ Editar</button>
