@@ -708,6 +708,13 @@
       <span style="font-size:22px;font-weight:700" id="cuenta-saldo"></span>
     </div>
     <input type="hidden" id="cuenta-nombre"/>
+    <div style="font-size:12px;color:var(--gris);font-weight:600;margin-bottom:6px">Ticket para el cliente</div>
+    <div id="cuenta-rango" class="fila" style="gap:6px;margin-bottom:8px">
+      <button class="btn btn-s btn-sm" data-r="mes" onclick="setCuentaRango('mes')" style="flex:1">Mes actual</button>
+      <button class="btn btn-p btn-sm" data-r="30d" onclick="setCuentaRango('30d')" style="flex:1">Últimos 30 días</button>
+      <button class="btn btn-s btn-sm" data-r="todo" onclick="setCuentaRango('todo')" style="flex:1">Todo</button>
+    </div>
+    <button class="btn btn-s" onclick="ticketEstadoCuenta()" style="margin-bottom:12px">🎟️ Ticket de estado de cuenta</button>
     <button class="btn btn-p" id="btn-cuenta-total" onclick="cuentaSaldarTotal()" style="margin-bottom:8px"></button>
     <button class="btn btn-s" id="btn-cuenta-parcial" onclick="cuentaSaldarParcial()">Registrar pago parcial</button>
     <button class="btn btn-s" onclick="cerrarModal('modal-contacto')" style="margin-top:8px">Cerrar</button>
