@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8"/>
@@ -17,9 +17,59 @@
 <body>
 
 <div class="header" id="header">
-  <button class="btn-modo" onclick="abrirSelectorOperador(false)" title="Cambiar operador" style="font-size:13px;font-weight:600;padding:4px 8px;border-radius:20px;background:rgba(255,255,255,.2)">👤 <span id="chip-operador">—</span></button>
+  <button class="btn-hamburguesa" onclick="toggleSidebar()" title="Menú">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+  </button>
   <div class="header-title" id="header-title">Quesos Los Weys</div>
   <button class="btn-modo" id="btn-modo" onclick="toggleModo()" title="Modo oscuro">🌙</button>
+</div>
+
+<!-- ====== SIDEBAR ====== -->
+<div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <div style="font-size:20px;font-weight:800;color:var(--titulo)">Menú</div>
+    <button class="btn-cerrar-sidebar" onclick="toggleSidebar()">✕</button>
+  </div>
+  <div class="sidebar-content">
+    <button class="sidebar-btn activo" id="nav-inicio" onclick="irASidebar('inicio')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg> Inicio
+    </button>
+    <button class="sidebar-btn" id="nav-venta" onclick="irASidebar('venta')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg> Nueva Venta
+    </button>
+    <button class="sidebar-btn" id="nav-compra" onclick="irASidebar('compra')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg> Nueva Compra
+    </button>
+    <button class="sidebar-btn" id="nav-deudas" onclick="irASidebar('deudas')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg> Deudas
+    </button>
+    
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-title">Gestión</div>
+    
+    <button class="sidebar-btn" id="nav-productos" onclick="irASidebar('productos')"><span class="sidebar-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg></span> Productos</button>
+    <button class="sidebar-btn" id="nav-clientes" onclick="irASidebar('clientes')"><span class="sidebar-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span> Clientes</button>
+    <button class="sidebar-btn" id="nav-proveedores-mgt" onclick="irASidebar('proveedores-mgt')"><span class="sidebar-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg></span> Proveedores</button>
+    <button class="sidebar-btn" id="nav-stock" onclick="irASidebar('stock')"><span class="sidebar-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span> Stock</button>
+    
+    <div class="sidebar-divider"></div>
+    
+    <button class="sidebar-btn" id="nav-reportes" onclick="irASidebar('reportes')"><span class="sidebar-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span> Reportes</button>
+    <button class="sidebar-btn" id="nav-historial" onclick="irASidebar('historial')"><span class="sidebar-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></span> Historial</button>
+    <button class="sidebar-btn" id="nav-devoluciones" onclick="irASidebar('devoluciones')"><span class="sidebar-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg></span> Devoluciones</button>
+    
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-title">Operador</div>
+    <div class="sidebar-operador" onclick="abrirSelectorOperador(false)">
+      <div class="op-icono">👤</div>
+      <div class="op-info">
+        <div class="op-label">Usando app como</div>
+        <div class="op-nombre" id="chip-operador-side">—</div>
+      </div>
+      <div class="op-cambiar">Cambiar</div>
+    </div>
+  </div>
 </div>
 
 <!-- ====== PANTALLAS ====== -->
@@ -28,10 +78,10 @@
 <div class="pantalla activa" id="pantalla-inicio">
   <!-- (tarjetas de resumen movidas a Reportes) -->
   <div class="grilla">
-    <button class="btn-grande" onclick="irA('venta')"><span class="ico">🛒</span>Nueva venta</button>
-    <button class="btn-grande" onclick="irA('compra')"><span class="ico">📦</span>Nueva compra</button>
-    <button class="btn-grande" onclick="irA('deudas')"><span class="ico">👥</span>Clientes que deben</button>
-    <button class="btn-grande" onclick="irA('deudas','proveedores')"><span class="ico">🏭</span>Le debemos a...</button>
+    <button class="btn-grande" onclick="irA('venta')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg></span>Nueva venta</button>
+    <button class="btn-grande" onclick="irA('compra')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg></span>Nueva compra</button>
+    <button class="btn-grande" onclick="irA('deudas')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>Clientes que deben</button>
+    <button class="btn-grande" onclick="irA('deudas','proveedores')"><span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="2" width="16" height="20" rx="2" ry="2"/><path d="M9 22v-4h6v4"/><path d="M8 6h.01"/><path d="M16 6h.01"/><path d="M12 6h.01"/><path d="M12 10h.01"/><path d="M12 14h.01"/><path d="M16 10h.01"/><path d="M16 14h.01"/><path d="M8 10h.01"/><path d="M8 14h.01"/></svg></span>Le debemos a...</button>
   </div>
   <!-- Acordeón de precios (solo lectura) -->
   <div style="margin-top:4px;margin-bottom:4px">
@@ -173,6 +223,9 @@
     <button class="btn-grande" onclick="irA('stock')">
       <span class="ico">📦</span>Stock
     </button>
+    <button class="btn-grande" onclick="irA('devoluciones')">
+      <span class="ico">↩️</span>Devoluciones
+    </button>
   </div>
   <!-- Operador -->
   <div style="font-size:11px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px">Operador</div>
@@ -275,27 +328,7 @@
   <div id="cont-historial"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
 </div>
 
-<!-- ====== NAV BAR ====== -->
-<nav class="nav-bar">
-  <button class="nav-btn activo" id="nav-inicio" onclick="irA('inicio')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Inicio
-  </button>
-  <button class="nav-btn" id="nav-venta" onclick="irA('venta')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>Vender
-  </button>
-  <button class="nav-btn" id="nav-compra" onclick="irA('compra')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>Comprar
-  </button>
-  <button class="nav-btn" id="nav-deudas" onclick="irA('deudas')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Deudas
-  </button>
-  <button class="nav-btn" id="nav-devoluciones" onclick="irA('devoluciones')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 14 4 9 9 4"/><path d="M20 20v-7a4 4 0 0 0-4-4H4"/></svg>Devol.
-  </button>
-  <button class="nav-btn" id="nav-mas" onclick="irA('mas')">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Más
-  </button>
-</nav>
+<!-- NAV BAR REMOVIDA A FAVOR DEL SIDEBAR -->
 
 <!-- ====== MODALES ====== -->
 
