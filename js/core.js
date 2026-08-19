@@ -60,6 +60,8 @@ function actualizarChipOperador() {
   if (chip) chip.textContent = val;
   const chipMas = document.getElementById('chip-operador-mas');
   if (chipMas) chipMas.textContent = val;
+  const chipSide = document.getElementById('chip-operador-side');
+  if (chipSide) chipSide.textContent = val;
 }
 
 function renderListaOperadores(forzado) {
@@ -209,14 +211,16 @@ function _norm(s){return (s||'').toString().normalize('NFC').trim().toLowerCase(
 // NAVEGACIÓN
 // ==========================================
 const TITULOS={inicio:'Quesos Los Weys',venta:'Nueva Venta',compra:'Nueva Compra',deudas:'Deudas',mas:'Más opciones',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes',devoluciones:'Devoluciones',historial:'Historial',stock:'Stock'};
-const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',mas:'nav-mas',productos:'nav-mas',clientes:'nav-mas','proveedores-mgt':'nav-mas',reportes:'nav-mas',devoluciones:'nav-devoluciones',historial:'nav-mas',stock:'nav-mas'};
+const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',mas:'nav-inicio',productos:'nav-productos',clientes:'nav-clientes','proveedores-mgt':'nav-proveedores-mgt',reportes:'nav-reportes',devoluciones:'nav-devoluciones',historial:'nav-historial',stock:'nav-stock'};
 
 function irA(p, tab){
   document.querySelectorAll('.pantalla').forEach(x=>x.classList.remove('activa'));
   document.getElementById('pantalla-'+p).classList.add('activa');
   document.getElementById('header-title').textContent=TITULOS[p]||'App Quesos';
-  document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('activo'));
-  const n=NAV_MAP[p]; if(n) document.getElementById(n).classList.add('activo');
+  document.querySelectorAll('.sidebar-btn').forEach(b=>b.classList.remove('activo'));
+  const n=NAV_MAP[p];
+  const btn = document.getElementById(n);
+  if(n && btn) btn.classList.add('activo');
   window.scrollTo(0,0);
   if(p==='inicio') cargarInicio();
   if(p==='venta') cargarDatosVenta();
@@ -231,3 +235,26 @@ function irA(p, tab){
   if(p==='stock') cargarStock();
 }
 
+// ==========================================
+// SIDEBAR
+// ==========================================
+function toggleSidebar() {
+  const sidebar = document.getElementById('sidebar');
+  const backdrop = document.getElementById('sidebar-backdrop');
+  if(sidebar.classList.contains('activa')) {
+    sidebar.classList.remove('activa');
+    backdrop.classList.remove('activa');
+  } else {
+    sidebar.classList.add('activa');
+    backdrop.classList.add('activa');
+  }
+}
+
+function irASidebar(p) {
+  irA(p);
+  // Actualizar estado activo en los botones del sidebar
+  document.querySelectorAll('.sidebar-btn').forEach(b => b.classList.remove('activo'));
+  const btn = document.getElementById('nav-' + p);
+  if(btn) btn.classList.add('activo');
+  toggleSidebar();
+}
