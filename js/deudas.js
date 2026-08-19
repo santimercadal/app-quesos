@@ -66,10 +66,20 @@ function renderLeDebes(lista){
       </div>`).join('');
 }
 
+// Período del ticket de estado de cuenta (mes / 30d / todo)
+function setCuentaRango(r){
+  _cuentaRango=r;
+  document.querySelectorAll('#cuenta-rango button').forEach(b=>{
+    b.className='btn btn-sm '+(b.dataset.r===r?'btn-p':'btn-s');
+  });
+}
+
 async function abrirCuentaContacto(nombre){
   document.getElementById('cuenta-titulo').textContent='Cuenta: '+nombre;
   document.getElementById('cuenta-nombre').value=nombre;
   _cuentaNombre=nombre;
+  _cuentaMovs=[]; _cuentaSaldo=0;
+  setCuentaRango(_cuentaRango||'30d');
   document.getElementById('cuenta-tabla').innerHTML=skeleton(2);
   document.getElementById('modal-contacto').classList.add('visible');
   try{

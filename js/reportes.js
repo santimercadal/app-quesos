@@ -52,6 +52,15 @@ async function cargarReporte(){
     });
     const topProdSorted = Object.entries(topProd).sort((a,b)=>b[1]-a[1]).slice(0,5);
 
+    // Top clientes (por monto vendido en el período)
+    const topCli = {}, cantCli = {};
+    ventas.pedidos.forEach(p=>{
+      const k=(p.cliente||'').toString().trim()||'Consumidor final';
+      topCli[k]=(topCli[k]||0)+Number(p.total);
+      cantCli[k]=(cantCli[k]||0)+1;
+    });
+    const topCliSorted = Object.entries(topCli).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
     // Compras por proveedor
     const compProv = {};
     (compras.compras||[]).forEach(c=>{
@@ -152,6 +161,27 @@ async function cargarReporte(){
             <div style="text-align:right">
               <strong style="white-space:nowrap">${$$(total)}</strong>
               <div style="font-size:11px;color:var(--gris)">${pct}% del total</div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>`:''}
+
+      <!-- TOP CLIENTES -->
+      ${topCliSorted.length?`
+      <div class="card">
+        <div class="card-titulo">Clientes que más compraron</div>
+        ${topCliSorted.map(([cli,total],i)=>{
+          const pct=g.total_ventas>0?Math.round(total/g.total_ventas*100):0;
+          const n=cantCli[cli]||0;
+          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0">
+            <div style="font-size:16px;font-weight:700;color:var(--gris);width:20px">${i+1}</div>
+            <div style="flex:1">
+              <div style="font-size:14px;font-weight:600">${cli}</div>
+              ${barra(total,topCliSorted[0][1],'var(--azul-c)')}
+            </div>
+            <div style="text-align:right">
+              <strong style="white-space:nowrap">${$$(total)}</strong>
+              <div style="font-size:11px;color:var(--gris)">${n} ${n===1?'compra':'compras'} · ${pct}%</div>
             </div>
           </div>`;
         }).join('')}

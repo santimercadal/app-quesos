@@ -110,7 +110,10 @@ function renderClientesLista(q){
             <div class="item-nombre">${nombreCompleto(c)}</div>
             <div class="item-det">${c.celular||'Sin celular'}</div>
           </div>
-          <button class="btn btn-s btn-sm" onclick="abrirModalCliente(_clientesRender[${i}])">Editar</button>
+          <div style="display:flex;gap:6px;flex-shrink:0">
+            <button class="btn btn-s btn-sm" onclick="abrirCuentaContacto(nombreCompleto(_clientesRender[${i}]))">Ver cuenta</button>
+            <button class="btn btn-s btn-sm" onclick="abrirModalCliente(_clientesRender[${i}])">Editar</button>
+          </div>
         </div>
       </div>`).join('');
 }

@@ -107,7 +107,10 @@ async function cargarDatosVenta(){
 function renderPreciosInicio() {
   const cont = document.getElementById('lista-precios-inicio');
   if (!cont || !productos.length) return;
-  cont.innerHTML = productos.map(p => `
+  cont.innerHTML = `
+    <button class="btn btn-s" onclick="ticketListaPrecios()" style="margin-bottom:6px">📤 Compartir lista de precios</button>
+    <div style="font-size:11px;color:var(--gris);text-align:center;margin-bottom:10px">Se comparten solo los productos con stock disponible</div>
+  ` + productos.map(p => `
     <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--blanco);border-radius:var(--radio);margin-bottom:6px;box-shadow:var(--sombra)">
       <div>
         <div style="font-weight:600;font-size:14px">${escH(p.nombre)}</div>

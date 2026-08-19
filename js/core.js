@@ -26,6 +26,7 @@ let _histCompras = [];
 let _devsRender = [];
 let _cuentaMovs = [];
 let _cuentaNombre = '';
+let _cuentaRango = '30d';       // período elegido para el ticket de estado de cuenta
 let _origNombre = '';
 let _origApellido = '';
 let _stockList = [];

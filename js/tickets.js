@@ -198,13 +198,106 @@ function ticketDevolucion(d){
   mostrarTicket(b, 'devolucion-' + (d.fecha || hoy()));
 }
 
+// ---------- TICKET DE LISTA DE PRECIOS (para mandar a clientes) ----------
+// Solo productos con stock disponible (stock > 0). Pide el stock fresco al
+// servidor, sin caché, para no compartir precios ni disponibilidad viejos.
+async function ticketListaPrecios(){
+  toast('Generando lista...', 'guardando');
+  try{
+    const prods = await apiGet('getStock');
+    ocultarToast();
+    const disp = (prods || []).filter(p => Number(p.stock) > 0);
+    if(!disp.length){
+      toast('No hay productos con stock cargado', 'error');
+      return;
+    }
+    disp.sort((a, b) => String(a.nombre).localeCompare(String(b.nombre), 'es'));
+    const b = _ticketBase('LISTA DE PRECIOS', 'Precios vigentes al ' + fmtFecha(hoy()));
+    disp.forEach(p => b.push({
+      t:'item', nombre: p.nombre,
+      det: 'por ' + (p.unidad || 'unidad'),
+      monto: $$(p.precio)
+    }));
+    b.push({t:'sep'});
+    b.push({t:'nota', txt: 'Sujeto a disponibilidad · Hacé tu pedido'});
+    mostrarTicket(b, 'precios-' + hoy());
+  }catch(e){ ocultarToast(); toast('❌ ' + e.message, 'error'); }
+}
+
+// ---------- TICKET DE ESTADO DE CUENTA (cliente o proveedor) ----------
+// Usa los movimientos ya cargados en el modal de cuenta (_cuentaMovs).
+// Se puede generar siempre, incluso con saldo 0 o sin movimientos.
+function _rangoCuenta(rango){
+  const h = hoy();
+  if(rango === 'mes') return {desde: h.slice(0, 7) + '-01', hasta: h, label: 'Mes actual'};
+  if(rango === '30d'){
+    const d = new Date(h + 'T12:00:00');
+    d.setDate(d.getDate() - 29);
+    const desde = new Intl.DateTimeFormat('en-CA').format(d);
+    return {desde, hasta: h, label: 'Últimos 30 días'};
+  }
+  return {desde: '', hasta: h, label: 'Todo el historial'};
+}
+
+function ticketEstadoCuenta(){
+  const movs = _cuentaMovs || [];
+  const nombre = _cuentaNombre || document.getElementById('cuenta-nombre').value || '';
+  const r = _rangoCuenta(typeof _cuentaRango !== 'undefined' ? _cuentaRango : '30d');
+
+  const enRango  = r.desde ? movs.filter(m => String(m.fecha) >= r.desde) : movs.slice();
+  const previos  = r.desde ? movs.filter(m => String(m.fecha) <  r.desde) : [];
+  const saldoAnt = previos.length ? Number(previos[previos.length - 1].saldo) : 0;
+  const saldo    = movs.length ? Number(movs[movs.length - 1].saldo) : Number(_cuentaSaldo) || 0;
+
+  const b = _ticketBase('ESTADO DE CUENTA', nombre || '(sin nombre)');
+  b.push({t:'kv', k:'Emitido', v: fmtFecha(hoy())});
+  b.push({t:'kv', k:'Período', v: r.desde ? (fmtFecha(r.desde) + ' al ' + fmtFecha(r.hasta)) : 'Todo el historial'});
+  b.push({t:'sep'});
+
+  if(r.desde && (previos.length || Math.abs(saldoAnt) > 0.01)){
+    b.push({t:'kv', k:'Saldo anterior', v: (saldoAnt >= 0 ? '' : '−') + $$(Math.abs(saldoAnt))});
+  }
+
+  if(enRango.length){
+    enRango.forEach(m => {
+      const d = Number(m.delta) || 0;
+      // Una venta cobrada en el momento no mueve el saldo: se muestra como "—"
+      // en vez de "+$0", que confunde al cliente.
+      const monto = Math.abs(d) < 0.01 ? '—' : (d > 0 ? '+' : '−') + $$(Math.abs(d));
+      b.push({
+        t:'item',
+        nombre: fmtFecha(m.fecha) + ' · ' + (m.descripcion || ''),
+        det: 'Saldo: ' + (Number(m.saldo) < -0.01 ? '−' : '') + $$(Math.abs(Number(m.saldo))),
+        monto: monto
+      });
+    });
+  }else{
+    b.push({t:'esp'});
+    b.push({t:'nota', txt: 'Sin movimientos en el período'});
+    b.push({t:'esp'});
+  }
+
+  b.push({t:'sep'});
+  if(saldo > 0.01)       b.push({t:'total', k:'DEBE', v: $$(saldo)});
+  else if(saldo < -0.01) b.push({t:'total', k:'A FAVOR', v: $$(-saldo)});
+  else                   b.push({t:'total', k:'SALDO', v: '✅ Al día'});
+  b.push({t:'esp'});
+  b.push({t:'nota', txt: saldo > 0.01 ? 'Saldo pendiente de pago' : '¡Gracias por su confianza!'});
+
+  const slug = (nombre || 'cuenta').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+  mostrarTicket(b, 'cuenta-' + (slug || 'contacto') + '-' + hoy());
+}
+
 // ---------- TICKET DE REPORTE (período elegido en Reportes) ----------
 async function ticketReporte(){
   const f = getFechas();
   if(!f.desde || !f.hasta){ toast('Elegí un período primero', 'error'); return; }
   toast('Generando ticket...', 'guardando');
   try{
-    const g = await apiGet('getGanancia', {desde: f.desde, hasta: f.hasta});
+    const [g, ventas] = await Promise.all([
+      apiGet('getGanancia', {desde: f.desde, hasta: f.hasta}),
+      apiGet('getVentas',   {desde: f.desde, hasta: f.hasta}).catch(() => ({pedidos: []}))
+    ]);
     ocultarToast();
     const b = _ticketBase('RESUMEN DEL PERÍODO', fmtFecha(f.desde) + ' al ' + fmtFecha(f.hasta));
 
@@ -228,6 +321,19 @@ async function ticketReporte(){
     }
     if(g.costo_mercaderia !== undefined) b.push({t:'kv', k:'Costo de lo vendido', v: $$(g.costo_mercaderia)});
     b.push({t:'sep'});
+
+    // --- Top clientes del período ---
+    const tc = {};
+    ((ventas && ventas.pedidos) || []).forEach(p => {
+      const k = (p.cliente || '').toString().trim() || 'Consumidor final';
+      tc[k] = (tc[k] || 0) + Number(p.total);
+    });
+    const tcTop = Object.entries(tc).sort((a, b) => b[1] - a[1]).slice(0, 5);
+    if(tcTop.length){
+      b.push({t:'nota', txt: 'Clientes que más compraron'});
+      tcTop.forEach(([cli, monto], i) => b.push({t:'kv', k: (i + 1) + '. ' + cli, v: $$(monto)}));
+      b.push({t:'sep'});
+    }
 
     // --- Resultados ---
     const gr = (g.ganancia_real !== undefined) ? Number(g.ganancia_real) : Number(g.ganancia);
