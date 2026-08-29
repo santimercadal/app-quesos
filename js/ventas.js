@@ -1,14 +1,34 @@
 // ==========================================
 // INICIO (feed: ventas + compras + pagos del día)
 // ==========================================
+// Pinta al instante con el movimiento del día que quedó guardado y lo corrige
+// cuando llega lo fresco. Después de guardar una venta el caché queda marcado
+// como vencido, así que ahí sí espera: nunca se muestra un total desactualizado
+// como si fuera bueno.
 async function cargarInicio(){
+  const cont=document.getElementById('ventas-hoy-lista');
+  const previo=cacheInicio();
+  if(previo) _pintarInicio(previo.ventas, previo.compras);
+  else if(cont) cont.innerHTML=skeleton(2);
   try{
-    const h=hoy();
-    const [d, rc] = await Promise.all([
-      apiGet('getVentasHoy'),
-      apiGet('getCompras',{desde:h,hasta:h}).catch(()=>({compras:[]}))
-    ]);
+    const dat=await cargarInicioDatos();
+    _pintarInicio(dat.ventas, dat.compras);
+  }catch(e){
+    const l=document.getElementById('ventas-hoy-lista');
+    if(!previo){
+      if(l) l.innerHTML='<div class="vacio"><span class="ico">❌</span>Sin conexión · '+e.message+'</div>';
+    }else{
+      // Hay algo en pantalla, pero es de la última vez: hay que decirlo.
+      toast('Sin conexión · mostrando lo último guardado','error');
+    }
+  }
+}
+
+function _pintarInicio(d, rc){
+  try{
     const lista=document.getElementById('ventas-hoy-lista');
+    if(!lista) return;
+    d=d||{}; rc=rc||{compras:[]};
     _pedidosHoy=d.pedidos||[];
     _comprasHoy=(rc.compras||[]).slice().reverse();
     const hayVentas=d.pedidos&&d.pedidos.length>0;
@@ -83,25 +103,35 @@ async function cargarInicio(){
       : '';
 
     lista.innerHTML=htmlVentas+htmlCompras+htmlAbonos;
-  }catch(e){
-    const l=document.getElementById('ventas-hoy-lista');
-    if(l) l.innerHTML='<div class="vacio"><span class="ico">❌</span>Sin conexión · '+e.message+'</div>';
-  }
+  }catch(e){ console.error('pintarInicio:', e); }
 }
 
 // ==========================================
 // CARRITO DE VENTA
 // ==========================================
+// El formulario se dibuja ya con los productos que tenemos y recién después se
+// pregunta al servidor. Productos y clientes van en paralelo, no en fila: eran
+// 5,1 s uno atrás del otro contra 1,9 s juntos.
 async function cargarDatosVenta(){
   document.getElementById('v-fecha').value=hoy();
-  try{
-    productos=await apiGetCached('getProductos');
-    clientesCache=await apiGetCached('getClientes');
-    document.getElementById('lista-clientes').innerHTML=clientesCache.map(c=>`<option value="${escH(nombreCompleto(c))}">`).join('');
-    renderPreciosInicio();
-  }catch(e){toast('Error cargando datos: '+e.message,'error');}
   if(carrito.length===0){carrito=[{producto:'',precio_unitario:0,unidad:'kg',kg:'',monto:''}];}
   renderCarrito();
+  const firma = p => JSON.stringify((p||[]).map(x=>[x.nombre,x.precio,x.unidad]));
+  const antes = firma(productos);
+  try{
+    const [prods, clis] = await Promise.all([
+      apiGetCached('getProductos'),
+      apiGetCached('getClientes')
+    ]);
+    productos=prods; clientesCache=clis;
+    _pintarDatalistClientes();
+    renderPreciosInicio();
+    // Redibujar el carrito solo si la lista de productos cambió de verdad:
+    // si no, le robaríamos el foco a quien esté tipeando el peso.
+    if(firma(prods)!==antes) renderCarrito();
+  }catch(e){
+    if(!productos.length) toast('Error cargando datos: '+e.message,'error');
+  }
 }
 
 function renderPreciosInicio() {

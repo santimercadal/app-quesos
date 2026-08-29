@@ -3,13 +3,28 @@
 // ==========================================
 function invalidarCacheDeudas(){ /* sin cache, siempre carga fresco */ }
 
-async function cargarDeudas(tab){
-  cambiarTabDeuda(tab);
-  document.getElementById('cont-clientes-deuda').innerHTML=skeleton();
-  document.getElementById('cont-proveedores').innerHTML=skeleton();
-  const contactos=await apiGet('getDeudaContactos').catch(()=>[]);
+// getDeudaContactos es de las consultas más caras (~4 s). Mostramos los saldos
+// que ya conocíamos y los corregimos cuando llega la respuesta; después de
+// registrar un cobro o un pago el caché queda vencido y ahí sí espera.
+function _pintarDeudas(contactos){
+  contactos = contactos || [];
   renderTeDeben(contactos.filter(c=>c.neto>0.01));
   renderLeDebes(contactos.filter(c=>c.neto<-0.01));
+}
+
+async function cargarDeudas(tab){
+  cambiarTabDeuda(tab);
+  const previo=cacheLocal('getDeudaContactos');
+  if(previo) _pintarDeudas(previo);
+  else{
+    document.getElementById('cont-clientes-deuda').innerHTML=skeleton();
+    document.getElementById('cont-proveedores').innerHTML=skeleton();
+  }
+  try{
+    _pintarDeudas(await apiGetCached('getDeudaContactos'));
+  }catch(e){
+    if(!previo) _pintarDeudas([]);
+  }
 }
 
 function cambiarTabDeuda(tab){

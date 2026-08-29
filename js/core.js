@@ -140,41 +140,247 @@ async function _guardarOperadoresAPI(lista) {
 }
 
 // ==========================================
-// API
+// API + CACHE
 // ==========================================
-async function apiGet(accion, params={}) {
+// Cada llamada al Apps Script cuesta ~2 s fijos, sin importar cuántos datos
+// devuelva. Por eso acá el objetivo no es que las consultas sean rápidas sino
+// (a) hacer menos, (b) no repetir la misma dos veces, y (c) no hacer esperar a
+// nadie: se pinta lo último que sabemos y se corrige cuando llega lo fresco.
+
+const _cache    = {};   // memoria de esta sesión:  clave -> {data, ts}
+const _inflight = {};   // pedidos en curso:        clave -> Promise
+const _sucio    = {};   // claves que una escritura dejó vencidas
+const _CACHE_TTL = 90000;
+const LSK = 'qc-';      // prefijo de las claves en localStorage
+
+function _ck(accion, params){ return accion + '|' + JSON.stringify(params||{}); }
+
+function _lsLeer(k){
+  try{ const r = localStorage.getItem(LSK+k); return r ? JSON.parse(r) : null; }
+  catch(e){ return null; }
+}
+function _lsGuardar(k, data){
+  try{ localStorage.setItem(LSK+k, JSON.stringify({data, ts:Date.now()})); }
+  catch(e){ _lsBorrarTodo(); }   // sin espacio: tiramos el caché y seguimos
+}
+function _lsClaves(){
+  const out = [];
+  try{ for(let i=0;i<localStorage.length;i++){ const k=localStorage.key(i); if(k && k.indexOf(LSK)===0) out.push(k.slice(LSK.length)); } }
+  catch(e){}
+  return out;
+}
+function _lsBorrarTodo(){
+  try{ _lsClaves().forEach(k=>localStorage.removeItem(LSK+k)); }catch(e){}
+}
+
+// ---------- LECTURA CRUDA ----------
+// Con timeout: si la señal está mal, falla en 12 s en vez de quedar colgado.
+async function apiGet(accion, params={}, ms=12000){
   const qs = new URLSearchParams({accion,...params}).toString();
-  const r = await fetch(`${API}?${qs}`);
-  if (!r.ok) throw new Error('Error de red ('+r.status+')');
+  const ctrl = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const reloj = ctrl ? setTimeout(()=>ctrl.abort(), ms) : null;
+  let r;
+  try{
+    r = await fetch(`${API}?${qs}`, ctrl ? {signal:ctrl.signal} : undefined);
+  }catch(e){
+    if(reloj) clearTimeout(reloj);
+    if(e && e.name === 'AbortError') throw new Error('La conexión tardó demasiado');
+    throw new Error('Sin conexión');
+  }
+  if(reloj) clearTimeout(reloj);
+  if(!r.ok) throw new Error('Error de red ('+r.status+')');
   const d = await r.json();
-  if (!d.ok) throw new Error(d.error||'Error del servidor');
+  if(!d.ok) throw new Error(d.error||'Error del servidor');
   return d.datos;
 }
+
+// ---------- ESCRITURA ----------
+// A propósito SIN timeout: cortar un POST que ya llegó al servidor haría creer
+// que no se guardó, y una venta registrada dos veces es peor que una espera.
 async function apiPost(accion, datos) {
   const payload = Object.assign({operador: operadorActual}, datos||{});
   const r = await fetch(API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify({accion,datos:payload})});
   if (!r.ok) throw new Error('Error de red ('+r.status+')');
   const d = await r.json();
   if (!d.ok) throw new Error(d.error||'Error del servidor');
-  invalidarCache(); // cualquier escritura invalida el cache de lecturas
+  invalidarCache(accion);
   return d.datos;
 }
 
-// Cache liviano de datos maestros (productos/clientes/proveedores).
-// Navegación instantánea; cualquier escritura (apiPost) lo limpia, así nunca
-// quedás con datos viejos. TTL corto como red de seguridad.
-const _cache = {};
-const _CACHE_TTL = 90000;
-async function apiGetCached(accion, params){
-  const key = accion + '|' + JSON.stringify(params||{});
-  const e = _cache[key];
-  if(e && (Date.now() - e.ts) < _CACHE_TTL) return e.data;
-  const data = await apiGet(accion, params||{});
-  _cache[key] = {data, ts: Date.now()};
-  return data;
+// ---------- PEDIDO DEDUPLICADO ----------
+// Si dos pantallas piden lo mismo en el mismo instante, sale un solo request y
+// la segunda se cuelga del primero.
+function apiGetDedup(accion, params){
+  const k = _ck(accion, params);
+  if(_inflight[k]) return _inflight[k];
+  const p = apiGet(accion, params||{}).then(data=>{
+    _cache[k] = {data, ts:Date.now()};
+    delete _sucio[k];
+    _lsGuardar(k, data);
+    delete _inflight[k];
+    return data;
+  }).catch(e=>{ delete _inflight[k]; throw e; });
+  _inflight[k] = p;
+  return p;
 }
+
+// Caché en memoria con vencimiento corto.
+async function apiGetCached(accion, params){
+  const k = _ck(accion, params);
+  const e = _cache[k];
+  if(e && !_sucio[k] && (Date.now()-e.ts) < _CACHE_TTL) return e.data;
+  return apiGetDedup(accion, params);
+}
+
+// Lo último que sabemos, sin pedir nada al servidor.
+// Devuelve null si nunca se guardó o si una escritura lo dejó vencido.
+function cacheLocal(accion, params){
+  const k = _ck(accion, params);
+  if(_sucio[k]) return null;
+  if(_cache[k]) return _cache[k].data;
+  const ls = _lsLeer(k);
+  if(ls && ls.data !== undefined){
+    _cache[k] = {data: ls.data, ts: 0};   // ts 0 => vencido, se revalida igual
+    return ls.data;
+  }
+  return null;
+}
+
+function _sembrar(accion, params, data){
+  if(data === undefined || data === null) return;
+  const k = _ck(accion, params);
+  _cache[k] = {data, ts: Date.now()};
+  delete _sucio[k];
+  _lsGuardar(k, data);
+}
+
+// ---------- INVALIDACIÓN ----------
+// Qué caché ensucia cada escritura. Lo que NO está en esta tabla ensucia todo
+// (red de seguridad: preferimos un request de más antes que un dato viejo).
+// "Ensuciar" no borra: marca la clave como vencida. Así seguimos teniendo el
+// último valor en disco por si hace falta, pero nunca se muestra como bueno.
+const _ENSUCIA = {
+  agregarProducto:   ['getProductos','getStock','getBootstrap'],
+  editarProducto:    ['getProductos','getStock','getBootstrap'],
+  ajustarStock:      ['getProductos','getStock','getBootstrap'],
+  agregarCliente:    ['getClientes','getBootstrap'],
+  editarCliente:     ['getClientes','getBootstrap'],
+  eliminarCliente:   ['getClientes','getBootstrap'],
+  agregarProveedor:  ['getProveedores','getBootstrap'],
+  editarProveedor:   ['getProveedores','getBootstrap'],
+  eliminarProveedor: ['getProveedores','getBootstrap'],
+  guardarOperadores: ['getOperadores','getBootstrap']
+  // renombrar* y todo lo de ventas/compras/pagos/devoluciones cae en "todo".
+};
+
 function invalidarCache(accion){
-  Object.keys(_cache).forEach(k=>{ if(!accion || k.indexOf(accion+'|')===0) delete _cache[k]; });
+  const lista = accion ? _ENSUCIA[accion] : null;
+  const todas = new Set(Object.keys(_cache).concat(_lsClaves()));
+  const marcar = k => { _sucio[k] = true; if(_cache[k]) _cache[k].ts = 0; };
+  if(!lista){ todas.forEach(marcar); return; }
+  const set = new Set(lista);
+  todas.forEach(k => { if(set.has(k.split('|')[0])) marcar(k); });
+}
+
+// ==========================================
+// LLAMADAS COMBINADAS
+// ==========================================
+// El Apps Script nuevo trae getBootstrap / getInicio / getReporte, que juntan
+// en un solo viaje lo que antes eran 4, 2 y 4 requests. Si todavía no lo
+// republicaste, cada una detecta que el servidor no la conoce y cae sola a los
+// endpoints de siempre: podés subir el frontend hoy y el script cuando quieras.
+// Si el Apps Script todavía no conoce un endpoint combinado, lo anotamos por
+// 24 h en el teléfono: así no gastamos un request en preguntar de nuevo en cada
+// apertura. Pasado ese día vuelve a probar solo, y el día que republiques el
+// script la app se pasa sola a la vía rápida sin que toques nada.
+const _noSoportado = {};
+const NOSOP_TTL = 86400000;
+function _esDesconocida(e){ return /no reconocida/i.test((e && e.message) || ''); }
+function _soporta(accion){
+  if(_noSoportado[accion]) return false;
+  try{
+    const t = Number(localStorage.getItem(LSK+'nosop-'+accion) || 0);
+    if(t && (Date.now()-t) < NOSOP_TTL){ _noSoportado[accion] = true; return false; }
+  }catch(e){}
+  return true;
+}
+function _marcarNoSoportado(accion){
+  _noSoportado[accion] = true;
+  try{ localStorage.setItem(LSK+'nosop-'+accion, String(Date.now())); }catch(e){}
+}
+
+// Datos maestros: productos + clientes + proveedores + operadores.
+async function cargarMaestros(){
+  if(_soporta('getBootstrap')){
+    try{
+      const b = await apiGetDedup('getBootstrap', {});
+      _sembrar('getProductos',   {}, b.productos);
+      _sembrar('getClientes',    {}, b.clientes);
+      _sembrar('getProveedores', {}, b.proveedores);
+      _sembrar('getOperadores',  {}, b.operadores);
+      return b;
+    }catch(e){
+      if(!_esDesconocida(e)) throw e;
+      _marcarNoSoportado('getBootstrap');
+    }
+  }
+  const [prods, clis, provs, ops] = await Promise.all([
+    apiGetCached('getProductos'),
+    apiGetCached('getClientes'),
+    apiGetCached('getProveedores'),
+    apiGetCached('getOperadores').catch(()=>null)
+  ]);
+  return {productos:prods, clientes:clis, proveedores:provs, operadores:ops};
+}
+
+// Feed del inicio: ventas del día + compras del día.
+async function cargarInicioDatos(){
+  const h = hoy();
+  if(_soporta('getInicio')){
+    try{
+      const r = await apiGetDedup('getInicio', {});
+      return {ventas: r.ventas, compras: r.compras};
+    }catch(e){
+      if(!_esDesconocida(e)) throw e;
+      _marcarNoSoportado('getInicio');
+    }
+  }
+  const [v, c] = await Promise.all([
+    apiGetDedup('getVentasHoy', {}),
+    apiGetDedup('getCompras',{desde:h,hasta:h}).catch(()=>({compras:[]}))
+  ]);
+  return {ventas:v, compras:c};
+}
+
+// Lo último que sabemos del día, sin red. Sirve tanto si el servidor ya tiene
+// getInicio como si todavía responde con los dos endpoints separados.
+function cacheInicio(){
+  const r = cacheLocal('getInicio');
+  if(r && r.ventas) return {ventas:r.ventas, compras:r.compras||{compras:[]}};
+  const v = cacheLocal('getVentasHoy');
+  if(!v) return null;
+  const h = hoy();
+  return {ventas:v, compras: cacheLocal('getCompras',{desde:h,hasta:h}) || {compras:[]}};
+}
+
+// Reportes: ganancia + ventas + compras + deudas de un período.
+async function cargarReporteDatos(desde, hasta){
+  if(_soporta('getReporte')){
+    try{
+      const r = await apiGetDedup('getReporte', {desde, hasta});
+      return r;
+    }catch(e){
+      if(!_esDesconocida(e)) throw e;
+      _marcarNoSoportado('getReporte');
+    }
+  }
+  const [ganancia, ventas, compras, contactos] = await Promise.all([
+    apiGet('getGanancia',{desde,hasta}),
+    apiGet('getVentas',{desde,hasta}),
+    apiGet('getCompras',{desde,hasta}),
+    apiGet('getDeudaContactos').catch(()=>[])
+  ]);
+  return {ganancia, ventas, compras, contactos};
 }
 
 // ==========================================

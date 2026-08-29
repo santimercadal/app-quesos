@@ -24,12 +24,10 @@ async function cargarReporte(){
   const cont=document.getElementById('cont-reporte');
   cont.innerHTML=skeleton(4);
   try{
-    const [g, ventas, compras, contactos] = await Promise.all([
-      apiGet('getGanancia',{desde,hasta}),
-      apiGet('getVentas',{desde,hasta}),
-      apiGet('getCompras',{desde,hasta}),
-      apiGet('getDeudaContactos').catch(()=>[])
-    ]);
+    // Un solo viaje al servidor en vez de cuatro. Si el Apps Script todavía no
+    // tiene getReporte, cargarReporteDatos cae sola a los cuatro de siempre.
+    const r = await cargarReporteDatos(desde, hasta);
+    const g = r.ganancia, ventas = r.ventas, compras = r.compras, contactos = r.contactos || [];
 
     const ticketPromedio = g.cantidad_ventas > 0 ? g.total_ventas / g.cantidad_ventas : 0;
     // Pendiente actual (total y al día, igual que en Deudas)

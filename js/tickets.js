@@ -199,6 +199,14 @@ function ticketDevolucion(d){
 }
 
 // ---------- TICKET DE LISTA DE PRECIOS (para mandar a clientes) ----------
+// Productos que NO salen en la lista de precios que se manda a clientes: son
+// anotaciones internas, no mercadería. Si aparece otra, se agrega acá.
+const OCULTOS_LISTA_PRECIOS = ['Pollero'];
+function _ocultoEnPrecios(nombre){
+  const n = _norm(nombre);
+  return OCULTOS_LISTA_PRECIOS.some(x => _norm(x) === n);
+}
+
 // Solo productos con stock disponible (stock > 0). Pide el stock fresco al
 // servidor, sin caché, para no compartir precios ni disponibilidad viejos.
 async function ticketListaPrecios(){
@@ -206,7 +214,7 @@ async function ticketListaPrecios(){
   try{
     const prods = await apiGet('getStock');
     ocultarToast();
-    const disp = (prods || []).filter(p => Number(p.stock) > 1);
+    const disp = (prods || []).filter(p => Number(p.stock) > 0 && !_ocultoEnPrecios(p.nombre));
     if(!disp.length){
       toast('No hay productos con stock cargado', 'error');
       return;
@@ -294,10 +302,8 @@ async function ticketReporte(){
   if(!f.desde || !f.hasta){ toast('Elegí un período primero', 'error'); return; }
   toast('Generando ticket...', 'guardando');
   try{
-    const [g, ventas] = await Promise.all([
-      apiGet('getGanancia', {desde: f.desde, hasta: f.hasta}),
-      apiGet('getVentas',   {desde: f.desde, hasta: f.hasta}).catch(() => ({pedidos: []}))
-    ]);
+    const _r = await cargarReporteDatos(f.desde, f.hasta);
+    const g = _r.ganancia, ventas = _r.ventas || {pedidos: []};
     ocultarToast();
     const b = _ticketBase('RESUMEN DEL PERÍODO', fmtFecha(f.desde) + ' al ' + fmtFecha(f.hasta));
 

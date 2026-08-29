@@ -1,13 +1,27 @@
 // ==========================================
 // PRODUCTOS
 // ==========================================
+// Muestra al instante la última lista conocida y la corrige cuando llega la
+// del servidor. Solo espera con esqueleto si nunca se guardó nada o si una
+// escritura dejó la lista vencida.
 async function cargarProductos(){
   const cont=document.getElementById('cont-productos');
-  cont.innerHTML=skeleton();
+  const previo=cacheLocal('getProductos');
+  if(previo && previo.length){ productos=previo; _pintarProductos(); }
+  else cont.innerHTML=skeleton();
   try{
     productos=await apiGetCached('getProductos');
-    if(!productos.length){cont.innerHTML='<div class="vacio"><span class="ico">🧀</span>No hay productos todavía.<br>Agregá el primero.</div>';return;}
-    cont.innerHTML=productos.map((p,i)=>{
+    _pintarProductos();
+  }catch(e){
+    if(!(previo && previo.length)) cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';
+  }
+}
+
+function _pintarProductos(){
+  const cont=document.getElementById('cont-productos');
+  if(!cont) return;
+  if(!productos.length){cont.innerHTML='<div class="vacio"><span class="ico">🧀</span>No hay productos todavía.<br>Agregá el primero.</div>';return;}
+  cont.innerHTML=productos.map((p,i)=>{
       const margen=p.precio>0&&p.precio_costo>0?Math.round((p.precio-p.precio_costo)/p.precio*100)+'%':null;
       return `<div class="item">
         <div class="item-head">
@@ -22,8 +36,7 @@ async function cargarProductos(){
           </div>
         </div>
       </div>`;
-    }).join('');
-  }catch(e){cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';}
+  }).join('');
 }
 
 async function abrirModalProducto(p){
@@ -38,12 +51,16 @@ async function abrirModalProducto(p){
   document.getElementById('p-precio').value=editar?p.precio:'';
   document.getElementById('p-costo').value=editar?p.precio_costo:'';
   document.getElementById('p-margen').textContent='';
-  try{
-    const provs=await apiGetCached('getProveedores');
-    document.getElementById('p-proveedor').innerHTML=
-      '<option value="">Sin proveedor asignado</option>'+
+  // El desplegable de proveedores se llena ya con lo que tenemos guardado para
+  // que el modal no abra vacío, y se refresca si el servidor devuelve otra cosa.
+  const pintarProvs = provs => {
+    const sel=document.getElementById('p-proveedor');
+    if(!sel || !provs) return;
+    sel.innerHTML='<option value="">Sin proveedor asignado</option>'+
       provs.map(pv=>`<option value="${pv.nombre}" ${editar&&p.proveedor===pv.nombre?'selected':''}>${pv.nombre}</option>`).join('');
-  }catch(e){}
+  };
+  pintarProvs(cacheLocal('getProveedores'));
+  apiGetCached('getProveedores').then(pintarProvs).catch(()=>{});
   if(editar) mostrarMargen();
   document.getElementById('p-aviso-precio').style.display=editar?'block':'none';
   document.getElementById('modal-producto').classList.add('visible');
@@ -89,12 +106,17 @@ async function guardarProducto(){
 // ==========================================
 async function cargarClientes(){
   const cont=document.getElementById('cont-clientes');
-  cont.innerHTML=skeleton();
   const bq=document.getElementById('buscar-clientes'); if(bq) bq.value='';
+  const previo=cacheLocal('getClientes');
+  if(previo && previo.length){ clientesCache=previo; renderClientesLista(''); }
+  else cont.innerHTML=skeleton();
   try{
     clientesCache=await apiGetCached('getClientes');
-    renderClientesLista('');
-  }catch(e){cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';}
+    // Respetar lo que ya haya escrito en el buscador mientras esperaba.
+    renderClientesLista(bq ? bq.value : '');
+  }catch(e){
+    if(!(previo && previo.length)) cont.innerHTML='<div class="vacio"><span class="ico">❌</span>'+e.message+'</div>';
+  }
 }
 function filtrarClientes(q){ renderClientesLista(q); }
 function renderClientesLista(q){
@@ -166,8 +188,7 @@ async function guardarCliente(){
     cerrarModal('modal-cliente'); ocultarToast(); toast('✅ Cliente guardado','exito');
     cargarClientes();
     clientesCache=await apiGetCached('getClientes');
-    // Autocomplete con nombre completo
-    document.getElementById('lista-clientes').innerHTML=clientesCache.map(c=>`<option value="${escH(nombreCompleto(c))}">`).join('');
+    _pintarDatalistClientes();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
 
@@ -194,7 +215,7 @@ async function guardarQuickCliente(){
     cerrarModal('modal-quick-cli'); ocultarToast(); toast('✅ '+completo+' listo','exito');
     document.getElementById('v-cliente').value=completo;
     clientesCache=await apiGetCached('getClientes');
-    document.getElementById('lista-clientes').innerHTML=clientesCache.map(c=>`<option value="${escH(nombreCompleto(c))}">`).join('');
+    _pintarDatalistClientes();
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
 
