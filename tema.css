@@ -282,3 +282,121 @@ body.dark .rep-card.grande{ background:linear-gradient(140deg, rgba(245,194,77,.
 /* Iconos de los cuatro accesos grandes: blancos en oscuro, ambar en claro. */
 body.dark .btn-grande .ico svg{ color:#f2f7fa }
 body.dark .btn-grande{ border-color:rgba(255,255,255,.10) }
+
+/* ==========================================================================
+   1) CONTROLES NATIVOS EN MODO NOCHE
+   --------------------------------------------------------------------------
+   El bug: un <select> con fondo oscuro y texto claro por CSS abre, en el
+   celular, el desplegable NATIVO del sistema. Ese desplegable lo pinta el
+   sistema operativo, no nosotros, y sin declarar color-scheme lo pinta BLANCO
+   — con el texto casi blanco que hereda del select. Blanco sobre blanco.
+
+   color-scheme le avisa al sistema en qué modo está la página. Con esto el
+   desplegable de productos, el autocompletado de clientes, el calendario de
+   los <input type="date"> y las barras de scroll salen en oscuro solos.
+   El <option> explícito es el cinturón de seguridad para Android viejos que
+   ignoran color-scheme.
+   ========================================================================== */
+:root{ color-scheme: light }
+body.dark{ color-scheme: dark }
+
+option, optgroup{ background: var(--blanco); color: var(--texto) }
+body.dark option, body.dark optgroup{ background:#1b2a38; color:#e8eef2 }
+select:disabled, input:disabled{ opacity:.6 }
+
+/* ==========================================================================
+   2) VIDRIO ESMERILADO IMITADO
+   --------------------------------------------------------------------------
+   backdrop-filter obliga al navegador a re-fotografiar y re-desenfocar lo que
+   hay detrás del elemento EN CADA CUADRO del scroll. Con un header sticky eso
+   son 60 recálculos por segundo mientras se scrollea una lista larga: es la
+   causa de los tirones en el celular.
+
+   Acá lo imitamos: degradado vertical (la caída de luz del vidrio), una línea
+   de luz arriba y un borde claro (el canto del vidrio), más la sombra que ya
+   estaba. Se pinta UNA vez y no se vuelve a tocar mientras se scrollea.
+   ========================================================================== */
+.header,
+.sidebar,
+.modal,
+.modal-fondo,
+.sidebar-backdrop,
+#toast{
+  -webkit-backdrop-filter: none !important;
+          backdrop-filter: none !important;
+}
+
+/* --- Header --- */
+.header{
+  background:linear-gradient(180deg,#fdfaf3 0%,#f8f1e1 100%);
+  border-bottom:1px solid rgba(120,90,45,.15);
+  box-shadow:0 1px 14px rgba(120,90,45,.10), inset 0 1px 0 rgba(255,255,255,.92);
+}
+body.dark .header{
+  background:linear-gradient(180deg,#16222e 0%,#101a24 100%);
+  border-bottom-color:rgba(143,188,216,.18);
+  box-shadow:0 1px 16px rgba(0,0,0,.45), inset 0 1px 0 rgba(200,230,250,.09);
+}
+
+/* --- Menú lateral --- */
+.sidebar{
+  background:linear-gradient(180deg,#fefcf7 0%,#f9f3e6 100%);
+  border-right:1px solid rgba(120,90,45,.14);
+  box-shadow:6px 0 24px rgba(90,70,40,.18), inset 1px 0 0 rgba(255,255,255,.85);
+}
+body.dark .sidebar{
+  background:linear-gradient(180deg,#1b2a37 0%,#152230 100%);
+  border-right-color:rgba(143,188,216,.16);
+  box-shadow:10px 0 44px rgba(0,0,0,.5), inset 1px 0 0 rgba(200,230,250,.08);
+}
+
+/* --- Modales --- */
+.modal{
+  background:linear-gradient(180deg,#fffdf9 0%,#fbf6ec 100%);
+  border:1px solid rgba(255,255,255,.85);
+  border-bottom:0;
+  box-shadow:0 -8px 30px rgba(90,70,40,.22), inset 0 1px 0 rgba(255,255,255,.95);
+}
+body.dark .modal{
+  background:linear-gradient(180deg,#1d2c3a 0%,#16232f 100%);
+  border-color:rgba(143,188,216,.16);
+  box-shadow:0 -12px 54px rgba(0,0,0,.6), inset 0 1px 0 rgba(200,230,250,.10);
+}
+
+/* --- Fondos que oscurecen (lo que más costaba: desenfocaban la pantalla
+       entera). Sin desenfoque hay que oscurecer un poco más para que el
+       contenido de atrás no compita con el modal. --- */
+.modal-fondo{ background:rgba(52,40,22,.46) }
+.sidebar-backdrop{ background:rgba(52,40,22,.46) }
+body.dark .modal-fondo, body.dark .sidebar-backdrop{ background:rgba(0,0,0,.62) }
+
+/* --- Toast --- */
+#toast{ background:#2b3f4d; border:1px solid rgba(255,255,255,.14) }
+#toast.exito{ background:#4e9b45 }
+#toast.error{ background:#d8564a }
+#toast.guardando{ background:#e4a228; color:#3d2a00 }
+
+/* La red de seguridad de más arriba ya no hace falta: nunca hay desenfoque. */
+
+/* ==========================================================================
+   3) BARRA "HAY UNA VERSIÓN NUEVA"
+   ========================================================================== */
+#barra-update{
+  position:fixed; left:12px; right:12px; bottom:16px; z-index:1200;
+  display:none; align-items:center; gap:10px;
+  padding:12px 14px; border-radius:16px;
+  background:linear-gradient(180deg,#47677d,#375568); color:#fff;
+  font-size:14px; font-weight:600;
+  box-shadow:0 10px 30px rgba(20,40,60,.35);
+  max-width:576px; margin:0 auto;
+}
+#barra-update.visible{ display:flex }
+#barra-update span{ flex:1; min-width:0 }
+#barra-update button{
+  border:none; cursor:pointer; font-weight:700; font-size:14px;
+  padding:8px 14px; border-radius:12px;
+  background:var(--ambar); color:#3d2a00; flex-shrink:0;
+}
+#barra-update button.cerrar{
+  background:rgba(255,255,255,.16); color:#fff; padding:8px 10px;
+}

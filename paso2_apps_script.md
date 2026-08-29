@@ -114,9 +114,15 @@ function doGet(e) {
   try {
     const accion = e.parameter.accion;
     const ss = SpreadsheetApp.openById(SHEET_ID);
+    _CACHE_HOJAS = {};   // solo lecturas: cada hoja se lee una vez por request
     let resultado;
 
     switch (accion) {
+      // --- Endpoints combinados (menos viajes desde el celular) ---
+      case 'getBootstrap':        resultado = getBootstrap(ss); break;
+      case 'getInicio':           resultado = getInicio(ss); break;
+      case 'getReporte':          resultado = getReporte(ss, e.parameter.desde, e.parameter.hasta); break;
+
       case 'getProductos':        resultado = getProductos(ss); break;
       case 'getClientes':         resultado = getClientes(ss); break;
       case 'getProveedores':      resultado = getProveedores(ss); break;
@@ -140,7 +146,49 @@ function doGet(e) {
     return crearRespuesta({ ok: true, datos: resultado });
   } catch (err) {
     return crearRespuesta({ ok: false, error: err.toString() });
+  } finally {
+    _CACHE_HOJAS = null;
   }
+}
+
+
+// ==========================================
+// ENDPOINTS COMBINADOS
+// ==========================================
+// Cada request al Web App cuesta ~2 segundos fijos, sin importar cuántos datos
+// devuelva. Juntar varias lecturas en un solo viaje es, de lejos, lo que más
+// se nota en el celular. Los endpoints originales siguen existiendo: si el
+// frontend es más viejo que este script, funciona igual.
+
+// Datos maestros para el arranque de la app: 4 requests -> 1.
+function getBootstrap(ss) {
+  const productos = getStock(ss);   // productos + columna stock
+  return {
+    productos:   productos,
+    clientes:    getClientes(ss),
+    proveedores: getProveedores(ss),
+    operadores:  getOperadoresList(ss)
+  };
+}
+
+// Feed del inicio: movimientos del día. 2 requests -> 1.
+function getInicio(ss) {
+  const h = hoyStr();
+  return {
+    ventas:  getVentasHoy(ss),
+    compras: getCompras(ss, h, h)
+  };
+}
+
+// Pantalla de reportes: 4 requests -> 1. Gracias a _CACHE_HOJAS, las cuatro
+// funciones de adentro comparten una única lectura de cada hoja.
+function getReporte(ss, desde, hasta) {
+  return {
+    ganancia:  getGanancia(ss, desde, hasta),
+    ventas:    getVentas(ss, desde, hasta),
+    compras:   getCompras(ss, desde, hasta),
+    contactos: getDeudaContactos(ss)
+  };
 }
 
 
@@ -212,11 +260,25 @@ function doPost(e) {
 // HELPERS
 // ==========================================
 
+// Caché de hojas para UNA sola invocación de doGet.
+// Los endpoints combinados (getReporte, getInicio, getBootstrap) llaman por
+// dentro a varias funciones que leen las mismas hojas: sin esto, getReporte
+// leería Pedidos cuatro veces y Ventas dos. En doPost queda apagado a
+// propósito (vale null): ahí se escribe, y un dato cacheado sería un dato viejo.
+let _CACHE_HOJAS = null;
+
 function hojaAObjetos(hoja) {
+  if (!hoja) return [];
+  const nombre = hoja.getName();
+  if (_CACHE_HOJAS && _CACHE_HOJAS[nombre]) return _CACHE_HOJAS[nombre];
+
   const datos = hoja.getDataRange().getValues();
-  if (datos.length <= 1) return [];
+  if (datos.length <= 1) {
+    if (_CACHE_HOJAS) _CACHE_HOJAS[nombre] = [];
+    return [];
+  }
   const enc = datos[0];
-  return datos.slice(1).map(fila => {
+  const res = datos.slice(1).map(fila => {
     const obj = {};
     enc.forEach((k, i) => {
       obj[k] = fila[i] instanceof Date
@@ -225,6 +287,8 @@ function hojaAObjetos(hoja) {
     });
     return obj;
   });
+  if (_CACHE_HOJAS) _CACHE_HOJAS[nombre] = res;
+  return res;
 }
 
 function generarId(hoja, prefijo) {

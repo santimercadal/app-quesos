@@ -772,6 +772,14 @@
 
 <div id="toast"></div>
 
+<!-- Aviso de version nueva: lo dispara el service worker cuando encuentra
+     archivos distintos en el servidor. Actualizar es decision de ellos. -->
+<div id="barra-update">
+  <span>Hay una versión nueva de la app</span>
+  <button onclick="aplicarUpdate()">Actualizar</button>
+  <button class="cerrar" onclick="cerrarBarraUpdate()" aria-label="Cerrar">✕</button>
+</div>
+
 <!-- ====== JAVASCRIPT ====== -->
 <script src="js/core.js"></script>
 <script src="js/ventas.js"></script>
