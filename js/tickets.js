@@ -206,7 +206,7 @@ async function ticketListaPrecios(){
   try{
     const prods = await apiGet('getStock');
     ocultarToast();
-    const disp = (prods || []).filter(p => Number(p.stock) > 0);
+    const disp = (prods || []).filter(p => Number(p.stock) > 1);
     if(!disp.length){
       toast('No hay productos con stock cargado', 'error');
       return;
