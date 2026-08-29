@@ -260,5 +260,6 @@ function toggleModo(){
   const dark=document.body.classList.toggle('dark');
   document.getElementById('btn-modo').textContent=dark?'☀️':'🌙';
   localStorage.setItem('quesos-dark',dark?'1':'0');
+  aplicarColorBarra();
 }
 

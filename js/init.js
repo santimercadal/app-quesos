@@ -33,6 +33,7 @@ function init(){
     document.body.classList.add('dark');
     document.getElementById('btn-modo').textContent='☀️';
   }
+  aplicarColorBarra();
 
   // 1) Lo que ya sabemos, al instante y sin red.
   _aplicarMaestros({

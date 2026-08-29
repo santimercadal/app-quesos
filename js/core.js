@@ -384,6 +384,23 @@ async function cargarReporteDatos(desde, hasta){
 }
 
 // ==========================================
+// BARRA DE ESTADO DEL CELULAR
+// ==========================================
+// La franja de arriba (reloj, wifi, batería) la pinta Android con el color de
+// <meta name="theme-color">. Estaba fija en #16324a — un azul de la paleta
+// original, de antes del tema crema — así que no acompañaba ni al modo claro ni
+// al oscuro. Ahora sigue al header: crema de día, pizarra de noche.
+const BARRA_CLARO = '#fdfaf3';
+const BARRA_OSCURO = '#16222e';
+
+function aplicarColorBarra(){
+  const dark = document.body.classList.contains('dark');
+  let m = document.querySelector('meta[name="theme-color"]');
+  if(!m){ m = document.createElement('meta'); m.name = 'theme-color'; document.head.appendChild(m); }
+  m.setAttribute('content', dark ? BARRA_OSCURO : BARRA_CLARO);
+}
+
+// ==========================================
 // TOAST
 // ==========================================
 let toastTimer;
