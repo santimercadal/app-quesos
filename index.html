@@ -13,6 +13,7 @@
   <title>Quesos Los Weys</title>
   <link rel="manifest" href="manifest.json"/>
   <link rel="stylesheet" href="style.css"/>
+<link rel="stylesheet" href="tema.css">
 </head>
 <body>
 
@@ -20,7 +21,7 @@
   <button class="btn-hamburguesa" onclick="toggleSidebar()" title="Menú">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
   </button>
-  <div class="header-title" id="header-title">Quesos Los Weys</div>
+  <div class="marca-header" style="flex:1;justify-content:center"><img src="iso.png" alt=""><div class="header-title" id="header-title" style="flex:0">Quesos Los Weys</div></div>
   <button class="btn-modo" id="btn-modo" onclick="toggleModo()" title="Modo oscuro">🌙</button>
 </div>
 
@@ -28,7 +29,7 @@
 <div class="sidebar-backdrop" id="sidebar-backdrop" onclick="toggleSidebar()"></div>
 <div class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <div style="font-size:20px;font-weight:800;color:var(--titulo)">Menú</div>
+    <div class="marca-header"><img src="iso.png" alt="" style="width:38px;height:38px"><div><div style="font-size:17px;font-weight:800;color:var(--titulo);line-height:1.1">Quesos</div><div style="font-size:12px;font-weight:700;color:var(--ambar);letter-spacing:1.2px">LOS WEYS</div></div></div>
     <button class="btn-cerrar-sidebar" onclick="toggleSidebar()">✕</button>
   </div>
   <div class="sidebar-content">
@@ -87,7 +88,7 @@
   <div style="margin-top:4px;margin-bottom:4px">
     <button onclick="togglePrecios()" id="btn-precios"
       style="width:100%;padding:14px 16px;background:var(--blanco);border:none;border-radius:var(--radio);box-shadow:var(--sombra);display:flex;justify-content:space-between;align-items:center;cursor:pointer;font-size:15px;font-weight:600;color:var(--texto)">
-      <span>🏷️ Precios</span>
+      <span style="display:flex;align-items:center;gap:9px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:19px;height:19px;color:var(--ambar)"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>Precios</span>
       <span id="arrow-precios" style="font-size:12px;color:var(--gris);transition:transform .2s">▼</span>
     </button>
     <div id="lista-precios-inicio" style="display:none;margin-top:4px"></div>
@@ -744,7 +745,7 @@
     <div style="font-size:12px;color:var(--gris);font-weight:600;margin-bottom:6px">Ticket para el cliente</div>
     <div id="cuenta-rango" class="fila" style="gap:6px;margin-bottom:8px">
       <button class="btn btn-s btn-sm" data-r="mes" onclick="setCuentaRango('mes')" style="flex:1">Mes actual</button>
-      <button class="btn btn-p btn-sm" data-r="30d" onclick="setCuentaRango('30d')" style="flex:1">Últimos 30 días</button>
+      <button class="btn btn-p btn-sm" data-r="30d" onclick="setCuentaRango('30d')" style="flex:1">30 días</button>
       <button class="btn btn-s btn-sm" data-r="todo" onclick="setCuentaRango('todo')" style="flex:1">Todo</button>
     </div>
     <button class="btn btn-s" onclick="ticketEstadoCuenta()" style="margin-bottom:12px">🎟️ Ticket de estado de cuenta</button>

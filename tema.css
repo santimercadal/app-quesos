@@ -1,0 +1,283 @@
+/* ==========================================================================
+   TEMA "CREMA & AMBAR" — identidad visual derivada del logo
+   Se carga DESPUES de style.css. Solo redefine color y superficie:
+   ninguna regla de layout, ninguna linea de logica.
+
+   Paleta tomada del logo: crema #F8F3E0 · ambar #E4A228 · pizarra #527287
+   Criterio: el ambar es el acento (nunca el fondo de un dato), la pizarra
+   manda en acciones y titulos, y los montos van casi negros a maximo
+   contraste. Vidrio esmerilado solo en marcos: header, menu y modales.
+   ========================================================================== */
+
+:root{
+  /* Identidad */
+  --crema:#fbf6ea; --crema-h:#f4ecdb;
+  --ambar:#e4a228; --ambar-c:#f2c550; --ambar-s:#fdf1d6;
+  --pizarra:#47677d; --pizarra-d:#375568; --pizarra-s:#e9eff3;
+
+  /* Mapeo a los nombres que ya usa la app */
+  --azul:#47677d; --azul-m:#375568; --azul-c:#47677d; --azul-s:#e9eff3;
+  --navy:#2b3f4d; --navy-d:#22323d; --navy-s:#eaf0f3;
+  --verde:#4e9b45; --verde-c:#4e9b45; --verde-s:#edf6e8;
+  --rojo:#d8564a; --rojo-s:#fcecea;
+  --coral:#d8564a; --coral-s:#fcecea;
+  --amarillo:#e8a72b;
+
+  --gris:#7c8894; --gris-c:#f2ede2;
+  --blanco:#ffffff;
+  --texto:#23323c; --titulo:#22303b;
+  --borde:#efe6d6;
+  --radio:18px;
+  --sombra:0 8px 26px rgba(120,90,45,.10);
+  --sombra-sm:0 4px 16px rgba(120,90,45,.07);
+  --modal-bg:#fffdf8;
+  --header-bg:#fbf6ea;
+}
+
+body.dark{
+  --crema:#171c21; --crema-h:#1d242a;
+  --ambar:#f5c24d; --ambar-c:#ffd77a; --ambar-s:#3a2e15;
+  --pizarra:#8fb2c7; --pizarra-d:#6d93aa; --pizarra-s:#20303a;
+
+  --azul:#8fb2c7; --azul-m:#6d93aa; --azul-c:#8fb2c7; --azul-s:#20303a;
+  --navy:#0f1519; --navy-d:#0b1013; --navy-s:#1b242b;
+  --verde:#7fc267; --verde-c:#7fc267; --verde-s:#1d2a19;
+  --rojo:#ff7d6f; --rojo-s:#33201d;
+  --coral:#ff7d6f; --coral-s:#33201d;
+  --amarillo:#f5c24d;
+
+  --gris:#96a2ac; --gris-c:#222b32;
+  --blanco:#212a31;
+  --texto:#ece7dc; --titulo:#f5f0e5;
+  --borde:#303a42;
+  --sombra:0 8px 26px rgba(0,0,0,.45);
+  --sombra-sm:0 4px 16px rgba(0,0,0,.35);
+  --modal-bg:#212a31;
+  --header-bg:#1b2228;
+  background:#171c21;
+}
+
+/* --- Fondo: crema con luz calida, para que el vidrio tenga que refractar -- */
+body{
+  background:
+    radial-gradient(1000px 640px at 92% -8%, rgba(228,162,40,.16), transparent 62%),
+    radial-gradient(880px 620px at -10% 8%, rgba(71,103,125,.10), transparent 60%),
+    linear-gradient(172deg, #fdf9f0 0%, #fbf6ea 48%, #f7f0e2 100%);
+  background-attachment:fixed;
+  color:var(--texto);
+}
+body.dark{
+  background:
+    radial-gradient(1000px 640px at 92% -8%, rgba(245,194,77,.10), transparent 62%),
+    radial-gradient(880px 620px at -10% 8%, rgba(80,120,150,.16), transparent 60%),
+    linear-gradient(172deg, #191f25 0%, #171c21 55%, #141a1f 100%);
+  background-attachment:fixed;
+}
+
+/* --- Header claro con la marca ------------------------------------------- */
+.header{
+  background:rgba(251,246,234,.80);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+          backdrop-filter:blur(20px) saturate(180%);
+  color:var(--titulo);
+  border-bottom:1px solid rgba(120,90,45,.12);
+  box-shadow:0 1px 18px rgba(120,90,45,.08);
+}
+body.dark .header{ background:rgba(27,34,40,.78); border-bottom-color:rgba(255,255,255,.08) }
+.btn-hamburguesa{ color:var(--titulo) }
+.header-title{ font-weight:800; letter-spacing:-.2px }
+#btn-modo,.btn-modo{ background:rgba(71,103,125,.12); color:var(--titulo) }
+body.dark #btn-modo, body.dark .btn-modo{ background:rgba(255,255,255,.10) }
+/* marca en el header */
+.marca-header{ display:flex; align-items:center; gap:9px; min-width:0 }
+.marca-header img{ width:30px; height:30px; object-fit:contain; filter:drop-shadow(0 2px 4px rgba(120,90,45,.28)) }
+.marca-header .header-title{ white-space:nowrap }
+.header{ padding-left:12px; padding-right:12px }
+
+/* --- Menu lateral --------------------------------------------------------- */
+.sidebar{
+  background:rgba(253,250,243,.80);
+  -webkit-backdrop-filter:blur(30px) saturate(180%);
+          backdrop-filter:blur(30px) saturate(180%);
+  border-right:1px solid rgba(255,255,255,.6);
+  box-shadow:10px 0 44px rgba(90,70,40,.18), inset 1px 0 0 rgba(255,255,255,.7);
+}
+body.dark .sidebar{
+  background:rgba(30,38,45,.82);
+  border-right-color:rgba(255,255,255,.08);
+  box-shadow:10px 0 44px rgba(0,0,0,.5), inset 1px 0 0 rgba(255,255,255,.07);
+}
+.sidebar-header{ border-bottom:1px solid var(--borde) }
+.sidebar-btn.activo{
+  background:linear-gradient(180deg, rgba(228,162,40,.24), rgba(228,162,40,.12));
+  color:var(--titulo);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+}
+.sidebar-btn.activo svg{ color:var(--ambar) }
+body.dark .sidebar-btn.activo{ background:linear-gradient(180deg, rgba(245,194,77,.22), rgba(245,194,77,.08)) }
+.sidebar-operador{
+  background:rgba(255,255,255,.6);
+  border:1px solid var(--borde);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.85);
+}
+body.dark .sidebar-operador{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.09) }
+.op-icono{ background:var(--ambar-s) }
+.sidebar-backdrop{
+  background:rgba(52,40,22,.34);
+  -webkit-backdrop-filter:blur(10px) saturate(140%);
+          backdrop-filter:blur(10px) saturate(140%);
+}
+
+/* --- Modales -------------------------------------------------------------- */
+.modal-fondo{
+  background:rgba(52,40,22,.30);
+  -webkit-backdrop-filter:blur(14px) saturate(150%);
+          backdrop-filter:blur(14px) saturate(150%);
+}
+.modal{
+  background:rgba(255,253,248,.86);
+  -webkit-backdrop-filter:blur(34px) saturate(190%);
+          backdrop-filter:blur(34px) saturate(190%);
+  border:1px solid rgba(255,255,255,.7);
+  border-bottom:0;
+  border-radius:30px 30px 0 0;
+  box-shadow:0 -12px 54px rgba(90,70,40,.22), inset 0 1px 0 rgba(255,255,255,.9);
+}
+body.dark .modal{
+  background:rgba(33,42,49,.88);
+  border-color:rgba(255,255,255,.09);
+  box-shadow:0 -12px 54px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.09);
+}
+
+/* --- Accesos grandes del inicio ------------------------------------------- */
+.btn-grande{
+  background:linear-gradient(180deg, rgba(255,255,255,.86), rgba(255,255,255,.62));
+  border:1px solid rgba(255,255,255,.85);
+  border-radius:24px;
+  box-shadow:0 12px 30px rgba(120,90,45,.12), inset 0 1px 0 rgba(255,255,255,.95);
+  -webkit-backdrop-filter:blur(14px) saturate(170%);
+          backdrop-filter:blur(14px) saturate(170%);
+}
+body.dark .btn-grande{
+  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+  border-color:rgba(255,255,255,.12);
+  box-shadow:0 12px 30px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.12);
+}
+/* El ambar entra solo en el trazo del icono: sin pastilla de fondo. */
+.btn-grande .ico{ background:none; box-shadow:none; width:auto; height:auto; margin-bottom:14px }
+.btn-grande .ico svg{ color:var(--ambar); width:40px; height:40px; stroke-width:1.9 }
+body.dark .btn-grande .ico{ background:none; box-shadow:none }
+
+/* --- Tarjetas y datos: solidos, sin desenfoque ---------------------------- */
+.card, .item, .rep-card{
+  background:var(--blanco);
+  border:1px solid var(--borde);
+  border-radius:var(--radio);
+  box-shadow:var(--sombra-sm);
+}
+/* los montos, casi negros: maxima legibilidad al sol */
+.card-valor, .item-val, .rep-card .rv{ color:var(--titulo) }
+.card-valor.rojo, .item-val.rojo, .rep-card .rv.rojo{ color:var(--coral) }
+.rep-card.grande{
+  background:linear-gradient(140deg, var(--ambar-s), #fffaf0 60%, var(--pizarra-s));
+  border-color:rgba(228,162,40,.28);
+}
+body.dark .rep-card.grande{ background:linear-gradient(140deg, rgba(245,194,77,.14), rgba(33,42,49,.9) 60%, rgba(143,178,199,.12)) }
+
+/* --- Controles ------------------------------------------------------------ */
+.btn-p{
+  background:linear-gradient(180deg, var(--pizarra), var(--pizarra-d));
+  color:#fff;
+  box-shadow:0 6px 18px rgba(71,103,125,.32), inset 0 1px 0 rgba(255,255,255,.28);
+}
+body.dark .btn-p{ background:linear-gradient(180deg,#5d88a1,#4a7189); color:#fff }
+.btn-s{
+  background:rgba(255,255,255,.72);
+  color:var(--texto);
+  border:1px solid var(--borde);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.85);
+}
+body.dark .btn-s{ background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.11); box-shadow:none }
+.btn-r{ background:linear-gradient(180deg,#e0685c,var(--coral)); box-shadow:0 6px 18px rgba(216,86,74,.30) }
+.tab{ background:rgba(255,255,255,.7); border-color:var(--borde); color:var(--gris) }
+.tab.activo{ background:var(--ambar-s); border-color:var(--ambar); color:#8a5c05 }
+body.dark .tab{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.1) }
+body.dark .tab.activo{ background:rgba(245,194,77,.16); border-color:var(--ambar); color:var(--ambar-c) }
+
+input,select,textarea{ background:rgba(255,255,255,.8); border:2px solid var(--borde); border-radius:14px }
+input:focus,select:focus{ border-color:var(--ambar); box-shadow:0 0 0 3px rgba(228,162,40,.22) }
+body.dark input, body.dark select, body.dark textarea{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12) }
+
+#toast{
+  background:rgba(43,63,77,.86);
+  -webkit-backdrop-filter:blur(18px) saturate(180%);
+          backdrop-filter:blur(18px) saturate(180%);
+  border:1px solid rgba(255,255,255,.16);
+}
+#toast.exito{ background:rgba(78,155,69,.92) }
+#toast.error{ background:rgba(216,86,74,.94) }
+#toast.guardando{ background:rgba(228,162,40,.95); color:#3d2a00 }
+
+.titulo-sec{ letter-spacing:-.4px }
+.hint{ color:var(--pizarra) }
+
+/* --- Red de seguridad ----------------------------------------------------- */
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))){
+  .header{ background:var(--header-bg) }
+  .sidebar,.modal,.btn-grande,.btn-s,.tab,input,select,textarea{ background:var(--blanco) }
+  .modal-fondo{ background:rgba(52,40,22,.5) }
+  #toast{ background:var(--navy) }
+}
+@media (prefers-reduced-transparency: reduce){
+  .header{ background:var(--header-bg); -webkit-backdrop-filter:none; backdrop-filter:none }
+  .sidebar,.modal,.btn-grande,.btn-s,.tab{ background:var(--blanco); -webkit-backdrop-filter:none; backdrop-filter:none }
+}
+
+/* ==========================================================================
+   MODO OSCURO — "Pizarra profunda"
+   Azul noche tomado del color de las letras del logo. El ambar queda como
+   acento (pestañas, item activo del menu) y los iconos de los accesos
+   grandes van en blanco, que es lo que mejor se lee de noche.
+   ========================================================================== */
+body.dark{
+  --ambar:#f5c24d; --ambar-c:#ffd77a; --ambar-s:#3b3013;
+  --pizarra:#8fbcd8; --pizarra-d:#6c9cbb; --pizarra-s:#1c2c39;
+
+  --azul:#8fbcd8; --azul-m:#6c9cbb; --azul-c:#8fbcd8; --azul-s:#1c2c39;
+  --navy:#0c141c; --navy-d:#080f15; --navy-s:#16222d;
+  --verde:#7ecb84; --verde-c:#7ecb84; --verde-s:#16291b;
+  --rojo:#ff8577; --rojo-s:#33201f; --coral:#ff8577; --coral-s:#33201f;
+
+  --gris:#93a5b3; --gris-c:#16222d;
+  --blanco:#182531;
+  --texto:#e7eff5; --titulo:#f6fafc;
+  --borde:#28394a;
+  --modal-bg:#182531;
+  --header-bg:#101a24;
+  background:#0d151d;
+}
+body.dark{
+  background:
+    radial-gradient(900px 620px at 90% -10%, rgba(245,194,77,.10), transparent 60%),
+    radial-gradient(820px 600px at -8% 8%, rgba(90,150,190,.18), transparent 62%),
+    linear-gradient(172deg,#101a24 0%,#0d151d 55%,#0a1118 100%);
+  background-attachment:fixed;
+}
+body.dark .header{ background:rgba(16,26,36,.80); border-bottom-color:rgba(143,188,216,.18) }
+body.dark .sidebar{ background:rgba(24,37,49,.86); border-right-color:rgba(143,188,216,.16) }
+body.dark .modal{ background:rgba(24,37,49,.92); border-color:rgba(143,188,216,.16) }
+body.dark .card, body.dark .item, body.dark .rep-card{
+  background:#182531; border-color:#28394a;
+  box-shadow:0 8px 24px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+}
+body.dark .btn-grande{
+  background:linear-gradient(180deg, rgba(160,205,235,.12), rgba(160,205,235,.04));
+  border-color:rgba(143,188,216,.22);
+  box-shadow:0 12px 30px rgba(0,0,0,.42), inset 0 1px 0 rgba(200,230,250,.16);
+}
+body.dark .btn-p{ background:linear-gradient(180deg,#5f93b4,#4b7a99); color:#fff; box-shadow:0 6px 18px rgba(80,130,165,.35) }
+body.dark .rep-card.grande{ background:linear-gradient(140deg, rgba(245,194,77,.14), #182531 60%, rgba(143,188,216,.14)) }
+
+/* Iconos de los cuatro accesos grandes: blancos en oscuro, ambar en claro. */
+body.dark .btn-grande .ico svg{ color:#f2f7fa }
+body.dark .btn-grande{ border-color:rgba(255,255,255,.10) }
