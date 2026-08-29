@@ -58,27 +58,29 @@ body.dark{
 }
 
 /* --- Fondo: crema con luz calida, para que el vidrio tenga que refractar -- */
-body{
+body{ background:var(--crema); color:var(--texto) }
+/* La luz de fondo va en una capa fija propia: asi el degradado se pinta una
+   sola vez y el scroll no lo recalcula (background-attachment:fixed es el
+   mayor freno de scroll en celulares). */
+body::before{
+  content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
   background:
     radial-gradient(1000px 640px at 92% -8%, rgba(228,162,40,.16), transparent 62%),
     radial-gradient(880px 620px at -10% 8%, rgba(71,103,125,.10), transparent 60%),
     linear-gradient(172deg, #fdf9f0 0%, #fbf6ea 48%, #f7f0e2 100%);
-  background-attachment:fixed;
-  color:var(--texto);
 }
-body.dark{
+body.dark::before{
   background:
     radial-gradient(1000px 640px at 92% -8%, rgba(245,194,77,.10), transparent 62%),
     radial-gradient(880px 620px at -10% 8%, rgba(80,120,150,.16), transparent 60%),
-    linear-gradient(172deg, #191f25 0%, #171c21 55%, #141a1f 100%);
-  background-attachment:fixed;
+    linear-gradient(172deg, #101a24 0%, #0d151d 55%, #0a1118 100%);
 }
 
 /* --- Header claro con la marca ------------------------------------------- */
 .header{
   background:rgba(251,246,234,.80);
-  -webkit-backdrop-filter:blur(20px) saturate(180%);
-          backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(12px);
+          backdrop-filter:blur(12px);
   color:var(--titulo);
   border-bottom:1px solid rgba(120,90,45,.12);
   box-shadow:0 1px 18px rgba(120,90,45,.08);
@@ -97,10 +99,10 @@ body.dark #btn-modo, body.dark .btn-modo{ background:rgba(255,255,255,.10) }
 /* --- Menu lateral --------------------------------------------------------- */
 .sidebar{
   background:rgba(253,250,243,.80);
-  -webkit-backdrop-filter:blur(30px) saturate(180%);
-          backdrop-filter:blur(30px) saturate(180%);
+  -webkit-backdrop-filter:blur(16px);
+          backdrop-filter:blur(16px);
   border-right:1px solid rgba(255,255,255,.6);
-  box-shadow:10px 0 44px rgba(90,70,40,.18), inset 1px 0 0 rgba(255,255,255,.7);
+  box-shadow:6px 0 24px rgba(90,70,40,.18), inset 1px 0 0 rgba(255,255,255,.7);
 }
 body.dark .sidebar{
   background:rgba(30,38,45,.82);
@@ -124,39 +126,38 @@ body.dark .sidebar-operador{ background:rgba(255,255,255,.06); border-color:rgba
 .op-icono{ background:var(--ambar-s) }
 .sidebar-backdrop{
   background:rgba(52,40,22,.34);
-  -webkit-backdrop-filter:blur(10px) saturate(140%);
-          backdrop-filter:blur(10px) saturate(140%);
+  -webkit-backdrop-filter:blur(6px);
+          backdrop-filter:blur(6px);
 }
 
 /* --- Modales -------------------------------------------------------------- */
 .modal-fondo{
-  background:rgba(52,40,22,.30);
-  -webkit-backdrop-filter:blur(14px) saturate(150%);
-          backdrop-filter:blur(14px) saturate(150%);
+  background:rgba(52,40,22,.32);
+  -webkit-backdrop-filter:blur(12px);
+          backdrop-filter:blur(12px);
 }
+/* El modal NO desenfoca: su contenido scrollea, y desenfocar detras de una
+   lista que se mueve obliga a recalcular el fondo en cada cuadro. El vidrio
+   lo aporta la capa de atras (.modal-fondo), que si esta quieta. */
 .modal{
-  background:rgba(255,253,248,.86);
-  -webkit-backdrop-filter:blur(34px) saturate(190%);
-          backdrop-filter:blur(34px) saturate(190%);
+  background:rgba(255,253,248,.97);
   border:1px solid rgba(255,255,255,.7);
   border-bottom:0;
   border-radius:30px 30px 0 0;
-  box-shadow:0 -12px 54px rgba(90,70,40,.22), inset 0 1px 0 rgba(255,255,255,.9);
+  box-shadow:0 -8px 30px rgba(90,70,40,.20), inset 0 1px 0 rgba(255,255,255,.9);
 }
 body.dark .modal{
-  background:rgba(33,42,49,.88);
+  background:rgba(33,42,49,.97);
   border-color:rgba(255,255,255,.09);
   box-shadow:0 -12px 54px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.09);
 }
 
 /* --- Accesos grandes del inicio ------------------------------------------- */
 .btn-grande{
-  background:linear-gradient(180deg, rgba(255,255,255,.86), rgba(255,255,255,.62));
+  background:linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.80));
   border:1px solid rgba(255,255,255,.85);
   border-radius:24px;
-  box-shadow:0 12px 30px rgba(120,90,45,.12), inset 0 1px 0 rgba(255,255,255,.95);
-  -webkit-backdrop-filter:blur(14px) saturate(170%);
-          backdrop-filter:blur(14px) saturate(170%);
+  box-shadow:0 8px 20px rgba(120,90,45,.10), inset 0 1px 0 rgba(255,255,255,.95);
 }
 body.dark .btn-grande{
   background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
@@ -210,8 +211,8 @@ body.dark input, body.dark select, body.dark textarea{ background:rgba(255,255,2
 
 #toast{
   background:rgba(43,63,77,.86);
-  -webkit-backdrop-filter:blur(18px) saturate(180%);
-          backdrop-filter:blur(18px) saturate(180%);
+  -webkit-backdrop-filter:blur(10px);
+          backdrop-filter:blur(10px);
   border:1px solid rgba(255,255,255,.16);
 }
 #toast.exito{ background:rgba(78,155,69,.92) }
@@ -256,16 +257,16 @@ body.dark{
   --header-bg:#101a24;
   background:#0d151d;
 }
-body.dark{
+body.dark{ background:#0d151d }
+body.dark::before{
   background:
     radial-gradient(900px 620px at 90% -10%, rgba(245,194,77,.10), transparent 60%),
     radial-gradient(820px 600px at -8% 8%, rgba(90,150,190,.18), transparent 62%),
     linear-gradient(172deg,#101a24 0%,#0d151d 55%,#0a1118 100%);
-  background-attachment:fixed;
 }
 body.dark .header{ background:rgba(16,26,36,.80); border-bottom-color:rgba(143,188,216,.18) }
 body.dark .sidebar{ background:rgba(24,37,49,.86); border-right-color:rgba(143,188,216,.16) }
-body.dark .modal{ background:rgba(24,37,49,.92); border-color:rgba(143,188,216,.16) }
+body.dark .modal{ background:rgba(24,37,49,.97); border-color:rgba(143,188,216,.16) }
 body.dark .card, body.dark .item, body.dark .rep-card{
   background:#182531; border-color:#28394a;
   box-shadow:0 8px 24px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
