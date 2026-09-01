@@ -9,7 +9,8 @@ PWA para la gestión de **Quesos Los Weys**: ventas, compras, stock, deudas con 
 - **Deudas** — libro de cuentas corriente unificado (clientes + proveedores), abonos, pagos parciales/totales
 - **Stock** — ajuste por recuento o delta, se actualiza automáticamente con cada venta y compra
 - **Devoluciones** — registro y resolución (pendiente/acreditado/devuelto), afectan deudas automáticamente
-- **Reportes** — ganancia real vs. neta, ventas, compras, márgenes por producto
+- **Reportes** — período libre por fechas (arranca en el mes en curso), comparación con el período anterior, evolución día por día, ganancia real vs. neta, márgenes por producto
+- **Tickets** — comprobante, estado de cuenta, lista de precios, compra, devolución y resumen del período, como imagen PNG lista para WhatsApp o imprimir
 - **Operadores** — múltiples usuarios con selector y gestión de nombres
 - **Modo oscuro** — toggle en el header
 - **PWA** — instalable en el celular; el shell funciona offline (los datos requieren conexión)
@@ -22,7 +23,7 @@ PWA para la gestión de **Quesos Los Weys**: ventas, compras, stock, deudas con 
 | Backend | Google Apps Script (Web App) |
 | Base de datos | Google Sheets (12 pestañas) |
 | Hosting | GitHub Pages |
-| Service Worker | Network-first para el shell; la API siempre va a la red |
+| Service Worker | Cache-first con revalidación para el shell; la API siempre va a la red |
 
 ## Arquitectura
 
@@ -44,9 +45,10 @@ El frontend es una SPA: `index.html` + `style.css` + la lógica en **módulos JS
   - `compras.js` — carrito de compra multi-producto
   - `deudas.js` — cuentas corrientes + cuenta unificada por contacto
   - `catalogo.js` — productos + clientes
-  - `reportes.js` — reportes (ganancia real, redondeo, pendientes)
+  - `reportes.js` — reportes (período por fechas, comparación, evolución, ganancia real, márgenes)
   - `gestion.js` — modales, proveedores, devoluciones, correcciones
   - `extras.js` — historial/auditoría, stock, modo oscuro
+  - `tickets.js` — motor de tickets PNG dibujados en canvas (diseño "comprobante")
   - `init.js` — arranque (debe cargarse **último**)
 - `sw.js` — service worker (cache del shell, network-first)
 - `manifest.json`, `logo-192.png`, `logo-512.png` — PWA e íconos
@@ -74,7 +76,7 @@ npx serve .
 
 La app tiene **dos partes** que se publican por separado:
 
-**1. Frontend (GitHub Pages):** subí los archivos estáticos (`index.html`, la carpeta `js/`, `style.css`, `sw.js`, `manifest.json`, íconos). El service worker es network-first, así que las actualizaciones llegan solas a la PWA instalada. Si cambiás archivos cacheados, subí el número de versión de `CACHE` en `sw.js`.
+**1. Frontend (GitHub Pages):** subí los archivos estáticos (`index.html`, la carpeta `js/`, `style.css`, `tema.css`, `sw.js`, `manifest.json`, íconos). El service worker es cache-first con revalidación: abre al instante y, si encuentra archivos distintos en el servidor, muestra la barra "Hay una versión nueva". **Cada vez que cambiés un archivo cacheado hay que subir el número de `CACHE` en `sw.js`**, si no la PWA instalada sigue con la copia vieja.
 
 **2. Backend (Google Apps Script):** el código está en `paso2_apps_script.md`. Para actualizarlo:
 1. Abrí el proyecto en [script.google.com](https://script.google.com) y pegá el código.
@@ -82,6 +84,24 @@ La app tiene **dos partes** que se publican por separado:
 3. **Implementar → Administrar implementaciones → ✏️ Editar → Versión: "Nueva versión" → Implementar.**
 
 > ⚠️ Guardar el código **no** actualiza el Web App. El paso clave es publicar una **versión nueva**; si no, la app sigue usando la versión vieja.
+
+## Reportes
+
+El período lo definen **siempre** los dos campos de fecha (`#r-desde` / `#r-hasta`): son la única fuente de verdad. Los botones **Hoy · Semana · Mes · Mes pasado** no son un "modo", solo llenan esos campos. Al entrar, la pantalla arranca en el **mes en curso** (del 1 al día de hoy).
+
+La **comparación con el período anterior** se pide en un request aparte, *después* de pintar el reporte: si tarda o falla, el reporte igual se ve. Si el período arranca el día 1 de un mes, compara contra el mismo tramo del mes anterior (del 1 al 12 de agosto contra del 1 al 12 de julio); para cualquier otro rango, contra la ventana del mismo largo que termina justo antes.
+
+La **evolución** son barras verticales dibujadas con divs (sin librerías). Hasta 45 días muestra un día por barra; más que eso agrupa por semana. El mejor día queda en ámbar.
+
+El **margen por producto** usa el `precio_costo` de la hoja `Productos`. Los productos sin costo cargado no ensucian el cálculo: se listan aparte con un aviso para completarlos.
+
+## Tickets
+
+`js/tickets.js` dibuja los tickets en un `<canvas>` y los entrega como PNG (Web Share API, con fallback a descarga e impresión). No usa librerías. Un ticket es una lista de bloques (`hdr`, `para`, `thead`, `trow`, `tot`, `estado`, `kv`, `movh`/`movi`/`movs`, `nota`, `sep`, `esp`); el alto de cada bloque **se mide antes de dibujar**, así los textos largos se parten en varias líneas en vez de recortarse con "…".
+
+Los seis tickets comparten el diseño: banda oscura con el logo (`iso.png`, fondo transparente), título, N° y fecha; tabla de ítems con columnas; caja de TOTAL en ámbar. El de **estado de cuenta** abre cada venta en detalle (una línea por producto con cantidad × precio, el total, cuánto pagó y el saldo resultante), que es lo que permite reclamar una deuda sin discusión.
+
+`OCULTOS_LISTA_PRECIOS` en `tickets.js` lista los productos que **no** salen en la lista de precios que se manda a clientes (anotaciones internas, no mercadería).
 
 ## Tests
 

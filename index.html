@@ -289,15 +289,15 @@
 <div class="pantalla" id="pantalla-reportes">
   <div class="titulo-sec">Reportes</div>
   <div class="card">
-    <div class="tabs">
-      <button class="tab activo" onclick="cambiarTab('hoy',this)">Hoy</button>
-      <button class="tab" onclick="cambiarTab('semana',this)">Semana</button>
-      <button class="tab" onclick="cambiarTab('mes',this)">Mes</button>
-      <button class="tab" onclick="cambiarTab('custom',this)">Elegir</button>
+    <div class="tabs" id="tabs-reporte">
+      <button class="tab" data-p="hoy" onclick="cambiarTab('hoy',this)">Hoy</button>
+      <button class="tab" data-p="semana" onclick="cambiarTab('semana',this)">Semana</button>
+      <button class="tab activo" data-p="mes" onclick="cambiarTab('mes',this)">Mes</button>
+      <button class="tab" data-p="mespasado" onclick="cambiarTab('mespasado',this)">Mes pasado</button>
     </div>
-    <div id="fechas-custom" style="display:none" class="fila">
-      <div class="campo"><label>Desde</label><input type="date" id="r-desde" onchange="cargarReporte()"/></div>
-      <div class="campo"><label>Hasta</label><input type="date" id="r-hasta" onchange="cargarReporte()"/></div>
+    <div class="fila">
+      <div class="campo"><label>Desde</label><input type="date" id="r-desde" onchange="fechaManual()"/></div>
+      <div class="campo"><label>Hasta</label><input type="date" id="r-hasta" onchange="fechaManual()"/></div>
     </div>
     <button class="btn btn-s btn-sm" onclick="ticketReporte()" style="margin-top:8px">🎟️ Ticket resumen del período</button>
   </div>
