@@ -11,7 +11,7 @@ let productosCompraCache = [];
 let clientesCache = [];
 let proveedoresCache = [];
 let carrito = [];
-let periodoReporte = 'hoy';
+let periodoReporte = 'mes';   // Reportes arranca en el mes actual
 let pedidoEnEdicion = null;
 let carritoEdit = [];
 // Listas en pantalla referenciadas por índice desde los onclick (evita inyectar
@@ -452,7 +452,7 @@ function irA(p, tab){
   if(p==='productos') cargarProductos();
   if(p==='clientes') cargarClientes();
   if(p==='proveedores-mgt') cargarProveedoresMgt();
-  if(p==='reportes') cargarReporte();
+  if(p==='reportes'){ prepararReporte(); cargarReporte(); }
   if(p==='devoluciones') cargarDevoluciones('todos');
   if(p==='historial') cargarHistorial();
   if(p==='stock') cargarStock();
