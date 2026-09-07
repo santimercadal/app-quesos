@@ -12,13 +12,10 @@ let clientesCache = [];
 let proveedoresCache = [];
 let carrito = [];
 let periodoReporte = 'mes';   // Reportes arranca en el mes actual
-let pedidoEnEdicion = null;
 let carritoEdit = [];
 // Listas en pantalla referenciadas por índice desde los onclick (evita inyectar
 // nombres/objetos en el HTML, que rompía botones con apóstrofos, ej: "D'Angelo").
 let _pedidosHoy = [];
-let _deudaCli = [];
-let _deudaProv = [];
 let _contTeDeben = [];
 let _contLeDebes = [];
 let _cuentaSaldo = 0;
@@ -56,10 +53,6 @@ function seleccionarOperador(nombre) {
 
 function actualizarChipOperador() {
   const val = operadorActual || '—';
-  const chip = document.getElementById('chip-operador');
-  if (chip) chip.textContent = val;
-  const chipMas = document.getElementById('chip-operador-mas');
-  if (chipMas) chipMas.textContent = val;
   const chipSide = document.getElementById('chip-operador-side');
   if (chipSide) chipSide.textContent = val;
 }
@@ -159,9 +152,29 @@ function _lsLeer(k){
   try{ const r = localStorage.getItem(LSK+k); return r ? JSON.parse(r) : null; }
   catch(e){ return null; }
 }
+// getReporte se guardaba en disco y NADIE lo leia nunca: como la clave lleva el
+// rango de fechas, acumulaba una entrada por cada periodo mirado, sin vencimiento
+// ni tope, hasta reventar la cuota — y ahi se perdia TODO el cache, incluidos
+// productos y clientes, que son los que hacen que la app abra al instante.
+const _NO_PERSISTIR = new Set(['getReporte', 'getBootstrap']);
+const _LS_MAX = 40;   // entradas maximas en disco
+
 function _lsGuardar(k, data){
+  if(_NO_PERSISTIR.has(k.split('|')[0])) return;
   try{ localStorage.setItem(LSK+k, JSON.stringify({data, ts:Date.now()})); }
-  catch(e){ _lsBorrarTodo(); }   // sin espacio: tiramos el caché y seguimos
+  catch(e){ _lsPodar(); try{ localStorage.setItem(LSK+k, JSON.stringify({data, ts:Date.now()})); }catch(e2){ _lsBorrarTodo(); } }
+}
+
+// Tira la mitad mas vieja en vez de borrar todo de una.
+function _lsPodar(){
+  try{
+    const claves = _lsClaves().map(k => {
+      let ts = 0;
+      try{ ts = (JSON.parse(localStorage.getItem(LSK+k))||{}).ts || 0; }catch(e){}
+      return {k, ts};
+    }).sort((a,b) => a.ts - b.ts);
+    claves.slice(0, Math.max(1, Math.ceil(claves.length/2))).forEach(x => localStorage.removeItem(LSK+x.k));
+  }catch(e){ _lsBorrarTodo(); }
 }
 function _lsClaves(){
   const out = [];
@@ -217,6 +230,7 @@ function apiGetDedup(accion, params){
     _cache[k] = {data, ts:Date.now()};
     delete _sucio[k];
     _lsGuardar(k, data);
+    if(_lsClaves().length > _LS_MAX) _lsPodar();
     delete _inflight[k];
     return data;
   }).catch(e=>{ delete _inflight[k]; throw e; });
@@ -426,15 +440,29 @@ function $$(n){return '$'+Number(n).toLocaleString('es-AR',{minimumFractionDigit
 // Evita que las ventas de la noche queden con fecha del día siguiente.
 function hoy(){return new Intl.DateTimeFormat('en-CA',{timeZone:'America/Montevideo'}).format(new Date())}
 function fmtFecha(f){if(!f)return'';const[y,m,d]=f.split('-');return`${d}/${m}/${y}`}
-function escH(s){return String(s).replace(/'/g,"\\'")}
+// Escapa para insertar como TEXTO o dentro de un atributo entre comillas dobles.
+// Antes esto lo hacia escH(), que solo cambiaba ' por \' — eso sirve para meter
+// texto en un string de JS, NO para HTML: dejaba la barra a la vista y guardaba
+// nombres corruptos cuando el valor volvia desde un <input> o un <datalist>.
+function esc(s){
+  return String(s==null?'':s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+// Para los pocos onclick que todavia llevan un dato adentro: primero se escapa
+// como string de JS y despues como HTML, porque el navegador decodifica las
+// entidades ANTES de parsear el JS. El orden inverso rompe el boton.
+function escJS(s){
+  return esc(String(s==null?'':s).replace(/\\/g,'\\\\').replace(/'/g,"\\'"));
+}
 function nombreCompleto(c){return [c.nombre,c.apellido].filter(Boolean).join(' ')}
 function _norm(s){return (s||'').toString().normalize('NFC').trim().toLowerCase().replace(/\s+/g,' ')}
 
 // ==========================================
 // NAVEGACIÓN
 // ==========================================
-const TITULOS={inicio:'Quesos Los Weys',venta:'Nueva Venta',compra:'Nueva Compra',deudas:'Deudas',mas:'Más opciones',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes',devoluciones:'Devoluciones',historial:'Historial',stock:'Stock'};
-const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',mas:'nav-inicio',productos:'nav-productos',clientes:'nav-clientes','proveedores-mgt':'nav-proveedores-mgt',reportes:'nav-reportes',devoluciones:'nav-devoluciones',historial:'nav-historial',stock:'nav-stock'};
+const TITULOS={inicio:'Quesos Los Weys',venta:'Nueva Venta',compra:'Nueva Compra',deudas:'Deudas',productos:'Productos',clientes:'Clientes','proveedores-mgt':'Proveedores',reportes:'Reportes',devoluciones:'Devoluciones',historial:'Historial',stock:'Stock'};
+const NAV_MAP={inicio:'nav-inicio',venta:'nav-venta',compra:'nav-compra',deudas:'nav-deudas',productos:'nav-productos',clientes:'nav-clientes','proveedores-mgt':'nav-proveedores-mgt',reportes:'nav-reportes',devoluciones:'nav-devoluciones',historial:'nav-historial',stock:'nav-stock'};
 
 function irA(p, tab){
   document.querySelectorAll('.pantalla').forEach(x=>x.classList.remove('activa'));

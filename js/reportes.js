@@ -207,6 +207,10 @@ function _htmlReporte(r, desde, hasta){
     prod[k].monto += Number(it.subtotal) || 0;
     prod[k].cant  += Number(it.cantidad) || 0;
   }));
+  // Si el catalogo todavia no llego (primera apertura sin nada guardado), _costoDe
+  // devuelve 0 para todo y el reporte decia "no hay precios de costo cargados",
+  // que es falso. Se distingue "no hay catalogo" de "no hay costos".
+  const sinCatalogo = !((productos || []).length);
   const prodList = Object.entries(prod).map(([nombre, v]) => {
     const costoU = _costoDe(nombre);
     const costo = costoU * v.cant;
@@ -346,7 +350,7 @@ function _htmlReporte(r, desde, hasta){
       ${Object.entries(pagos).sort((a, b) => b[1] - a[1]).map(([k, v]) => {
         const pct = g.total_ventas > 0 ? Math.round(v / g.total_ventas * 100) : 0;
         return `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
-          <span style="font-size:14px">${k}</span>
+          <span style="font-size:14px">${esc(k)}</span>
           <strong>${$$(v)} <span style="font-size:12px;color:var(--gris);font-weight:600">(${pct}%)</span></strong>
         </div>
         ${_barra(v, g.total_ventas, k === 'efectivo' ? 'var(--verde-c)' : k === 'transferencia' ? 'var(--azul-c)' : 'var(--amarillo)')}`;
@@ -362,8 +366,8 @@ function _htmlReporte(r, desde, hasta){
         return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0">
           <div style="font-size:16px;font-weight:700;color:var(--gris);width:20px">${i + 1}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:14px;font-weight:600">${p.nombre}</div>
-            <div style="font-size:11px;color:var(--gris)">${_cantTxt(p.cant, _unidadProd(p.nombre))} vendidos</div>
+            <div style="font-size:14px;font-weight:600">${esc(p.nombre)}</div>
+            <div style="font-size:11px;color:var(--gris)">${esc(_cantTxt(p.cant, _unidadProd(p.nombre)))} vendidos</div>
             ${_barra(p.monto, maxVend, 'var(--verde-c)')}
           </div>
           <div style="text-align:right">
@@ -382,7 +386,7 @@ function _htmlReporte(r, desde, hasta){
       ${porGanancia.slice(0, 8).map(p => `
         <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--borde)">
           <div style="flex:1;min-width:0">
-            <div style="font-size:14px;font-weight:600">${p.nombre}</div>
+            <div style="font-size:14px;font-weight:600">${esc(p.nombre)}</div>
             <div style="font-size:11px;color:var(--gris)">Vendió ${$$(p.monto)} · costó ${$$(Math.round(p.costo))}</div>
           </div>
           <div style="text-align:right">
@@ -391,12 +395,14 @@ function _htmlReporte(r, desde, hasta){
           </div>
         </div>`).join('')}
       ${sinCosto.length ? `<div style="font-size:11px;color:var(--gris);margin-top:10px">
-        Sin precio de costo cargado: <strong>${sinCosto.join(', ')}</strong>. Cargalo en Productos para verles el margen.
+        Sin precio de costo cargado: <strong>${esc(sinCosto.join(', '))}</strong>. Cargalo en Productos para verles el margen.
       </div>` : ''}
     </div>` : (sinCosto.length ? `
     <div class="card">
       <div class="card-titulo">Cuánto deja cada producto</div>
-      <div style="font-size:13px;color:var(--gris)">Todavía no hay precios de costo cargados. Poné el costo de cada producto en la pantalla Productos y acá vas a ver cuánto deja cada uno.</div>
+      <div style="font-size:13px;color:var(--gris)">${sinCatalogo
+        ? 'No se pudo cargar la lista de productos, así que todavía no se puede calcular el margen. Entrá a Productos o volvé a este reporte en un momento.'
+        : 'Todavía no hay precios de costo cargados. Poné el costo de cada producto en la pantalla Productos y acá vas a ver cuánto deja cada uno.'}</div>
     </div>` : '')}
 
     <!-- TOP CLIENTES -->
@@ -409,7 +415,7 @@ function _htmlReporte(r, desde, hasta){
         return `<div style="display:flex;align-items:center;gap:8px;padding:6px 0">
           <div style="font-size:16px;font-weight:700;color:var(--gris);width:20px">${i + 1}</div>
           <div style="flex:1;min-width:0">
-            <div style="font-size:14px;font-weight:600">${cli}</div>
+            <div style="font-size:14px;font-weight:600">${esc(cli)}</div>
             ${_barra(total, topCliSorted[0][1], 'var(--azul-c)')}
           </div>
           <div style="text-align:right">
@@ -426,7 +432,7 @@ function _htmlReporte(r, desde, hasta){
       <div class="card-titulo">Compras por proveedor</div>
       ${compProvSorted.map(([prov, total]) => `
         <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0">
-          <span style="font-size:14px">${prov}</span>
+          <span style="font-size:14px">${esc(prov)}</span>
           <strong style="color:var(--rojo)">${$$(total)}</strong>
         </div>
         ${_barra(total, compProvSorted[0][1], 'var(--rojo)')}

@@ -8,47 +8,59 @@ async function cargarDatosCompra(){
     productosCompraCache = prods;
     // Llenar datalist de productos (texto libre + autocomplete)
     document.getElementById('lista-productos-compra').innerHTML=
-      prods.map(p=>`<option value="${escH(p.nombre)}">`).join('');
+      prods.map(p=>`<option value="${esc(p.nombre)}">`).join('');
     // Llenar select de proveedores
     const selProv=document.getElementById('c-proveedor');
     selProv.innerHTML='<option value="">Sin proveedor</option>'+
-      provs.map(p=>`<option value="${escH(p.nombre)}">${p.nombre}${p.contacto?' · '+p.contacto:''}</option>`).join('');
+      provs.map(p=>`<option value="${esc(p.nombre)}">${esc(p.nombre)}${p.contacto?' · '+esc(p.contacto):''}</option>`).join('');
   }catch(e){}
   if(!compraCarrito.length) compraCarrito=[{producto:'',cantidad:'',total:''}];
   renderCompraItems();
   cargarHistorialCompras();
 }
 
+const _RANGO_TODO={desde:'2000-01-01',hasta:'2099-12-31'};
+
+// Antes esto llamaba a apiGet directo: cada vez que entrabas a Compra se pedia
+// TODO el historico de nuevo (~3 s) para mostrar 15 filas. Ahora pinta al toque
+// lo ultimo que sabemos y corrige cuando llega lo fresco, igual que Inicio.
 async function cargarHistorialCompras(){
   const lista=document.getElementById('hist-compras-lista');
   if(!lista) return;
-  lista.innerHTML=skeleton();
+  const previo=cacheLocal('getCompras',_RANGO_TODO);
+  if(previo) _pintarHistorialCompras((previo.compras||[]).slice().reverse().slice(0,15));
+  else lista.innerHTML=skeleton();
   try{
-    const r=await apiGet('getCompras',{desde:'2000-01-01',hasta:'2099-12-31'});
-    const compras=(r.compras||[]).slice().reverse().slice(0,15);
-    _histCompras=compras;
-    if(!compras.length){lista.innerHTML='<div class="vacio"><span class="ico">📦</span>Sin compras registradas</div>';return;}
-    lista.innerHTML=compras.map((c,i)=>{
-      const deuda=Number(c.total)-Number(c.monto_pagado);
-      const badge=c.forma_pago==='efectivo'?'badge-efectivo':c.forma_pago==='transferencia'?'badge-trans':'badge-credito';
-      const itemsTxt=(c.items||[]).map(it=>escH(it.producto_insumo)+' ('+it.cantidad+')').join(', ');
-      return `<div class="item">
-        <div class="item-head">
-          <div class="item-info" style="flex:1">
-            <div class="item-nombre">${escH(c.proveedor)} <span class="badge ${badge}">${c.forma_pago||''}</span></div>
-            <div class="item-det">${itemsTxt} · ${fmtFecha(c.fecha)}</div>
-            ${deuda>0?`<div class="item-det" style="color:var(--rojo)">Pendiente: ${$$(deuda)}</div>`:''}
-            <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-              <button class="btn btn-s btn-sm" onclick="ticketCompra(_histCompras[${i}])">🎟️</button>
-              <button class="btn btn-s btn-sm" onclick="abrirEdicionCompra(${i})">✏️ Editar</button>
-              <button class="btn btn-s btn-sm" onclick="abrirModalDevolucion('${escH(c.compra_id||c.id)}','proveedor')">↩️ Devolver</button>
-            </div>
-          </div>
-          <div class="item-val">${$$(c.total)}</div>
-        </div>
+    const r=await apiGetCached('getCompras',_RANGO_TODO);
+    _pintarHistorialCompras((r.compras||[]).slice().reverse().slice(0,15));
+  }catch(e){ if(!previo) lista.innerHTML='<div class="vacio"><span class="ico">❌</span>Error al cargar</div>'; }
+}
+
+function _pintarHistorialCompras(compras){
+  const lista=document.getElementById('hist-compras-lista');
+  if(!lista) return;
+  _histCompras=compras;
+  if(!compras.length){lista.innerHTML='<div class="vacio"><span class="ico">📦</span>Sin compras registradas</div>';return;}
+  lista.innerHTML=compras.map((c,i)=>{
+    const deuda=Number(c.total)-Number(c.monto_pagado);
+    const badge=c.forma_pago==='efectivo'?'badge-efectivo':c.forma_pago==='transferencia'?'badge-trans':'badge-credito';
+    const itemsTxt=(c.items||[]).map(it=>esc(it.producto_insumo)+' ('+esc(it.cantidad)+')').join(', ');
+    return `<div class="item">
+    <div class="item-head">
+      <div class="item-info" style="flex:1">
+      <div class="item-nombre">${esc(c.proveedor)} <span class="badge ${badge}">${esc(c.forma_pago||'')}</span></div>
+      <div class="item-det">${itemsTxt} · ${fmtFecha(c.fecha)}</div>
+      ${deuda>0?`<div class="item-det" style="color:var(--rojo)">Pendiente: ${$$(deuda)}</div>`:''}
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+        <button class="btn btn-s btn-sm" onclick="ticketCompra(_histCompras[${i}])">🎟️</button>
+        <button class="btn btn-s btn-sm" onclick="abrirEdicionCompra(${i})">✏️ Editar</button>
+        <button class="btn btn-s btn-sm" onclick="abrirModalDevolucion('${escJS(c.compra_id||c.id)}','proveedor')">↩️ Devolver</button>
+      </div>
+      </div>
+      <div class="item-val">${$$(c.total)}</div>
+    </div>
       </div>`;
-    }).join('');
-  }catch(e){lista.innerHTML='<div class="vacio"><span class="ico">❌</span>Error al cargar</div>';}
+  }).join('');
 }
 
 function _prodCat(nombre){
@@ -77,7 +89,7 @@ function renderCompraItems(){
         <div style="flex:1">
           <div class="campo" style="margin-bottom:8px">
             <label>Producto / Insumo</label>
-            <input type="text" list="lista-productos-compra" value="${escH(item.producto)}" placeholder="Ej: Mozzarella, leche cruda..." autocomplete="off" oninput="alCambiarProdCompra(${i},this.value)"/>
+            <input type="text" list="lista-productos-compra" value="${esc(item.producto)}" placeholder="Ej: Mozzarella, leche cruda..." autocomplete="off" oninput="alCambiarProdCompra(${i},this.value)"/>
           </div>
           <div class="fila" style="gap:8px">
             <div class="campo" style="margin-bottom:0">
@@ -140,10 +152,16 @@ async function actualizarCostoLinea(i){
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }
 
-function alCambiarPagoCompra(){
+// Faltaba el `else`: al pasar a credito el monto pagado quedaba con el total, o
+// sea que la compra entraba como PAGADA y no aparecia nunca en "Le debemos a
+// proveedores". Y como en ventas, la limpieza corre solo cuando el usuario toca
+// el desplegable, no en cada recalculo, para no borrar una seña ya escrita.
+function alCambiarPagoCompra(desdeSelect){
   const pago=document.getElementById('c-pago').value;
   const total=compraCarrito.reduce((s,i)=>s+(Number(i.total)||0),0);
-  if(pago!=='crédito') document.getElementById('c-pagado').value=total>0?Math.round(total):'';
+  const campo=document.getElementById('c-pagado');
+  if(pago!=='crédito') campo.value=total>0?Math.round(total):'';
+  else if(desdeSelect) campo.value='';
 }
 
 // Abre modal de confirmación antes de guardar
@@ -161,16 +179,16 @@ function abrirConfirmacionCompra(){
   const lineas=compraCarrito.map(it=>{
     const costo=Number(it.cantidad)>0?Number(it.total)/Number(it.cantidad):0;
     return `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee">
-      <span>${escH(it.producto)} <span style="color:var(--gris);font-size:12px">(${Number(it.cantidad)}${costo>0?' · $'+costo.toFixed(2)+'/u':''})</span></span>
+      <span>${esc(it.producto)} <span style="color:var(--gris);font-size:12px">(${Number(it.cantidad)}${costo>0?' · $'+costo.toFixed(2)+'/u':''})</span></span>
       <strong>${$$(it.total)}</strong></div>`;
   }).join('');
   document.getElementById('cc-resumen').innerHTML=`
     <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee">
-      <span style="color:var(--gris)">Proveedor</span><strong>${escH(proveedor)}</strong>
+      <span style="color:var(--gris)">Proveedor</span><strong>${esc(proveedor)}</strong>
     </div>
     ${lineas}
     <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee">
-      <span style="color:var(--gris)">Forma de pago</span><span class="badge ${badge}">${forma_pago}</span>
+      <span style="color:var(--gris)">Forma de pago</span><span class="badge ${badge}">${esc(forma_pago)}</span>
     </div>
     <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #eee">
       <span style="color:var(--gris)">Total</span><strong style="font-size:18px">${$$(total)}</strong>
@@ -208,14 +226,14 @@ async function guardarCompra(){
       items:items.map(it=>({producto_insumo:it.producto,cantidad:it.cantidad,costo_unitario:it.costo_unitario,total:it.total}))};
     const deuda=total-monto_pagado;
     const badge=forma_pago==='efectivo'?'badge-efectivo':forma_pago==='transferencia'?'badge-trans':'badge-credito';
-    const lineasTicket=items.map(it=>`<div style="color:var(--gris)">${escH(it.producto)} · ${it.cantidad}</div>`).join('');
+    const lineasTicket=items.map(it=>`<div style="color:var(--gris)">${esc(it.producto)} · ${esc(it.cantidad)}</div>`).join('');
     document.getElementById('ticket-compra-body').innerHTML=`
       <div class="item" style="background:var(--gris-c);border-radius:10px;padding:12px;margin-bottom:10px">
         <div style="font-size:13px;color:var(--gris);margin-bottom:6px">${fmtFecha(fecha)}</div>
-        <div style="font-weight:600;font-size:16px;margin-bottom:2px">${escH(proveedor)}</div>
+        <div style="font-weight:600;font-size:16px;margin-bottom:2px">${esc(proveedor)}</div>
         <div style="margin-bottom:8px">${lineasTicket}</div>
         <div style="display:flex;justify-content:space-between;align-items:center">
-          <span class="badge ${badge}">${forma_pago}</span>
+          <span class="badge ${badge}">${esc(forma_pago)}</span>
           <span style="font-size:18px;font-weight:700">${$$(total)}</span>
         </div>
         ${monto_pagado>0&&monto_pagado<total?`<div style="font-size:13px;color:var(--gris);margin-top:6px">Pagado: ${$$(monto_pagado)} · <span style="color:var(--rojo)">Pendiente: ${$$(deuda)}</span></div>`:''}

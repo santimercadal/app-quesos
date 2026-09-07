@@ -20,8 +20,8 @@ async function cargarProveedoresMgt(){
       <div class="item">
         <div class="item-head">
           <div class="item-info" style="flex:1">
-            <div class="item-nombre">${p.nombre}</div>
-            <div class="item-det">${p.contacto||'Sin contacto'}</div>
+            <div class="item-nombre">${esc(p.nombre)}</div>
+            <div class="item-det">${esc(p.contacto||'Sin contacto')}</div>
           </div>
           <button class="btn btn-s btn-sm" onclick="abrirModalProveedor(proveedoresCache[${i}])">Editar</button>
         </div>
@@ -30,7 +30,7 @@ async function cargarProveedoresMgt(){
 }
 
 function abrirModalProveedor(p){
-  const editar=p!==null;
+  const editar=!!p;
   document.getElementById('titulo-modal-prov').textContent=editar?'Editar proveedor':'Agregar proveedor';
   document.getElementById('prov-modo').value=editar?'editar':'agregar';
   document.getElementById('prov-nombre').value=editar?p.nombre:'';
@@ -65,12 +65,11 @@ async function guardarProveedor(){
 // ==========================================
 // DEVOLUCIONES
 // ==========================================
-let _devolucionesCache = null;
-
 async function abrirModalDevolucion(refId='', tipo='proveedor'){
   document.getElementById('dev-edit-id').value = '';
   document.getElementById('dev-modal-titulo').textContent = 'Registrar devolución';
   document.getElementById('dev-tipo').value = tipo;
+  _devTipoOriginal = tipo;
   document.getElementById('dev-referencia').value = refId;
   document.getElementById('dev-fecha').value = hoy();
   document.getElementById('dev-resolucion').value = 'pendiente';
@@ -85,7 +84,7 @@ async function abrirModalDevolucion(refId='', tipo='proveedor'){
       apiGetCached('getProveedores')
     ]);
     const selProd = document.getElementById('dev-producto');
-    selProd.innerHTML = prods.map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('');
+    selProd.innerHTML = prods.map(p => `<option value="${esc(p.nombre)}">${esc(p.nombre)}</option>`).join('');
     actualizarModalDev(clis, provs);
   } catch(e) {}
   document.getElementById('modal-devolucion').classList.add('visible');
@@ -97,10 +96,10 @@ function actualizarModalDev(clis, provs){
   const sel = document.getElementById('dev-contraparte');
   if(tipo === 'proveedor'){
     label.textContent = 'Proveedor';
-    if(provs) sel.innerHTML = provs.map(p => `<option value="${p.nombre}">${p.nombre}</option>`).join('');
+    if(provs) sel.innerHTML = provs.map(p => `<option value="${esc(p.nombre)}">${esc(p.nombre)}</option>`).join('');
   } else {
     label.textContent = 'Cliente';
-    if(clis) sel.innerHTML = clis.map(c => `<option value="${nombreCompleto(c)}">${nombreCompleto(c)}</option>`).join('');
+    if(clis) sel.innerHTML = clis.map(c => `<option value="${esc(nombreCompleto(c))}">${esc(nombreCompleto(c))}</option>`).join('');
   }
 }
 
@@ -132,15 +131,17 @@ async function guardarDevolucion(){
   toast('Guardando...','guardando');
   try {
     if(editId){
-      await apiPost('editarDevolucion', { id:editId, contraparte, referencia_id: referencia, producto, cantidad, monto, motivo, resolucion, fecha });
+      // `tipo` faltaba: el desplegable del modal se podia cambiar, guardaba "con
+      // exito" y no pasaba nada. Cambiarlo mueve el monto entre la cuenta del
+      // cliente y la del proveedor, asi que ahora se avisa antes.
+      if(tipo !== _devTipoOriginal && !confirm('Estás cambiando el tipo de devolución.\n\nEso mueve el monto de la cuenta del ' + (_devTipoOriginal==='proveedor'?'proveedor':'cliente') + ' a la del ' + (tipo==='proveedor'?'proveedor':'cliente') + '.\n\n¿Seguro?')) return;
+      await apiPost('editarDevolucion', { id:editId, tipo, contraparte, referencia_id: referencia, producto, cantidad, monto, motivo, resolucion, fecha });
     } else {
       await apiPost('registrarDevolucion', { tipo, contraparte, referencia_id: referencia, producto, cantidad, monto, motivo, resolucion, fecha, operador: operadorActual });
     }
     cerrarModal('modal-devolucion');
     ocultarToast();
     toast(editId?'✅ Devolución actualizada':'↩️ Devolución registrada', 'exito');
-    _devolucionesCache = null;
-    invalidarCacheDeudas();
     if(document.getElementById('pantalla-devoluciones').classList.contains('activa')){
       cargarDevoluciones('todos');
     }
@@ -151,12 +152,12 @@ async function resolverDevolucion(id, resolucion){
   try {
     await apiPost('resolverDevolucion', { id, resolucion });
     toast('✅ Estado actualizado','exito');
-    _devolucionesCache = null;
     cargarDevoluciones(_filtroDevActual || 'todos');
   } catch(e){ toast('❌ '+e.message,'error'); }
 }
 
 let _filtroDevActual = 'todos';
+let _devTipoOriginal = 'proveedor';   // para avisar si se cambia al editar
 let _todasDevoluciones = [];
 
 async function cargarDevoluciones(filtro){
@@ -217,19 +218,19 @@ function filtrarDevoluciones(filtro){
       <div class="item-head">
         <div style="font-size:22px;margin-right:10px;flex-shrink:0">${iconTipo[d.tipo]||'↩️'}</div>
         <div style="flex:1;min-width:0">
-          <div class="item-nombre">${escH(d.contraparte)}</div>
-          <div class="item-det">${escH(d.producto)} · ${d.cantidad} · ${fmtFecha(d.fecha)}</div>
-          <div class="item-det" style="color:var(--gris)">${escH(d.motivo)}</div>
-          ${d.referencia_id?`<div class="item-det" style="font-size:11px;color:var(--gris)">Ref: ${escH(d.referencia_id)}</div>`:''}
+          <div class="item-nombre">${esc(d.contraparte)}</div>
+          <div class="item-det">${esc(d.producto)} · ${esc(d.cantidad)} · ${fmtFecha(d.fecha)}</div>
+          <div class="item-det" style="color:var(--gris)">${esc(d.motivo)}</div>
+          ${d.referencia_id?`<div class="item-det" style="font-size:11px;color:var(--gris)">Ref: ${esc(d.referencia_id)}</div>`:''}
           <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
             <span style="font-size:12px;color:${colorRes[d.resolucion]||'var(--gris)'};font-weight:600">${labelRes[d.resolucion]||d.resolucion}</span>
             ${d.resolucion==='pendiente'?`
-              <button class="btn btn-s btn-sm" onclick="resolverDevolucion('${escH(d.id)}','acreditado')">Acreditado</button>
-              <button class="btn btn-s btn-sm" onclick="resolverDevolucion('${escH(d.id)}','devuelto_dinero')">Devolvieron $$</button>
+              <button class="btn btn-s btn-sm" onclick="resolverDevolucion('${escJS(d.id)}','acreditado')">Acreditado</button>
+              <button class="btn btn-s btn-sm" onclick="resolverDevolucion('${escJS(d.id)}','devuelto_dinero')">Devolvieron $$</button>
             `:''}
             <button class="btn btn-s btn-sm" onclick="ticketDevolucion(_devsRender[${i}])">🎟️</button>
             <button class="btn btn-s btn-sm" onclick="abrirEditarDevolucion(${i})">✏️ Editar</button>
-            <button class="btn btn-s btn-sm" onclick="borrarDevolucion('${escH(d.id)}')">🗑️</button>
+            <button class="btn btn-s btn-sm" onclick="borrarDevolucion('${escJS(d.id)}')">🗑️</button>
           </div>
         </div>
         <div class="item-val" style="color:var(--rojo);flex-shrink:0">${$$(d.monto)}</div>
@@ -253,7 +254,7 @@ async function abrirEdicionCompraObj(c){
   try{
     const provs=await apiGetCached('getProveedores');
     document.getElementById('ec-proveedor').innerHTML='<option value="">Sin proveedor</option>'+
-      provs.map(p=>`<option value="${escH(p.nombre)}" ${c.proveedor===p.nombre?'selected':''}>${p.nombre}</option>`).join('');
+      provs.map(p=>`<option value="${esc(p.nombre)}" ${c.proveedor===p.nombre?'selected':''}>${esc(p.nombre)}</option>`).join('');
   }catch(e){}
   renderCompraEditItems();
   document.getElementById('modal-editar-compra').classList.add('visible');
@@ -267,7 +268,7 @@ function renderCompraEditItems(){
         <div style="flex:1">
           <div class="campo" style="margin-bottom:8px">
             <label>Producto / Insumo</label>
-            <input type="text" list="lista-productos-compra" value="${escH(item.producto)}" placeholder="Producto..." autocomplete="off" oninput="alCambiarProdCompraEdit(${i},this.value)"/>
+            <input type="text" list="lista-productos-compra" value="${esc(item.producto)}" placeholder="Producto..." autocomplete="off" oninput="alCambiarProdCompraEdit(${i},this.value)"/>
           </div>
           <div class="fila" style="gap:8px">
             <div class="campo" style="margin-bottom:0"><label>Cantidad</label>
@@ -346,6 +347,7 @@ async function abrirEditarDevolucion(i){
   document.getElementById('dev-edit-id').value=d.id;
   document.getElementById('dev-modal-titulo').textContent='Editar devolución';
   document.getElementById('dev-tipo').value=d.tipo;
+  _devTipoOriginal=d.tipo;
   document.getElementById('dev-referencia').value=d.referencia_id||'';
   document.getElementById('dev-fecha').value=d.fecha;
   document.getElementById('dev-resolucion').value=d.resolucion||'pendiente';
@@ -357,7 +359,7 @@ async function abrirEditarDevolucion(i){
   else { sel.value='otro'; document.getElementById('dev-motivo-custom').style.display='block'; document.getElementById('dev-motivo-custom').value=d.motivo||''; }
   try{
     const [prods, clis, provs]=await Promise.all([apiGetCached('getProductos'),apiGetCached('getClientes'),apiGetCached('getProveedores')]);
-    document.getElementById('dev-producto').innerHTML=prods.map(p=>`<option value="${p.nombre}" ${p.nombre===d.producto?'selected':''}>${p.nombre}</option>`).join('');
+    document.getElementById('dev-producto').innerHTML=prods.map(p=>`<option value="${esc(p.nombre)}" ${p.nombre===d.producto?'selected':''}>${esc(p.nombre)}</option>`).join('');
     actualizarModalDev(clis, provs);
     document.getElementById('dev-contraparte').value=d.contraparte;
   }catch(e){}
@@ -369,7 +371,6 @@ async function borrarDevolucion(id){
   try{
     await apiPost('eliminarDevolucion',{id});
     ocultarToast(); toast('✅ Devolución eliminada','exito');
-    _devolucionesCache=null; invalidarCacheDeudas();
     cargarDevoluciones(_filtroDevActual||'todos');
   }catch(e){ocultarToast();toast('❌ '+e.message,'error');}
 }

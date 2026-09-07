@@ -46,9 +46,9 @@ function _pintarInicio(d, rc){
           return `<div class="item">
             <div class="item-head">
               <div class="item-info" style="flex:1">
-                <div class="item-nombre">${p.cliente||'(sin nombre)'} <span class="badge ${badge}">${p.forma_pago}</span></div>
-                <div class="item-det">${p.descripcion||''}</div>
-                <div class="item-det" style="font-size:12px;color:var(--gris)">👤 ${p.operador||'—'}</div>
+                <div class="item-nombre">${esc(p.cliente||'(sin nombre)')} <span class="badge ${badge}">${esc(p.forma_pago)}</span></div>
+                <div class="item-det">${esc(p.descripcion||'')}</div>
+                <div class="item-det" style="font-size:12px;color:var(--gris)">👤 ${esc(p.operador||'—')}</div>
                 ${deudaOriginal>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deudaOriginal)}</div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
               </div>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
@@ -68,11 +68,11 @@ function _pintarInicio(d, rc){
         _comprasHoy.map((c,idx)=>{
           const badge=c.forma_pago==='efectivo'?'badge-efectivo':c.forma_pago==='transferencia'?'badge-trans':'badge-credito';
           const deuda=Number(c.total)-Number(c.monto_pagado);
-          const itemsTxt=(c.items||[]).map(it=>escH(it.producto_insumo)+' ('+it.cantidad+')').join(', ');
+          const itemsTxt=(c.items||[]).map(it=>esc(it.producto_insumo)+' ('+esc(it.cantidad)+')').join(', ');
           return `<div class="item">
             <div class="item-head">
               <div class="item-info" style="flex:1">
-                <div class="item-nombre">${escH(c.proveedor)||'(sin proveedor)'} <span class="badge ${badge}">${c.forma_pago||''}</span></div>
+                <div class="item-nombre">${esc(c.proveedor||'(sin proveedor)')} <span class="badge ${badge}">${esc(c.forma_pago||'')}</span></div>
                 <div class="item-det">${itemsTxt}</div>
                 ${deuda>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deuda)}</div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
               </div>
@@ -94,8 +94,8 @@ function _pintarInicio(d, rc){
           <div class="item">
             <div class="item-head">
               <div class="item-info" style="flex:1">
-                <div class="item-nombre">${escH(pago.cliente)}</div>
-                <div class="item-det">${pago.nota||'Abono de deuda'}</div>
+                <div class="item-nombre">${esc(pago.cliente)}</div>
+                <div class="item-det">${esc(pago.nota||'Abono de deuda')}</div>
               </div>
               <div class="item-val" style="color:var(--verde-c)">+${$$(pago.monto)}</div>
             </div>
@@ -137,17 +137,25 @@ async function cargarDatosVenta(){
 function renderPreciosInicio() {
   const cont = document.getElementById('lista-precios-inicio');
   if (!cont || !productos.length) return;
+  // La lista de pantalla y la que se comparte tienen que decir lo mismo: antes la
+  // leyenda prometia "solo con stock" y abajo se listaba todo, Pollero incluido.
+  // Ahora se ocultan las anotaciones internas y se marca cual no va a salir.
+  const visibles = productos.filter(p => !_ocultoEnPrecios(p.nombre));
+  const conStock = visibles.filter(p => Number(p.stock) > 0).length;
   cont.innerHTML = `
     <button class="btn btn-s" onclick="ticketListaPrecios()" style="margin-bottom:6px">📤 Compartir lista de precios</button>
-    <div style="font-size:11px;color:var(--gris);text-align:center;margin-bottom:10px">Se comparten solo los productos con stock disponible</div>
-  ` + productos.map(p => `
-    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--blanco);border-radius:var(--radio);margin-bottom:6px;box-shadow:var(--sombra)">
+    <div style="font-size:11px;color:var(--gris);text-align:center;margin-bottom:10px">Se comparten los ${conStock} productos con stock cargado. Los que están sin stock se ven acá pero no salen en la lista.</div>
+  ` + visibles.map(p => {
+    const sinStock = !(Number(p.stock) > 0);
+    return `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--blanco);border-radius:var(--radio);margin-bottom:6px;box-shadow:var(--sombra);opacity:${sinStock ? .55 : 1}">
       <div>
-        <div style="font-weight:600;font-size:14px">${escH(p.nombre)}</div>
-        <div style="font-size:12px;color:var(--gris)">${p.unidad}</div>
+        <div style="font-weight:600;font-size:14px">${esc(p.nombre)}</div>
+        <div style="font-size:12px;color:var(--gris)">${esc(p.unidad)}${sinStock ? ' · sin stock, no se comparte' : ''}</div>
       </div>
       <div style="font-size:18px;font-weight:700;color:var(--azul)">${$$(p.precio)}</div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
 }
 
 function togglePrecios() {
@@ -191,7 +199,7 @@ function renderCarrito(){
             <label>Producto</label>
             <select onchange="alElegirProdCarrito(${i},this)">
               <option value="">Elegí un producto</option>
-              ${productos.map(p=>`<option value="${p.nombre}" data-precio="${p.precio}" data-unidad="${p.unidad}" ${item.producto===p.nombre?'selected':''}>${p.nombre}</option>`).join('')}
+              ${productos.map(p=>`<option value="${esc(p.nombre)}" data-precio="${esc(p.precio)}" data-unidad="${esc(p.unidad)}" ${item.producto===p.nombre?'selected':''}>${esc(p.nombre)}</option>`).join('')}
             </select>
           </div>
           <div class="fila" style="gap:8px">
@@ -246,11 +254,16 @@ function actualizarTotalCarrito(){
   alCambiarPagoVenta();
 }
 
-function alCambiarPagoVenta(){
+// `desdeSelect` es true solo cuando el usuario toca el desplegable de forma de
+// pago. Antes esta funcion tambien corria desde actualizarTotalCarrito(), o sea
+// en cada tecla del importe: si la venta era a credito y ya habias anotado una
+// seña, corregir el importe del producto te borraba la seña.
+function alCambiarPagoVenta(desdeSelect){
   const pago=document.getElementById('v-pago').value;
   const total=carrito.reduce((s,i)=>s+(Number(i.monto)||0),0);
-  if(pago!=='crédito') document.getElementById('v-pagado').value=total>0?Math.round(total):'';
-  else document.getElementById('v-pagado').value='';
+  const campo=document.getElementById('v-pagado');
+  if(pago!=='crédito') campo.value=total>0?Math.round(total):'';
+  else if(desdeSelect) campo.value='';
 }
 
 function abrirConfirmacion(){
@@ -264,7 +277,7 @@ function abrirConfirmacion(){
   if(pago==='crédito'&&!cliente){toast('Para ventas a crédito el cliente es obligatorio','error');return;}
   document.getElementById('conf-items').innerHTML=carrito.map(i=>
     `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee">
-      <span>${i.producto} <span style="color:var(--gris);font-size:12px">(${Number(i.kg)} ${i.unidad})</span></span>
+      <span>${esc(i.producto)} <span style="color:var(--gris);font-size:12px">(${Number(i.kg)} ${esc(i.unidad)})</span></span>
       <strong>${$$(i.monto)}</strong>
     </div>`
   ).join('');
@@ -289,7 +302,8 @@ async function guardarVenta(){
     producto:i.producto,
     cantidad:Number(i.kg)||0,
     precio_unitario:i.precio_unitario,
-    subtotal:Number(i.monto)
+    subtotal:Number(i.monto),
+    unidad:i.unidad
   }));
   const descripcion=carrito.map(i=>i.producto+' ('+(Number(i.kg)||0)+' '+i.unidad+')').join(', ');
 
@@ -347,7 +361,7 @@ function renderCarritoEdit(){
             <label>Producto</label>
             <select onchange="alElegirProdEdit(${i},this)">
               <option value="">Elegí un producto</option>
-              ${productos.map(p=>`<option value="${p.nombre}" data-precio="${p.precio}" data-unidad="${p.unidad}" ${item.producto===p.nombre?'selected':''}>${p.nombre}</option>`).join('')}
+              ${productos.map(p=>`<option value="${esc(p.nombre)}" data-precio="${esc(p.precio)}" data-unidad="${esc(p.unidad)}" ${item.producto===p.nombre?'selected':''}>${esc(p.nombre)}</option>`).join('')}
             </select>
           </div>
           <div class="fila" style="gap:8px">

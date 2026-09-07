@@ -35,15 +35,24 @@ const HIST_META={
 
 let _histVista='actividad';   // actividad | ventas | compras
 let _histPeriodo='semana';
+// La lista COMPLETA del periodo. Antes no existia: renderHistVentas terminaba con
+// `_histVR = pedidos`, o sea pisaba la lista entera con la ya filtrada, y borrar
+// el texto del buscador no restauraba nada. Ahora `_histVFull` es la fuente y
+// `_histVR` queda como la lista PINTADA, que es contra la que indexan los botones.
+let _histVFull=[], _histCFull=[];
 
+// Se parte SIEMPRE del "hoy" de Montevideo (hoy() ya lo resuelve) y se cuenta
+// desde ahi. Antes se usaba new Date() crudo, o sea el huso del telefono: con el
+// celular en otro huso los periodos salian corridos un dia.
 function _histRango(periodo){
-  let desde='2000-01-01', hasta='2099-12-31';
   const h=hoy();
-  if(periodo==='hoy'){ desde=h; hasta=h; }
-  else if(periodo==='ayer'){ const d=new Date(); d.setDate(d.getDate()-1); const a=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Montevideo'}).format(d); desde=a; hasta=a; }
-  else if(periodo==='semana'){ const d=new Date(); const dia=d.getDay()||7; d.setDate(d.getDate()-dia+1); desde=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Montevideo'}).format(d); hasta=h; }
-  else if(periodo==='mes'){ const d=new Date(); desde=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`; hasta=h; }
-  return {desde,hasta};
+  const base=new Date(h+'T12:00:00');
+  const f=d=>new Intl.DateTimeFormat('en-CA').format(d);
+  if(periodo==='hoy') return {desde:h, hasta:h};
+  if(periodo==='ayer'){ const d=new Date(base); d.setDate(d.getDate()-1); return {desde:f(d), hasta:f(d)}; }
+  if(periodo==='semana'){ const d=new Date(base); const dia=d.getDay()||7; d.setDate(d.getDate()-dia+1); return {desde:f(d), hasta:h}; }
+  if(periodo==='mes') return {desde:h.slice(0,7)+'-01', hasta:h};
+  return {desde:'2000-01-01', hasta:'2099-12-31'};
 }
 
 function cambiarVistaHistorial(v){
@@ -63,13 +72,13 @@ async function cargarHistorial(periodo, btn){
   const {desde,hasta}=_histRango(periodo);
   try{
     if(_histVista==='ventas'){
-      const r=await apiGet('getVentas',{desde,hasta});
-      _histVR=(r.pedidos||[]).slice().reverse(); // más reciente primero
+      const r=await apiGetCached('getVentas',{desde,hasta});
+      _histVFull=(r.pedidos||[]).slice().reverse(); // más reciente primero
     } else if(_histVista==='compras'){
-      const r=await apiGet('getCompras',{desde,hasta});
-      _histCR=(r.compras||[]).slice().reverse();
+      const r=await apiGetCached('getCompras',{desde,hasta});
+      _histCFull=(r.compras||[]).slice().reverse();
     } else {
-      const r=await apiGet('getAuditoria',{desde,hasta});
+      const r=await apiGetCached('getAuditoria',{desde,hasta});
       _histAll=r.movimientos||[];
     }
     const bq=document.getElementById('buscar-historial'); if(bq) bq.value='';
@@ -82,10 +91,10 @@ function filtrarHistorial(q){ _renderHistorialVista(q); }
 function _renderHistorialVista(q){
   const term=(q||'').trim().toLowerCase();
   if(_histVista==='ventas'){
-    const lista=term?_histVR.filter(p=>((p.cliente||'')+' '+(p.descripcion||'')+' '+(p.operador||'')+' '+(p.forma_pago||'')).toLowerCase().includes(term)):_histVR;
+    const lista=term?_histVFull.filter(p=>((p.cliente||'')+' '+(p.descripcion||'')+' '+(p.operador||'')+' '+(p.forma_pago||'')).toLowerCase().includes(term)):_histVFull;
     renderHistVentas(lista);
   } else if(_histVista==='compras'){
-    const lista=term?_histCR.filter(c=>((c.proveedor||'')+' '+(c.forma_pago||'')+' '+(c.items||[]).map(i=>i.producto_insumo).join(' ')).toLowerCase().includes(term)):_histCR;
+    const lista=term?_histCFull.filter(c=>((c.proveedor||'')+' '+(c.forma_pago||'')+' '+(c.items||[]).map(i=>i.producto_insumo).join(' ')).toLowerCase().includes(term)):_histCFull;
     renderHistCompras(lista);
   } else {
     const lista=term?_histAll.filter(m=>{
@@ -112,15 +121,15 @@ function renderHistVentas(pedidos){
       const deuda=Number(p.total)-Number(p.monto_pagado);
       const itemsHtml=(p.items||[]).map(it=>
         `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--gris);padding:1px 0">
-          <span>· ${escH(it.producto)} (${Number(it.cantidad)})</span><span>${$$(it.subtotal)}</span>
+          <span>· ${esc(it.producto)} (${Number(it.cantidad)})</span><span>${$$(it.subtotal)}</span>
         </div>`).join('');
       return `<div class="item">
         <div class="item-head">
           <div class="item-info" style="flex:1">
-            <div class="item-nombre">${escH(p.cliente||'(sin nombre)')} <span class="badge ${badge}">${p.forma_pago||''}</span></div>
-            <div class="item-det" style="font-size:12px;color:var(--gris)">${fmtFecha(p.fecha)} · 👤 ${p.operador||'—'}</div>
+            <div class="item-nombre">${esc(p.cliente||'(sin nombre)')} <span class="badge ${badge}">${esc(p.forma_pago||'')}</span></div>
+            <div class="item-det" style="font-size:12px;color:var(--gris)">${fmtFecha(p.fecha)} · 👤 ${esc(p.operador||'—')}</div>
             ${itemsHtml}
-            ${deuda>0?`<div class="item-det" style="font-size:12px"><span style="color:var(--rojo)">Deuda al emitir: ${$$(deuda)}</span> · <span onclick="abrirLedger(_histVR[${idx}].cliente,0)" style="color:var(--azul-c);text-decoration:underline;cursor:pointer">Ver cuenta actual</span></div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
+            ${deuda>0?`<div class="item-det" style="font-size:12px"><span style="color:var(--rojo)">Deuda al emitir: ${$$(deuda)}</span> · <span onclick="abrirCuentaContacto(_histVR[${idx}].cliente)" style="color:var(--azul-c);text-decoration:underline;cursor:pointer">Ver cuenta actual</span></div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
             <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn btn-s btn-sm" onclick="ticketVenta(_histVR[${idx}])">🎟️ Ticket</button>
               <button class="btn btn-s btn-sm" onclick="abrirEdicionPedido(_histVR[${idx}])">✏️ Editar</button>
@@ -148,15 +157,15 @@ function renderHistCompras(compras){
       const deuda=Number(c.total)-Number(c.monto_pagado);
       const itemsHtml=(c.items||[]).map(it=>
         `<div style="display:flex;justify-content:space-between;font-size:13px;color:var(--gris);padding:1px 0">
-          <span>· ${escH(it.producto_insumo)} (${Number(it.cantidad)})</span><span>${$$(it.total)}</span>
+          <span>· ${esc(it.producto_insumo)} (${Number(it.cantidad)})</span><span>${$$(it.total)}</span>
         </div>`).join('');
       return `<div class="item">
         <div class="item-head">
           <div class="item-info" style="flex:1">
-            <div class="item-nombre">${escH(c.proveedor||'(sin proveedor)')} <span class="badge ${badge}">${c.forma_pago||''}</span></div>
+            <div class="item-nombre">${esc(c.proveedor||'(sin proveedor)')} <span class="badge ${badge}">${esc(c.forma_pago||'')}</span></div>
             <div class="item-det" style="font-size:12px;color:var(--gris)">${fmtFecha(c.fecha)}</div>
             ${itemsHtml}
-            ${deuda>0?`<div class="item-det" style="font-size:12px"><span style="color:var(--rojo)">Deuda al emitir: ${$$(deuda)}</span> · <span onclick="abrirLedgerProv(_histCR[${idx}].proveedor,0)" style="color:var(--azul-c);text-decoration:underline;cursor:pointer">Ver cuenta actual</span></div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
+            ${deuda>0?`<div class="item-det" style="font-size:12px"><span style="color:var(--rojo)">Deuda al emitir: ${$$(deuda)}</span> · <span onclick="abrirCuentaContacto(_histCR[${idx}].proveedor)" style="color:var(--azul-c);text-decoration:underline;cursor:pointer">Ver cuenta actual</span></div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
             <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
               <button class="btn btn-s btn-sm" onclick="ticketCompra(_histCR[${idx}])">🎟️ Ticket</button>
               <button class="btn btn-s btn-sm" onclick="abrirEdicionCompraObj(_histCR[${idx}])">✏️ Editar</button>
@@ -180,9 +189,9 @@ function renderHistorial(movs){
       <div class="item-head">
         <div style="font-size:20px;margin-right:10px;flex-shrink:0">${meta.ico}</div>
         <div style="flex:1;min-width:0">
-          <div class="item-nombre">${meta.label}</div>
-          <div class="item-det">${m.detalle||''}</div>
-          <div class="item-det" style="font-size:11px;color:var(--gris)">👤 ${m.operador||'—'} · ${fch}${hora?' '+hora:''}</div>
+          <div class="item-nombre">${esc(meta.label)}</div>
+          <div class="item-det">${esc(m.detalle||'')}</div>
+          <div class="item-det" style="font-size:11px;color:var(--gris)">👤 ${esc(m.operador||'—')} · ${fch}${hora?' '+hora:''}</div>
         </div>
       </div>
     </div>`;
@@ -196,7 +205,7 @@ async function cargarStock(){
   const cont=document.getElementById('cont-stock');
   cont.innerHTML=skeleton();
   try{
-    const lista=await apiGet('getStock');
+    const lista=await apiGetCached('getStock');
     _stockList=lista;
     if(!lista.length){ cont.innerHTML='<div class="vacio"><span class="ico">🧀</span>No hay productos. Agregá productos primero.</div>'; document.getElementById('stock-resumen').innerHTML=''; return; }
     const valorTotal=lista.reduce((s,p)=>s+(Number(p.stock)||0)*(Number(p.precio_costo)||0),0);
@@ -211,11 +220,11 @@ async function cargarStock(){
       return `<div class="item">
         <div class="item-head">
           <div class="item-info" style="flex:1">
-            <div class="item-nombre">${p.nombre}</div>
-            <div class="item-det">Costo: ${$$(p.precio_costo)} · ${p.unidad}</div>
+            <div class="item-nombre">${esc(p.nombre)}</div>
+            <div class="item-det">Costo: ${$$(p.precio_costo)} · ${esc(p.unidad)}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-            <div class="item-val" style="color:${bajo?'var(--rojo)':'var(--verde-c)'}">${stock.toLocaleString('es-AR')} ${p.unidad}</div>
+            <div class="item-val" style="color:${bajo?'var(--rojo)':'var(--verde-c)'}">${stock.toLocaleString('es-AR')} ${esc(p.unidad)}</div>
             <button class="btn btn-s btn-sm" onclick="abrirAjusteStock(${i})">Ajustar</button>
           </div>
         </div>

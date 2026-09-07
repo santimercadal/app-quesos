@@ -8,7 +8,7 @@
 
 function _pintarDatalistClientes(){
   const dl = document.getElementById('lista-clientes');
-  if(dl) dl.innerHTML = (clientesCache||[]).map(c=>`<option value="${escH(nombreCompleto(c))}">`).join('');
+  if(dl) dl.innerHTML = (clientesCache||[]).map(c=>`<option value="${esc(nombreCompleto(c))}">`).join('');
 }
 
 function _aplicarMaestros(m){
