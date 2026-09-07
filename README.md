@@ -12,7 +12,7 @@ PWA para la gestión de **Quesos Los Weys**: ventas, compras, stock, deudas con 
 - **Devoluciones** — registro y resolución (pendiente/acreditado/devuelto), afectan deudas automáticamente
 - **Reportes** — período libre por fechas (arranca en el mes en curso), comparación con el período anterior, evolución día por día, ganancia real vs. neta, márgenes por producto
 - **Tickets** — comprobante, estado de cuenta, lista de precios, compra, devolución y resumen del período, como imagen PNG lista para WhatsApp o imprimir
-- **Boleta por selección de ventas** — flujo remito → factura: se tildan varias entregas de un cliente y salen en un solo comprobante de cobro. Se abre con las pendientes premarcadas y las ventas que ya salieron en una boleta quedan marcadas en la hoja `Pedidos` (columna `facturado`) para no cobrarlas dos veces
+- **Estado de cuenta con selección** — el período (Mes / 30 días / Todo) prefiltra y deja tildados esos movimientos; se destilda lo que no va y se puede tildar alguno más viejo. El comprobante cierra **siempre con el saldo real de la cuenta**, no con la suma de lo elegido: si el detalle no llega a esa cifra, lo aclara en una línea. Cuando lo elegido es un tramo seguido hasta hoy, el resumen cierra solo (saldo anterior + ventas − pagos = saldo actual) y cada línea muestra el saldo corrido; si hay huecos, ese saldo por línea se oculta para no mostrar números que saltan
 - **Registro consolidado de compras** — el equivalente para proveedores: junta varias compras en un solo papel de uso interno, con el total por producto para controlar contra el remito
 - **Operadores** — múltiples usuarios con selector y gestión de nombres
 - **Modo oscuro** — toggle en el header

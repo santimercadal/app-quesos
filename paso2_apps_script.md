@@ -244,7 +244,6 @@ function doPost(e) {
       case 'resolverDevolucion':     resultado = resolverDevolucion(ss, body.datos); break;
       case 'guardarOperadores':      resultado = guardarOperadores(ss, body.datos); break;
       case 'fusionarContactos':      resultado = fusionarContactos(ss, body.datos); break;
-      case 'marcarFacturado':        resultado = marcarFacturado(ss, body.datos); break;
       default: throw new Error('Acción no reconocida: ' + accion);
     }
 
@@ -1561,7 +1560,6 @@ function getHistorialContacto(ss, contacto) {
     descripcion: p.descripcion || 'Venta',
     delta: Number(p.total) - Number(p.monto_pagado),
     total: Number(p.total), pagado: Number(p.monto_pagado),
-    facturado: p.facturado || '',          // fecha en que salio en una boleta
     items: ventasItems.filter(v => v.pedido_id === p.pedido_id)
   }));
   pagosC.forEach(p => mov.push({ tipo: 'pago_cli', fecha: p.fecha, id: p.id, descripcion: p.nota || 'Pago recibido', delta: -Number(p.monto) }));
@@ -1667,42 +1665,6 @@ function fusionarContactos(ss, d) {
     filas_borradas: borradas,
     mensaje: total + ' movimientos pasados a "' + canonico + '" y ' + borradas + ' ficha(s) borrada(s)'
   };
-}
-
-// ==========================================
-// MARCAR VENTAS COMO FACTURADAS (salieron en una boleta)
-// ==========================================
-// Guarda la fecha en que cada pedido salio en una boleta, para no cobrar dos
-// veces la misma entrega. La columna se crea sola la primera vez.
-function _asegurarColumnaFacturado(ss) {
-  const hoja = ss.getSheetByName('Pedidos');
-  const enc = hoja.getRange(1, 1, 1, Math.max(1, hoja.getLastColumn())).getValues()[0];
-  for (let i = 0; i < enc.length; i++) if (enc[i] === 'facturado') return i + 1;
-  const col = hoja.getLastColumn() + 1;
-  hoja.getRange(1, col).setValue('facturado').setFontWeight('bold').setBackground('#f0f0f0');
-  return col;
-}
-
-function marcarFacturado(ss, d) {
-  const ids = (d && Array.isArray(d.pedido_ids)) ? d.pedido_ids.map(x => (x || '').toString()) : [];
-  if (!ids.length) throw new Error('No hay pedidos para marcar');
-  const fecha = d.fecha || hoyStr();
-  const hoja = ss.getSheetByName('Pedidos');
-  const col = _asegurarColumnaFacturado(ss);
-  const n = hoja.getLastRow() - 1;
-  if (n < 1) return { marcados: 0 };
-
-  const idsFila = hoja.getRange(2, 1, n, 1).getValues();     // col 1 = pedido_id
-  const actuales = hoja.getRange(2, col, n, 1).getValues();
-  const buscar = {};
-  ids.forEach(x => { buscar[x] = true; });
-  let marcados = 0;
-  for (let i = 0; i < n; i++) {
-    if (buscar[(idsFila[i][0] || '').toString()]) { actuales[i][0] = fecha; marcados++; }
-  }
-  if (marcados) hoja.getRange(2, col, n, 1).setValues(actuales);
-  SpreadsheetApp.flush();
-  return { marcados: marcados, fecha: fecha };
 }
 
 // ==========================================
