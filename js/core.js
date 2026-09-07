@@ -93,7 +93,7 @@ function abrirSelectorOperador(forzado = false) {
   document.getElementById('op-gestion').style.display = forzado ? 'none' : 'block';
   document.getElementById('op-titulo').textContent = forzado ? '¿Quién va a usar la app?' : 'Cambiar operador';
   document.getElementById('btn-cerrar-op').style.display = forzado ? 'none' : 'block';
-  document.getElementById('modal-operador').classList.add('visible');
+  abrirModal('modal-operador');
 }
 
 async function agregarOperador() {
@@ -412,6 +412,34 @@ function aplicarColorBarra(){
   let m = document.querySelector('meta[name="theme-color"]');
   if(!m){ m = document.createElement('meta'); m.name = 'theme-color'; document.head.appendChild(m); }
   m.setAttribute('content', dark ? BARRA_OSCURO : BARRA_CLARO);
+}
+
+// ==========================================
+// MODALES: APILADO
+// ==========================================
+// Todos los .modal-fondo comparten z-index:300, asi que con empate decide el
+// ORDEN DEL HTML: el que esta mas abajo en el archivo tapa al de arriba. Por eso
+// "Editar pago" (linea ~660) salia DETRAS de la cuenta corriente (~678) y no se
+// podia tocar. Depender del orden del archivo es fragil: cada modal nuevo puede
+// romper a otro. Ahora el que se abre ultimo queda arriba, siempre.
+let _zModal = 300;
+const _Z_TOPE = 460;   // por debajo del toast (500), que tiene que verse igual
+
+function abrirModal(id){
+  const m = document.getElementById(id);
+  if(!m) return;
+  if(_zModal < _Z_TOPE) _zModal++;
+  m.style.zIndex = _zModal;
+  m.classList.add('visible');
+}
+
+function cerrarModal(id){
+  const m = document.getElementById(id);
+  if(!m) return;
+  m.classList.remove('visible');
+  m.style.zIndex = '';
+  // Cuando no queda ninguno abierto, se vuelve al piso para que el contador no crezca.
+  if(!document.querySelector('.modal-fondo.visible')) _zModal = 300;
 }
 
 // ==========================================

@@ -241,7 +241,7 @@ function abrirAjusteStock(i){
   document.getElementById('aj-cantidad').value=Number(p.stock)||0;
   document.getElementById('aj-motivo').value='';
   ajCambioModo();
-  document.getElementById('modal-ajuste-stock').classList.add('visible');
+  abrirModal('modal-ajuste-stock');
 }
 function ajCambioModo(){
   const modo=document.getElementById('aj-modo').value;

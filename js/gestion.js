@@ -1,9 +1,10 @@
 // ==========================================
 // MODALES
 // ==========================================
-function cerrarModal(id){document.getElementById(id).classList.remove('visible');}
+// cerrarModal() y abrirModal() viven en core.js (manejan el apilado).
+// Tocar el fondo cierra, pero pasando por cerrarModal para que devuelva el z-index.
 document.querySelectorAll('.modal-fondo').forEach(f=>{
-  f.addEventListener('click',e=>{if(e.target===f) f.classList.remove('visible');});
+  f.addEventListener('click',e=>{ if(e.target===f) cerrarModal(f.id); });
 });
 
 // ==========================================
@@ -39,7 +40,7 @@ function abrirModalProveedor(p){
   document.getElementById('prov-contacto').value=editar?p.contacto:'';
   document.getElementById('prov-eliminar-zona').style.display=editar?'block':'none';
   _origNombre=editar?(p.nombre||''):'';
-  document.getElementById('modal-proveedor').classList.add('visible');
+  abrirModal('modal-proveedor');
 }
 
 async function guardarProveedor(){
@@ -87,7 +88,7 @@ async function abrirModalDevolucion(refId='', tipo='proveedor'){
     selProd.innerHTML = prods.map(p => `<option value="${esc(p.nombre)}">${esc(p.nombre)}</option>`).join('');
     actualizarModalDev(clis, provs);
   } catch(e) {}
-  document.getElementById('modal-devolucion').classList.add('visible');
+  abrirModal('modal-devolucion');
 }
 
 function actualizarModalDev(clis, provs){
@@ -257,7 +258,7 @@ async function abrirEdicionCompraObj(c){
       provs.map(p=>`<option value="${esc(p.nombre)}" ${c.proveedor===p.nombre?'selected':''}>${esc(p.nombre)}</option>`).join('');
   }catch(e){}
   renderCompraEditItems();
-  document.getElementById('modal-editar-compra').classList.add('visible');
+  abrirModal('modal-editar-compra');
 }
 
 function renderCompraEditItems(){
@@ -363,7 +364,7 @@ async function abrirEditarDevolucion(i){
     actualizarModalDev(clis, provs);
     document.getElementById('dev-contraparte').value=d.contraparte;
   }catch(e){}
-  document.getElementById('modal-devolucion').classList.add('visible');
+  abrirModal('modal-devolucion');
 }
 async function borrarDevolucion(id){
   if(!confirm('¿Eliminar esta devolución?\n\nNo se puede deshacer.')) return;
@@ -382,7 +383,7 @@ function editarPagoMov(i){
   document.getElementById('ep-monto').value=Math.round(Math.abs(m.delta));
   document.getElementById('ep-fecha').value=m.fecha;
   document.getElementById('ep-titulo').textContent=m.tipo==='pago_cli'?'Editar pago del cliente':'Editar pago al proveedor';
-  document.getElementById('modal-editar-pago').classList.add('visible');
+  abrirModal('modal-editar-pago');
 }
 async function guardarEdicionPago(){
   const id=document.getElementById('ep-id').value;

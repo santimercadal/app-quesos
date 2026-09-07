@@ -288,7 +288,7 @@ function abrirConfirmacion(){
   document.getElementById('conf-resta').style.color=resta>0?'var(--rojo)':'var(--verde-c)';
   document.getElementById('conf-cliente').textContent=cliente||'(sin nombre)';
   document.getElementById('conf-pago').textContent=pago;
-  document.getElementById('modal-confirmar').classList.add('visible');
+  abrirModal('modal-confirmar');
 }
 
 async function guardarVenta(){
@@ -346,7 +346,7 @@ async function abrirEdicionPedido(p){
   });
   if(!carritoEdit.length) carritoEdit=[{producto:'',precio_unitario:0,unidad:'kg',kg:'',monto:''}];
   renderCarritoEdit();
-  document.getElementById('modal-editar-pedido').classList.add('visible');
+  abrirModal('modal-editar-pedido');
 }
 
 function renderCarritoEdit(){

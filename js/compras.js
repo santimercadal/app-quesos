@@ -201,7 +201,7 @@ function abrirConfirmacionCompra(){
       <strong style="color:${resta>0?'var(--rojo)':'var(--verde-c)'}">${resta>0?$$(resta)+' pendiente':'Pagado completo ✅'}</strong>
     </div>
     <div style="font-size:12px;color:var(--gris);margin-top:4px">Fecha: ${fmtFecha(fecha)}</div>`;
-  document.getElementById('modal-confirmar-compra').classList.add('visible');
+  abrirModal('modal-confirmar-compra');
 }
 
 async function guardarCompra(){
@@ -240,7 +240,7 @@ async function guardarCompra(){
         ${monto_pagado===0?`<div style="font-size:13px;color:var(--rojo);margin-top:6px">⚠️ Pendiente total: ${$$(total)}</div>`:''}
         ${monto_pagado>=total?`<div style="font-size:13px;color:var(--verde-c);margin-top:6px">✅ Pagado en su totalidad</div>`:''}
       </div>`;
-    document.getElementById('modal-ticket-compra').classList.add('visible');
+    abrirModal('modal-ticket-compra');
     compraCarrito=[{producto:'',cantidad:'',total:''}];
     renderCompraItems();
     document.getElementById('c-pagado').value='';

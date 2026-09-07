@@ -368,7 +368,7 @@ async function mostrarTicket(bloques, nombre, opts){
       const img = document.getElementById('ticket-img');
       if(img.src) URL.revokeObjectURL(img.src);
       img.src = URL.createObjectURL(blob);
-      document.getElementById('modal-ticket-view').classList.add('visible');
+      abrirModal('modal-ticket-view');
       res();
     }, 'image/png'));
   }catch(e){
@@ -576,20 +576,13 @@ function _rangoCuenta(rango){
 
 function _saldoTxt(s){ return (s < -0.01 ? '−' : '') + $$(Math.abs(s)); }
 
-// Tope de movimientos por comprobante. Lo que queda afuera no se pierde: se
-// suma al "saldo anterior". Sin esto, "Todo el historial" de un cliente viejo
-// genera un PNG de decenas de miles de pixeles que en WhatsApp llega ilegible y
-// en el iPhone directamente sale en blanco.
-const TOPE_MOVS_CUENTA = 25;
-
-function ticketEstadoCuenta(){
+function ticketEstadoCuenta(seleccion){
   if(typeof _cuentaListo !== 'undefined' && !_cuentaListo){
     toast('Esperá a que termine de cargar la cuenta', 'error');
     return;
   }
   const movs = _cuentaMovs || [];
   const nombre = _cuentaNombre || document.getElementById('cuenta-nombre').value || '';
-  const r = _rangoCuenta(typeof _cuentaRango !== 'undefined' ? _cuentaRango : '30d');
 
   // Para quién es el papel. Los signos de la app son desde NUESTRO punto de
   // vista; si el comprobante va a un proveedor hay que darlos vuelta, porque
@@ -599,107 +592,121 @@ function ticketEstadoCuenta(){
   const esProv  = hayProv && !hayCli;
   const sg      = esProv ? -1 : 1;
 
-  // El filtro tenía solo el borde de abajo: una venta con fecha futura (la fecha
-  // es editable) se colaba en cualquier período. Ahora se acota de los dos lados.
+  // Los movimientos los elige el usuario en la pantalla de selección. Si se
+  // llama sin selección (camino directo), se usa el período elegido arriba.
+  const r = _rangoCuenta(typeof _cuentaRango !== 'undefined' ? _cuentaRango : '30d');
   const dentro = m => {
     const f = String(m.fecha || '').slice(0, 10);
     if(!f) return false;
     return (!r.desde || f >= r.desde) && (!r.hasta || f <= r.hasta);
   };
-  const enRangoTodos = movs.filter(dentro);
-  const fuera        = movs.filter(m => !dentro(m));
+  const orden = new Map(movs.map((m, i) => [m, i]));
+  let elegidos = (Array.isArray(seleccion) && seleccion.length) ? seleccion.slice() : movs.filter(dentro);
+  elegidos.sort((a, b) => (orden.has(a) ? orden.get(a) : 0) - (orden.has(b) ? orden.get(b) : 0));
 
-  // Recorte por tope: los más viejos del rango se pliegan en el saldo anterior.
-  const recortados = Math.max(0, enRangoTodos.length - TOPE_MOVS_CUENTA);
-  const enRango    = enRangoTodos.slice(-TOPE_MOVS_CUENTA);
+  if(!elegidos.length){ toast('No hay movimientos para mostrar', 'error'); return; }
 
-  // Saldo con el que arranca el detalle = saldo del movimiento inmediatamente
-  // anterior al primero que se imprime.
-  const primero  = enRango[0];
-  const idxPrim  = primero ? movs.indexOf(primero) : movs.length;
-  const saldoAnt = idxPrim > 0 ? Number(movs[idxPrim - 1].saldo) || 0 : 0;
-  const saldo    = movs.length ? Number(movs[movs.length - 1].saldo) : Number(_cuentaSaldo) || 0;
+  // ¿La selección es un tramo seguido, sin saltearse nada? Solo en ese caso el
+  // saldo corrido de cada línea tiene sentido; si hay huecos, los números
+  // saltarían y confundirían más de lo que ayudan.
+  const idx = elegidos.map(m => orden.has(m) ? orden.get(m) : -1).filter(i => i >= 0);
+  const contiguo = idx.length > 0 && (Math.max.apply(null, idx) - Math.min.apply(null, idx) + 1) === idx.length;
 
-  // Resumen del período: es lo primero que mira cualquiera.
+  // Resumen de lo seleccionado. En ventas y compras el pago del momento va
+  // aparte del cargo: si no, una compra de $5.000 con $1.000 pagados saldría
+  // como "recibida $4.000 / pagos $0" y la ecuación no cerraría.
   let sumaCargos = 0, sumaPagos = 0;
-  enRangoTodos.forEach(m => {
-    if(m.total !== undefined){          // venta o compra: el pago del momento va aparte
+  elegidos.forEach(m => {
+    if(m.total !== undefined){
       sumaCargos += Number(m.total) || 0;
       sumaPagos  += Number(m.pagado) || 0;
-    }else{                              // abono, pago o devolución
+    }else{
       const d = (Number(m.delta) || 0) * sg;
       if(d > 0) sumaCargos += d; else sumaPagos += -d;
     }
   });
+  const subtotal   = sumaCargos - sumaPagos;
+  const saldo      = movs.length ? Number(movs[movs.length - 1].saldo) : Number(_cuentaSaldo) || 0;
+  const saldoVista = saldo * sg;
+  const difiere    = Math.abs(subtotal - saldoVista) > 0.01;
 
   const b = [_cabecera('ESTADO DE CUENTA', '', fmtFecha(hoy()))];
   b.push({t:'esp', h:14});
   b.push({t:'para', label: esProv ? 'Cuenta con el proveedor' : 'Cuenta de', valor: nombre || '(sin nombre)', extra: _celular(nombre)});
-  b.push({t:'kv', k:'Período', v: r.desde ? (fmtFecha(r.desde) + ' al ' + fmtFecha(r.hasta)) : 'Todo el historial'});
+  b.push({t:'kv', k:'Movimientos incluidos', v: elegidos.length + ' de ' + movs.length});
+  b.push({t:'kv', k:'Desde / hasta', v: fmtFecha(elegidos[0].fecha) + ' al ' + fmtFecha(elegidos[elegidos.length - 1].fecha)});
   b.push({t:'esp', h:8});
 
-  b.push({t:'sub', txt:'Resumen del período'});
-  b.push({t:'kv', k:'Saldo anterior', v: _saldoTxt(saldoAnt * sg)});
-  b.push({t:'kv', k: esProv ? 'Mercadería recibida' : 'Compras del período', v: '+' + $$(sumaCargos)});
-  b.push({t:'kv', k: esProv ? 'Pagos que le hicimos' : 'Pagos recibidos',    v: '−' + $$(sumaPagos)});
-  b.push({t:'kv', k:'Saldo actual', v: _saldoTxt(saldo * sg)});
+  // Si lo elegido es un tramo seguido que llega hasta hoy, la cuenta CIERRA:
+  // saldo anterior + cargos − pagos = saldo actual. Es el resumen clásico y se
+  // entiende solo. Si hay huecos, esa ecuación no daría, así que se muestra el
+  // subtotal de lo detallado y más abajo se aclara la diferencia.
+  const iMin = idx.length ? Math.min.apply(null, idx) : 0;
+  const cierra = contiguo && idx.length && Math.max.apply(null, idx) === movs.length - 1;
+  const saldoPrevio = (contiguo && iMin > 0) ? (Number(movs[iMin - 1].saldo) || 0) * sg : 0;
+
+  b.push({t:'sub', txt:'Resumen'});
+  if(cierra) b.push({t:'kv', k:'Saldo anterior', v: _saldoTxt(saldoPrevio)});
+  b.push({t:'kv', k: esProv ? 'Mercadería recibida' : 'Ventas incluidas', v: '+' + $$(sumaCargos)});
+  b.push({t:'kv', k: esProv ? 'Pagos que le hicimos' : 'Pagos incluidos',  v: '−' + $$(sumaPagos)});
+  b.push({t:'kv', k: cierra ? 'Saldo actual' : 'Subtotal de lo detallado',
+                  v: _saldoTxt(cierra ? saldoVista : subtotal)});
 
   b.push({t:'esp', h:8});
   b.push({t:'label', txt:'Detalle de movimientos'});
-  if(recortados > 0)
-    b.push({t:'nota', txt:'Se detallan los últimos ' + enRango.length + ' movimientos. Los ' + recortados + ' anteriores del período están incluidos en el saldo.'});
 
-  if(enRango.length){
-    enRango.forEach(mv => {
-      const d = (Number(mv.delta) || 0) * sg;
-      const suma = d > 0.01, resta = d < -0.01;
-      const monto = (!suma && !resta) ? '' : (suma ? '+' : '−') + $$(Math.abs(d));
-      const esVenta = mv.tipo === 'venta' || mv.tipo === 'compra';
+  elegidos.forEach(mv => {
+    const d = (Number(mv.delta) || 0) * sg;
+    const suma = d > 0.01, resta = d < -0.01;
+    const monto = (!suma && !resta) ? '' : (suma ? '+' : '−') + $$(Math.abs(d));
+    const conItems = mv.tipo === 'venta' || mv.tipo === 'compra';
 
-      b.push({
-        t:'movh',
-        txt: fmtFecha(mv.fecha) + '  ·  ' + _tituloMov(mv, esProv),
-        monto: monto,
-        color: suma ? _TKC.rojo : (resta ? _TKC.verde : _TKC.suave),
-        tono:  suma ? _TKC.rojo : (resta ? _TKC.verde : _TKC.suave)
-      });
-
-      const items = mv.items || [];
-      if(items.length){
-        items.forEach(it => b.push({
-          t:'movi',
-          desc: _cant(it.cantidad, it.unidad || _unidadDe(it.producto || it.producto_insumo)) + '  ' + (it.producto || it.producto_insumo || '') +
-                (Number(it.precio_unitario || it.costo_unitario) > 0 ? '  × ' + $$(it.precio_unitario || it.costo_unitario) : ''),
-          monto: $$(it.subtotal !== undefined ? it.subtotal : it.total)
-        }));
-      }else if(mv.descripcion && esVenta){
-        b.push({t:'movi', desc: mv.descripcion, monto:''});
-      }
-
-      if(esVenta && mv.total !== undefined){
-        const pg = Number(mv.pagado) || 0;
-        b.push({t:'movi', desc:'Total ' + $$(mv.total) + (pg > 0 ? '  ·  pagó ' + $$(pg) : '  ·  sin pago'), monto:''});
-      }
-      b.push({t:'movs', txt:'Saldo: ' + _saldoTxt(Number(mv.saldo) * sg)});
+    b.push({
+      t:'movh',
+      txt: fmtFecha(mv.fecha) + '  ·  ' + _tituloMov(mv, esProv),
+      monto: monto,
+      color: suma ? _TKC.rojo : (resta ? _TKC.verde : _TKC.suave),
+      tono:  suma ? _TKC.rojo : (resta ? _TKC.verde : _TKC.suave)
     });
-  }else{
-    b.push({t:'esp', h:8});
-    b.push({t:'nota', txt:'Sin movimientos en el período'});
-    b.push({t:'esp', h:8});
-  }
+
+    const items = mv.items || [];
+    if(items.length){
+      items.forEach(it => b.push({
+        t:'movi',
+        desc: _cant(it.cantidad, it.unidad || _unidadDe(it.producto || it.producto_insumo)) + '  ' + (it.producto || it.producto_insumo || '') +
+              (Number(it.precio_unitario || it.costo_unitario) > 0 ? '  × ' + $$(it.precio_unitario || it.costo_unitario) : ''),
+        monto: $$(it.subtotal !== undefined ? it.subtotal : it.total)
+      }));
+    }else if(mv.descripcion && conItems){
+      b.push({t:'movi', desc: mv.descripcion, monto:''});
+    }
+
+    if(conItems && mv.total !== undefined){
+      const pg = Number(mv.pagado) || 0;
+      b.push({t:'movi', desc:'Total ' + $$(mv.total) + (pg > 0 ? '  ·  pagó ' + $$(pg) : '  ·  sin pago'), monto:''});
+    }
+    if(contiguo) b.push({t:'movs', txt:'Saldo: ' + _saldoTxt(Number(mv.saldo) * sg)});
+  });
 
   b.push({t:'esp', h:10});
-  const saldoVista = saldo * sg;
   if(saldoVista > 0.01)       b.push({t:'tot', k: esProv ? 'SALDO A SU FAVOR' : 'SALDO A PAGAR', v: $$(saldoVista)});
   else if(saldoVista < -0.01) b.push({t:'tot', k:'SALDO A FAVOR', v: $$(-saldoVista)});
   else                        b.push({t:'tot', k:'SALDO', v:'✅ Al día'});
-  b.push({t:'esp', h:6});
+
+  // Si el detalle no suma el saldo real, hay que decirlo con todas las letras:
+  // el número grande es la deuda de verdad, no la de las líneas de arriba.
+  if(difiere && !cierra){
+    b.push({t:'esp', h:4});
+    b.push({t:'nota', txt:'El detalle de arriba suma ' + _saldoTxt(subtotal) + '. El saldo total de la cuenta es ' +
+                          _saldoTxt(saldoVista) + ' porque hay movimientos que no están detallados acá.'});
+  }
+  b.push({t:'esp', h:4});
   b.push({t:'nota', txt: esProv
     ? 'Si ves alguna diferencia con tus registros, avisanos.'
     : (saldoVista > 0.01 ? 'Cualquier duda con el detalle, avisanos.' : '¡Gracias por su confianza!')});
 
-  mostrarTicket(b, 'cuenta-' + (_slug(nombre) || 'contacto') + '-' + hoy(),
-                esProv ? {pie:'Documento de conciliación · generado el ' + fmtFecha(hoy())} : undefined);
+  return mostrarTicket(b, 'cuenta-' + (_slug(nombre) || 'contacto') + '-' + hoy(),
+                       esProv ? {pie:'Documento de conciliación · generado el ' + fmtFecha(hoy())} : undefined);
 }
 
 function _slug(nombre){
@@ -707,8 +714,6 @@ function _slug(nombre){
     .replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 }
 
-// `paraProv` = el papel va dirigido al proveedor, así que los textos se escriben
-// desde SU lado: lo que para nosotros es "una compra" para él es una entrega.
 function _tituloMov(mv, paraProv){
   const t = mv.tipo;
   const num = mv.id ? ' N° ' + String(mv.id).slice(-5) : '';
@@ -797,67 +802,6 @@ async function ticketReporte(){
     b.push({t:'nota', txt:'Ganancia real = ventas netas − costo de lo vendido'});
     mostrarTicket(b, 'reporte-' + f.desde + '-al-' + f.hasta, {pie:'Documento de uso interno · generado el ' + fmtFecha(hoy())});
   }catch(e){ ocultarToast(); toast('❌ ' + e.message, 'error'); }
-}
-
-// ==========================================
-// BOLETA DE VENTAS (varias entregas en un solo papel)
-// ==========================================
-// Es el flujo remito → factura: cada venta fue una entrega, y acá se juntan las
-// que el usuario tildó en un único comprobante de cobro. A diferencia del estado
-// de cuenta, esto NO es todo el historial: es lo que se está cobrando ahora.
-async function ticketBoletaVentas(nombre, ventas, saldoCuenta){
-  const lista = (ventas || []).slice().sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
-  if(!lista.length) return;
-
-  const total  = lista.reduce((s, v) => s + (Number(v.total) || 0), 0);
-  const pagado = lista.reduce((s, v) => s + (Number(v.pagado) || 0), 0);
-  const resta  = total - pagado;
-
-  const b = [_cabecera('BOLETA', '', fmtFecha(hoy()))];
-  b.push({t:'esp', h:14});
-  b.push({t:'para', label:'Boleta para', valor: nombre || 'Consumidor final', extra: _celular(nombre)});
-  b.push({t:'kv', k:'Entregas incluidas', v: String(lista.length)});
-  b.push({t:'kv', k:'Desde / hasta', v: fmtFecha(lista[0].fecha) + ' al ' + fmtFecha(lista[lista.length - 1].fecha)});
-  b.push({t:'esp', h:8});
-  b.push({t:'label', txt:'Detalle de las entregas'});
-
-  lista.forEach(v => {
-    const tot = Number(v.total) || 0, pg = Number(v.pagado) || 0;
-    b.push({t:'movh',
-      txt: 'Entrega ' + fmtFecha(v.fecha) + (v.id ? '  ·  N° ' + String(v.id).slice(-5) : ''),
-      monto: $$(tot), color: _TKC.tinta, tono: _TKC.ambar});
-    (v.items || []).forEach(it => b.push({
-      t:'movi',
-      desc: _cant(it.cantidad, it.unidad || _unidadDe(it.producto)) + '  ' + (it.producto || '') +
-            (Number(it.precio_unitario) > 0 ? '  × ' + $$(it.precio_unitario) : ''),
-      monto: $$(it.subtotal)
-    }));
-    if(!(v.items || []).length && v.descripcion) b.push({t:'movi', desc: v.descripcion, monto:''});
-    if(pg > 0.01) b.push({t:'movs', txt:'Ya pagó de esta entrega: ' + $$(pg)});
-  });
-
-  b.push({t:'esp', h:10});
-  b.push({t:'tot', k:'TOTAL DE LAS ENTREGAS', v: $$(total)});
-  if(pagado > 0.01){
-    b.push({t:'esp', h:4});
-    b.push({t:'kv', k:'Ya pagado', v: '−' + $$(pagado)});
-  }
-  b.push({t:'esp', h:6});
-  b.push(resta > 0.01
-    ? {t:'estado', ok:false, txt:'A COBRAR: ' + $$(resta)}
-    : {t:'estado', ok:true,  txt:'✅ PAGADO'});
-
-  // Si la cuenta tiene deuda además de lo que entra en esta boleta, hay que
-  // decirlo: si no, el cliente cree que pagando esto queda al día.
-  const saldo = Number(saldoCuenta) || 0;
-  if(saldo - resta > 0.01){
-    b.push({t:'esp', h:6});
-    b.push({t:'nota', txt:'Saldo total de la cuenta: ' + $$(saldo) + '. Incluye entregas anteriores que no están en esta boleta.'});
-  }
-  b.push({t:'esp', h:4});
-  b.push({t:'nota', txt:'¡Gracias por su compra!'});
-
-  await mostrarTicket(b, 'boleta-' + (_slug(nombre) || 'cliente') + '-' + hoy());
 }
 
 // ==========================================

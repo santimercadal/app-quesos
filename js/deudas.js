@@ -93,7 +93,7 @@ function setCuentaRango(r){
 // un comprobante prolijo diciendo "✅ Al día" a alguien que te debía $10.000.
 let _cuentaListo = false;
 
-function _botonesCuenta(hayVentas, hayCompras){
+function _botonesCuenta(hayCompras){
   const set = (id, mostrar) => {
     const b = document.getElementById(id);
     if(!b) return;
@@ -102,7 +102,6 @@ function _botonesCuenta(hayVentas, hayCompras){
     b.style.opacity = _cuentaListo ? 1 : .5;
   };
   set('btn-ticket-cuenta', true);
-  set('btn-boleta-ventas', !!hayVentas);
   set('btn-registro-compras', !!hayCompras);
 }
 
@@ -112,9 +111,9 @@ async function abrirCuentaContacto(nombre){
   _cuentaNombre=nombre;
   _cuentaMovs=[]; _cuentaSaldo=0; _cuentaListo=false;
   setCuentaRango(_cuentaRango||'30d');
-  _botonesCuenta(false, false);
+  _botonesCuenta(false);
   document.getElementById('cuenta-tabla').innerHTML=skeleton(2);
-  document.getElementById('modal-contacto').classList.add('visible');
+  abrirModal('modal-contacto');
   try{
     const h=await apiGet('getHistorialContacto',{contacto:nombre});
     if(_cuentaNombre!==nombre) return;   // el usuario ya abrió otra cuenta
@@ -126,7 +125,7 @@ async function abrirCuentaContacto(nombre){
 
 function renderCuentaContacto(h){
   _cuentaMovs=h.movimientos; _cuentaNombre=h.contacto;
-  _botonesCuenta(h.movimientos.some(m=>m.tipo==='venta'), h.movimientos.some(m=>m.tipo==='compra'));
+  _botonesCuenta(h.movimientos.some(m=>m.tipo==='compra'));
   const rows=h.movimientos.map((m,i)=>{
     const pos=m.delta>=0;
     const colorMonto=pos?'var(--rojo)':'var(--verde-c)';
@@ -175,12 +174,12 @@ function cuentaSaldarTotal(){
     document.getElementById('ab-monto').value=Math.round(_cuentaSaldo);
     document.getElementById('ab-fecha').value=hoy();
     document.getElementById('ab-nota').value='Liquidación total';
-    document.getElementById('modal-abono').classList.add('visible');
+    abrirModal('modal-abono');
   }else{
     document.getElementById('ab-prov').value=nombre;
     document.getElementById('ab-monto-prov').value=Math.round(-_cuentaSaldo);
     document.getElementById('ab-fecha-prov').value=hoy();
-    document.getElementById('modal-abono-prov').classList.add('visible');
+    abrirModal('modal-abono-prov');
   }
 }
 
@@ -192,12 +191,12 @@ function cuentaSaldarParcial(){
     document.getElementById('ab-monto').value='';
     document.getElementById('ab-fecha').value=hoy();
     document.getElementById('ab-nota').value='';
-    document.getElementById('modal-abono').classList.add('visible');
+    abrirModal('modal-abono');
   }else{
     document.getElementById('ab-prov').value=nombre;
     document.getElementById('ab-monto-prov').value='';
     document.getElementById('ab-fecha-prov').value=hoy();
-    document.getElementById('modal-abono-prov').classList.add('visible');
+    abrirModal('modal-abono-prov');
   }
 }
 
@@ -233,36 +232,59 @@ async function guardarAbonoProv(){
 
 
 // ==========================================
-// SELECCIÓN DE VENTAS / COMPRAS PARA UN SOLO COMPROBANTE
+// SELECCIÓN DE MOVIMIENTOS PARA EL ESTADO DE CUENTA
 // ==========================================
-// El flujo del rubro: cada venta que hacés es una entrega (un remito), y después
-// se juntan varias en un solo papel para cobrar. Acá se abre con las que tienen
-// saldo pendiente ya tildadas (el caso normal es "cobrame todo lo que debe") y
-// están los botones para marcar o desmarcar todas y elegir a mano.
-let _selTipo = 'venta';
-let _selLista = [];
+// El período (Mes / 30 días / Todo) PREFILTRA: la pantalla se abre con esos
+// movimientos ya tildados y se destilda lo que no va. Un toque para el caso
+// normal, control fino cuando hace falta.
+//
+// `_selTipo`:
+//   'cuenta'  → todos los movimientos (ventas, cobros, compras, devoluciones)
+//               → estado de cuenta para mandarle al cliente
+//   'compra'  → solo las compras → registro interno consolidado del proveedor
+let _selTipo = 'cuenta';
+let _selLista = [];        // movimientos ofrecidos, del más nuevo al más viejo
 let _selMarcadas = {};
 
-function _selPendiente(m){ return (Number(m.total)||0) - (Number(m.pagado)||0) > 0.01; }
+const SEL_AVISO_LARGO = 40;   // arriba de esto el comprobante ya es incómodo de leer
+
+function _selPendiente(m){ return (Number(m.total) || 0) - (Number(m.pagado) || 0) > 0.01; }
 
 function abrirSeleccion(tipo){
   if(!_cuentaListo) return;
   _selTipo = tipo;
-  _selLista = (_cuentaMovs||[]).filter(m => m.tipo === tipo).slice().reverse();  // la más nueva arriba
-  if(!_selLista.length){ toast(tipo==='venta'?'Este contacto no tiene ventas':'No hay compras a este contacto','error'); return; }
-  _selMarcadas = {};
-  _selLista.forEach((m,i) => { _selMarcadas[i] = _selPendiente(m) && !m.facturado; });
-  document.getElementById('sel-titulo').textContent =
-    (tipo==='venta' ? 'Boleta de ' : 'Registro de compras de ') + _cuentaNombre;
-  document.getElementById('sel-ayuda').textContent = tipo==='venta'
-    ? 'Vienen tildadas las ventas que todavía tienen saldo. Destildá lo que no va en esta boleta.'
-    : 'Elegí las compras que querés juntar en un solo registro interno.';
+  const movs = _cuentaMovs || [];
+
+  if(tipo === 'compra'){
+    _selLista = movs.filter(m => m.tipo === 'compra').slice().reverse();
+    if(!_selLista.length){ toast('No hay compras a este contacto', 'error'); return; }
+    _selMarcadas = {};
+    _selLista.forEach((m, i) => { _selMarcadas[i] = true; });
+    document.getElementById('sel-titulo').textContent = 'Registro de compras de ' + _cuentaNombre;
+    document.getElementById('sel-ayuda').textContent = 'Elegí las compras que querés juntar en un solo registro interno.';
+  }else{
+    // El período elegido arriba decide qué viene tildado; el resto se ofrece igual.
+    const r = _rangoCuenta(_cuentaRango || '30d');
+    const dentro = m => {
+      const f = String(m.fecha || '').slice(0, 10);
+      if(!f) return false;
+      return (!r.desde || f >= r.desde) && (!r.hasta || f <= r.hasta);
+    };
+    _selLista = movs.slice().reverse();
+    if(!_selLista.length){ toast('Esta cuenta no tiene movimientos', 'error'); return; }
+    _selMarcadas = {};
+    _selLista.forEach((m, i) => { _selMarcadas[i] = dentro(m); });
+    if(!Object.values(_selMarcadas).some(Boolean)) _selLista.forEach((m, i) => { _selMarcadas[i] = true; });
+    document.getElementById('sel-titulo').textContent = 'Estado de cuenta de ' + _cuentaNombre;
+    document.getElementById('sel-ayuda').textContent =
+      'Vienen tildados los movimientos de "' + r.label.toLowerCase() + '". Destildá lo que no querés que aparezca, o tildá alguno más viejo.';
+  }
   renderSeleccion();
-  document.getElementById('modal-seleccion').classList.add('visible');
+  abrirModal('modal-seleccion');
 }
 
 function selMarcarTodas(v){
-  _selLista.forEach((m,i) => { _selMarcadas[i] = v; });
+  _selLista.forEach((m, i) => { _selMarcadas[i] = v; });
   renderSeleccion();
 }
 
@@ -271,72 +293,72 @@ function selToggle(i){
   renderSeleccion();
 }
 
+// Etiqueta e importe de cada fila, según el tipo de movimiento.
+function _selFila(m){
+  const d = Number(m.delta) || 0;
+  const ico = {venta:'🛒', pago_cli:'💰', compra:'📦', pago_prov:'📤', dev_cli:'↩️', dev_prov:'↩️'}[m.tipo] || '•';
+  const sumaDeuda = d > 0.01;
+  return {
+    ico,
+    titulo: _tituloMov(m),
+    monto: (sumaDeuda ? '+' : '−') + $$(Math.abs(d)),
+    color: sumaDeuda ? 'var(--rojo)' : 'var(--verde-c)',
+    detalle: (m.items || []).map(it =>
+      esc(it.producto || it.producto_insumo || '') + ' (' + _cantCorta(it.cantidad) + ')'
+    ).join(', ')
+  };
+}
+
 function renderSeleccion(){
   const cont = document.getElementById('sel-lista');
-  cont.innerHTML = _selLista.map((m,i) => {
-    const pend = (Number(m.total)||0) - (Number(m.pagado)||0);
+  cont.innerHTML = _selLista.map((m, i) => {
+    const f = _selFila(m);
     const marcada = !!_selMarcadas[i];
-    const detalle = (m.items||[]).map(it =>
-      esc(it.producto || it.producto_insumo || '') + ' (' + _cantCorta(it.cantidad) + ')'
-    ).join(', ');
+    const pend = (Number(m.total) || 0) - (Number(m.pagado) || 0);
     return `<div onclick="selToggle(${i})" style="display:flex;gap:10px;align-items:flex-start;padding:10px;border:2px solid ${marcada?'var(--azul-c)':'var(--borde)'};background:${marcada?'var(--azul-s)':'var(--blanco)'};border-radius:var(--radio);margin-bottom:6px;cursor:pointer">
       <div style="font-size:20px;line-height:1.1">${marcada?'☑️':'⬜'}</div>
       <div style="flex:1;min-width:0">
-        <div style="font-weight:600;font-size:14px">${fmtFecha(m.fecha)}${m.id?` · N° ${esc(String(m.id).slice(-5))}`:''}</div>
-        ${detalle?`<div style="font-size:12px;color:var(--gris)">${detalle}</div>`:''}
-        <div style="font-size:12px;margin-top:2px">
-          ${pend > 0.01
-            ? `<span style="color:var(--rojo);font-weight:600">Pendiente ${$$(pend)}</span>`
-            : `<span style="color:var(--verde-c);font-weight:600">Pagada</span>`}
-          ${m.facturado?`<span style="color:var(--gris)"> · 🧾 ya facturada ${fmtFecha(m.facturado)}</span>`:''}
-        </div>
+        <div style="font-weight:600;font-size:14px">${f.ico} ${fmtFecha(m.fecha)} · ${esc(f.titulo)}</div>
+        ${f.detalle?`<div style="font-size:12px;color:var(--gris)">${f.detalle}</div>`:''}
+        ${m.total !== undefined && pend > 0.01 ? `<div style="font-size:12px;color:var(--rojo)">Pendiente ${$$(pend)}</div>` : ''}
       </div>
-      <div style="font-weight:700;white-space:nowrap">${$$(m.total)}</div>
+      <div style="font-weight:700;white-space:nowrap;color:${f.color}">${f.monto}</div>
     </div>`;
   }).join('');
 
-  const elegidas = _selLista.filter((m,i) => _selMarcadas[i]);
-  const total = elegidas.reduce((a,m) => a + (Number(m.total)||0), 0);
-  const pend  = elegidas.reduce((a,m) => a + Math.max(0,(Number(m.total)||0)-(Number(m.pagado)||0)), 0);
+  const elegidas = _selLista.filter((m, i) => _selMarcadas[i]);
+  let cargos = 0, pagos = 0;
+  elegidas.forEach(m => {
+    const d = Number(m.delta) || 0;
+    if(d > 0) cargos += d; else pagos += -d;
+  });
+  const esCuenta = _selTipo === 'cuenta';
   document.getElementById('sel-resumen').innerHTML =
-    `<div style="display:flex;justify-content:space-between"><span style="color:var(--gris)">Seleccionadas</span><strong>${elegidas.length} de ${_selLista.length}</strong></div>
-     <div style="display:flex;justify-content:space-between"><span style="color:var(--gris)">Total</span><strong>${$$(total)}</strong></div>
-     <div style="display:flex;justify-content:space-between"><span style="color:var(--gris)">${_selTipo==='venta'?'Queda a cobrar':'Queda a pagar'}</span><strong style="color:${pend>0.01?'var(--rojo)':'var(--verde-c)'}">${pend>0.01?$$(pend):'Nada'}</strong></div>`;
+    `<div style="display:flex;justify-content:space-between"><span style="color:var(--gris)">Movimientos elegidos</span><strong>${elegidas.length} de ${_selLista.length}</strong></div>
+     ${esCuenta
+        ? `<div style="display:flex;justify-content:space-between"><span style="color:var(--gris)">Suman a la deuda</span><strong style="color:var(--rojo)">+${$$(cargos)}</strong></div>
+           <div style="display:flex;justify-content:space-between"><span style="color:var(--gris)">Restan (pagos)</span><strong style="color:var(--verde-c)">−${$$(pagos)}</strong></div>
+           <div style="display:flex;justify-content:space-between;border-top:1px solid var(--borde);margin-top:4px;padding-top:4px"><span style="color:var(--gris)">Saldo real de la cuenta</span><strong>${$$(Math.abs(_cuentaSaldo))}</strong></div>`
+        : `<div style="display:flex;justify-content:space-between"><span style="color:var(--gris)">Total comprado</span><strong>${$$(elegidas.reduce((a,m)=>a+(Number(m.total)||0),0))}</strong></div>`}
+     ${elegidas.length > SEL_AVISO_LARGO ? `<div style="color:var(--rojo);font-size:12px;margin-top:6px">Son muchos movimientos: el comprobante va a quedar muy largo para leer en el celular.</div>` : ''}`;
+
   const btn = document.getElementById('btn-sel-generar');
   btn.disabled = !elegidas.length;
   btn.style.opacity = elegidas.length ? 1 : .5;
-  btn.textContent = _selTipo==='venta'
-    ? (elegidas.length ? `🧾 Generar boleta (${elegidas.length})` : '🧾 Generar boleta')
+  btn.textContent = esCuenta
+    ? (elegidas.length ? `🎟️ Generar estado de cuenta (${elegidas.length})` : '🎟️ Generar estado de cuenta')
     : (elegidas.length ? `📦 Generar registro (${elegidas.length})` : '📦 Generar registro');
 }
 
 function _cantCorta(n){
-  const v = Math.round((Number(n)||0)*100)/100;
-  return v.toLocaleString('es-AR',{maximumFractionDigits:2});
+  const v = Math.round((Number(n) || 0) * 100) / 100;
+  return v.toLocaleString('es-AR', {maximumFractionDigits: 2});
 }
 
 async function selGenerar(){
-  const elegidas = _selLista.filter((m,i) => _selMarcadas[i]);
+  const elegidas = _selLista.filter((m, i) => _selMarcadas[i]);
   if(!elegidas.length) return;
   cerrarModal('modal-seleccion');
-  if(_selTipo === 'venta'){
-    await ticketBoletaVentas(_cuentaNombre, elegidas, _cuentaSaldo);
-    _marcarFacturadas(elegidas);
-  }else{
-    await ticketRegistroCompras(_cuentaNombre, elegidas);
-  }
-}
-
-// Deja anotado en la planilla qué ventas salieron en una boleta, para no cobrar
-// dos veces la misma entrega. No bloquea nada: si falla, la boleta ya está hecha.
-async function _marcarFacturadas(elegidas){
-  const ids = elegidas.map(m => m.id).filter(Boolean);
-  if(!ids.length) return;
-  try{
-    await apiPost('marcarFacturado', {pedido_ids: ids, fecha: hoy()});
-    elegidas.forEach(m => { m.facturado = hoy(); });
-    toast('🧾 ' + ids.length + (ids.length===1?' venta marcada como facturada':' ventas marcadas como facturadas'), 'exito');
-  }catch(e){
-    toast('La boleta salió, pero no se pudo marcar como facturada: ' + e.message, 'error');
-  }
+  if(_selTipo === 'cuenta') await ticketEstadoCuenta(elegidas);
+  else                      await ticketRegistroCompras(_cuentaNombre, elegidas);
 }

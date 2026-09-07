@@ -63,7 +63,7 @@ async function abrirModalProducto(p){
   apiGetCached('getProveedores').then(pintarProvs).catch(()=>{});
   if(editar) mostrarMargen();
   document.getElementById('p-aviso-precio').style.display=editar?'block':'none';
-  document.getElementById('modal-producto').classList.add('visible');
+  abrirModal('modal-producto');
 }
 
 function mostrarMargen(){
@@ -152,7 +152,7 @@ function abrirModalCliente(c){
   _origApellido=editar?(c.apellido||''):'';
   document.getElementById('cli-celular').value=editar?c.celular:'';
   document.getElementById('cli-eliminar-zona').style.display=editar?'block':'none';
-  document.getElementById('modal-cliente').classList.add('visible');
+  abrirModal('modal-cliente');
 }
 
 async function confirmarEliminarCliente(){
@@ -196,7 +196,7 @@ function abrirQuickCliente(){
   document.getElementById('qcli-nombre').value='';
   document.getElementById('qcli-apellido').value='';
   document.getElementById('qcli-celular').value='';
-  document.getElementById('modal-quick-cli').classList.add('visible');
+  abrirModal('modal-quick-cli');
 }
 
 async function guardarQuickCliente(){
@@ -261,7 +261,7 @@ async function abrirFusion(tipo){
     tipo === 'cliente' ? 'Fusionar clientes duplicados' : 'Fusionar proveedores duplicados';
   document.getElementById('fus-buscar').value = '';
   document.getElementById('fus-lista').innerHTML = skeleton(2);
-  document.getElementById('modal-fusion').classList.add('visible');
+  abrirModal('modal-fusion');
   try{
     const [lista, contactos] = await Promise.all([
       apiGetCached(tipo === 'cliente' ? 'getClientes' : 'getProveedores'),
