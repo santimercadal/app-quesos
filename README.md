@@ -7,10 +7,13 @@ PWA para la gestión de **Quesos Los Weys**: ventas, compras, stock, deudas con 
 - **Ventas** — carrito multi-producto, cálculo automático de precios, soporte para crédito/fiado
 - **Compras** — registro de insumos, costos, asociación automática con proveedores
 - **Deudas** — libro de cuentas corriente unificado (clientes + proveedores), abonos, pagos parciales/totales
+- **Fusión de cuentas** — une cuentas duplicadas del mismo contacto (ej. "Zulma" y "Zulm"): se elige una de referencia y se tildan las que se absorben; sus movimientos pasan a la de referencia. Disponible en Clientes y en Proveedores
 - **Stock** — ajuste por recuento o delta, se actualiza automáticamente con cada venta y compra
 - **Devoluciones** — registro y resolución (pendiente/acreditado/devuelto), afectan deudas automáticamente
 - **Reportes** — período libre por fechas (arranca en el mes en curso), comparación con el período anterior, evolución día por día, ganancia real vs. neta, márgenes por producto
 - **Tickets** — comprobante, estado de cuenta, lista de precios, compra, devolución y resumen del período, como imagen PNG lista para WhatsApp o imprimir
+- **Boleta por selección de ventas** — flujo remito → factura: se tildan varias entregas de un cliente y salen en un solo comprobante de cobro. Se abre con las pendientes premarcadas y las ventas que ya salieron en una boleta quedan marcadas en la hoja `Pedidos` (columna `facturado`) para no cobrarlas dos veces
+- **Registro consolidado de compras** — el equivalente para proveedores: junta varias compras en un solo papel de uso interno, con el total por producto para controlar contra el remito
 - **Operadores** — múltiples usuarios con selector y gestión de nombres
 - **Modo oscuro** — toggle en el header
 - **PWA** — instalable en el celular; el shell funciona offline (los datos requieren conexión)

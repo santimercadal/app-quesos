@@ -243,6 +243,8 @@ function doPost(e) {
       case 'registrarDevolucion':    resultado = registrarDevolucion(ss, body.datos); break;
       case 'resolverDevolucion':     resultado = resolverDevolucion(ss, body.datos); break;
       case 'guardarOperadores':      resultado = guardarOperadores(ss, body.datos); break;
+      case 'fusionarContactos':      resultado = fusionarContactos(ss, body.datos); break;
+      case 'marcarFacturado':        resultado = marcarFacturado(ss, body.datos); break;
       default: throw new Error('Acción no reconocida: ' + accion);
     }
 
@@ -1375,6 +1377,12 @@ function editarDevolucion(ss, d) {
   const fila = _buscarFilaPorId(hoja, d.id);
   if (fila === -1) throw new Error('Devolución no encontrada: ' + d.id);
   if (d.fecha !== undefined)         hoja.getRange(fila, 2).setValue(d.fecha);
+  // El tipo NUNCA se escribia: el desplegable del modal se podia cambiar, la app
+  // decia "guardado" y la devolucion seguia del mismo lado de la cuenta.
+  if (d.tipo !== undefined) {
+    if (['proveedor', 'cliente'].indexOf(d.tipo) === -1) throw new Error('Tipo debe ser "proveedor" o "cliente"');
+    hoja.getRange(fila, 3).setValue(d.tipo);
+  }
   if (d.contraparte !== undefined)   hoja.getRange(fila, 4).setValue(d.contraparte);
   if (d.referencia_id !== undefined) hoja.getRange(fila, 5).setValue(d.referencia_id || '');
   if (d.producto !== undefined)      hoja.getRange(fila, 6).setValue(d.producto);
@@ -1553,10 +1561,30 @@ function getHistorialContacto(ss, contacto) {
     descripcion: p.descripcion || 'Venta',
     delta: Number(p.total) - Number(p.monto_pagado),
     total: Number(p.total), pagado: Number(p.monto_pagado),
+    facturado: p.facturado || '',          // fecha en que salio en una boleta
     items: ventasItems.filter(v => v.pedido_id === p.pedido_id)
   }));
   pagosC.forEach(p => mov.push({ tipo: 'pago_cli', fecha: p.fecha, id: p.id, descripcion: p.nota || 'Pago recibido', delta: -Number(p.monto) }));
-  compras.forEach(c => mov.push({ tipo: 'compra', fecha: c.fecha, id: c.id, descripcion: 'Compra: ' + c.producto_insumo + ' · ' + c.cantidad, delta: -(Number(c.total) - Number(c.monto_pagado)), total: Number(c.total), pagado: Number(c.monto_pagado) }));
+  // La hoja Compras guarda UNA FILA POR PRODUCTO, y registrarCompra asienta el
+  // pago entero en la primera linea. Antes esto empujaba un movimiento por fila,
+  // asi que una compra de 3 productos se veia como 3 compras (dos de ellas "sin
+  // pago") en la cuenta del proveedor y en el estado de cuenta. Ahora se agrupa
+  // por compra_id, igual que getCompras.
+  const gruposC = {}; const ordenC = [];
+  compras.forEach(c => {
+    const cid = c.compra_id || c.id;
+    if (!gruposC[cid]) { gruposC[cid] = { id: cid, fecha: c.fecha, total: 0, pagado: 0, items: [] }; ordenC.push(cid); }
+    const g = gruposC[cid];
+    g.total  += Number(c.total) || 0;
+    g.pagado += Number(c.monto_pagado) || 0;
+    g.items.push({ producto: c.producto_insumo, producto_insumo: c.producto_insumo, cantidad: c.cantidad, costo_unitario: c.costo_unitario, total: Number(c.total) || 0 });
+  });
+  ordenC.forEach(cid => {
+    const g = gruposC[cid];
+    const detalle = g.items.map(it => it.producto_insumo + ' · ' + it.cantidad).join(', ');
+    mov.push({ tipo: 'compra', fecha: g.fecha, id: g.id, descripcion: 'Compra: ' + detalle,
+               delta: -(g.total - g.pagado), total: g.total, pagado: g.pagado, items: g.items });
+  });
   pagosP.forEach(p => mov.push({ tipo: 'pago_prov', fecha: p.fecha, id: p.id, descripcion: 'Pago que le hiciste', delta: Number(p.monto) }));
   devs.filter(d => d.tipo === 'cliente').forEach(d => mov.push({ tipo: 'dev_cli', fecha: d.fecha, id: d.id, descripcion: 'Devolución de cliente: ' + d.producto, delta: -Number(d.monto) }));
   devs.filter(d => d.tipo === 'proveedor').forEach(d => mov.push({ tipo: 'dev_prov', fecha: d.fecha, id: d.id, descripcion: 'Devolución a proveedor: ' + d.producto, delta: Number(d.monto) }));
@@ -1566,6 +1594,115 @@ function getHistorialContacto(ss, contacto) {
   mov.forEach(m => { saldo += m.delta; m.saldo = saldo; });
 
   return { contacto, movimientos: mov, saldo_total: saldo };
+}
+
+// ==========================================
+// FUSIONAR CUENTAS DUPLICADAS (desde la app)
+// ==========================================
+// Los nombres se escriben a mano en cada venta, asi que la misma persona termina
+// como "Zulma" y "Zulm", cada una con su propio saldo. Esto pasa todos los
+// movimientos de las cuentas absorbidas a la de referencia y borra sus fichas.
+// Es la version llamable desde la app de fusionarNombres(), que solo se podia
+// correr a mano desde el editor.
+function fusionarContactos(ss, d) {
+  const tipo = d && d.tipo;
+  const canonico = (d && d.canonico || '').toString().trim();
+  const absorbidos = (d && Array.isArray(d.absorbidos)) ? d.absorbidos : [];
+  if (['cliente', 'proveedor'].indexOf(tipo) === -1) throw new Error('tipo debe ser "cliente" o "proveedor"');
+  if (!canonico) throw new Error('Falta la cuenta de referencia');
+  if (!absorbidos.length) throw new Error('No elegiste ninguna cuenta para fusionar');
+
+  const mapa = {};
+  absorbidos.forEach(n => {
+    const nombre = (n || '').toString().trim();
+    if (!nombre) return;
+    if (_normNombre(nombre) === _normNombre(canonico)) return;   // no fusionar consigo misma
+    mapa[_normNombre(nombre)] = canonico;
+  });
+  if (!Object.keys(mapa).length) throw new Error('Las cuentas elegidas son la misma que la de referencia');
+
+  function reescribirCol(nombreHoja, col, condCol, tipoEsperado) {
+    const hoja = ss.getSheetByName(nombreHoja);
+    if (!hoja || hoja.getLastRow() < 2) return 0;
+    const rng = hoja.getRange(2, 1, hoja.getLastRow() - 1, hoja.getLastColumn());
+    const vals = rng.getValues();
+    let cambios = 0;
+    for (let i = 0; i < vals.length; i++) {
+      if (condCol && vals[i][condCol - 1] !== tipoEsperado) continue;
+      const dest = mapa[_normNombre(vals[i][col - 1])];
+      if (dest && dest !== vals[i][col - 1]) { vals[i][col - 1] = dest; cambios++; }
+    }
+    if (cambios) rng.setValues(vals);
+    return cambios;
+  }
+
+  let total = 0;
+  if (tipo === 'cliente') {
+    total += reescribirCol('Pedidos', 3);
+    total += reescribirCol('Pagos Clientes', 3);
+    total += reescribirCol('Devoluciones', 4, 3, 'cliente');
+  } else {
+    total += reescribirCol('Compras', 3);
+    total += reescribirCol('Pagos Proveedores', 3);
+    total += reescribirCol('Devoluciones', 4, 3, 'proveedor');
+  }
+
+  // Borrar las fichas absorbidas (nunca la de referencia).
+  const hojaC = ss.getSheetByName(tipo === 'cliente' ? 'Clientes' : 'Proveedores');
+  let borradas = 0;
+  if (hojaC && hojaC.getLastRow() > 1) {
+    const filas = hojaC.getDataRange().getValues();
+    for (let i = filas.length - 1; i >= 1; i--) {
+      const nombreFila = tipo === 'cliente'
+        ? _normNombre([filas[i][0], filas[i][1]].filter(Boolean).join(' '))
+        : _normNombre(filas[i][0]);
+      if (nombreFila === _normNombre(canonico)) continue;
+      if (mapa[nombreFila]) { hojaC.deleteRow(i + 1); borradas++; }
+    }
+  }
+
+  SpreadsheetApp.flush();
+  return {
+    celdas_reescritas: total,
+    filas_borradas: borradas,
+    mensaje: total + ' movimientos pasados a "' + canonico + '" y ' + borradas + ' ficha(s) borrada(s)'
+  };
+}
+
+// ==========================================
+// MARCAR VENTAS COMO FACTURADAS (salieron en una boleta)
+// ==========================================
+// Guarda la fecha en que cada pedido salio en una boleta, para no cobrar dos
+// veces la misma entrega. La columna se crea sola la primera vez.
+function _asegurarColumnaFacturado(ss) {
+  const hoja = ss.getSheetByName('Pedidos');
+  const enc = hoja.getRange(1, 1, 1, Math.max(1, hoja.getLastColumn())).getValues()[0];
+  for (let i = 0; i < enc.length; i++) if (enc[i] === 'facturado') return i + 1;
+  const col = hoja.getLastColumn() + 1;
+  hoja.getRange(1, col).setValue('facturado').setFontWeight('bold').setBackground('#f0f0f0');
+  return col;
+}
+
+function marcarFacturado(ss, d) {
+  const ids = (d && Array.isArray(d.pedido_ids)) ? d.pedido_ids.map(x => (x || '').toString()) : [];
+  if (!ids.length) throw new Error('No hay pedidos para marcar');
+  const fecha = d.fecha || hoyStr();
+  const hoja = ss.getSheetByName('Pedidos');
+  const col = _asegurarColumnaFacturado(ss);
+  const n = hoja.getLastRow() - 1;
+  if (n < 1) return { marcados: 0 };
+
+  const idsFila = hoja.getRange(2, 1, n, 1).getValues();     // col 1 = pedido_id
+  const actuales = hoja.getRange(2, col, n, 1).getValues();
+  const buscar = {};
+  ids.forEach(x => { buscar[x] = true; });
+  let marcados = 0;
+  for (let i = 0; i < n; i++) {
+    if (buscar[(idsFila[i][0] || '').toString()]) { actuales[i][0] = fecha; marcados++; }
+  }
+  if (marcados) hoja.getRange(2, col, n, 1).setValues(actuales);
+  SpreadsheetApp.flush();
+  return { marcados: marcados, fecha: fecha };
 }
 
 // ==========================================

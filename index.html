@@ -121,7 +121,7 @@
 
     <div class="campo">
       <label>Forma de pago</label>
-      <select id="v-pago" onchange="alCambiarPagoVenta()">
+      <select id="v-pago" onchange="alCambiarPagoVenta(true)">
         <option value="efectivo">Efectivo</option>
         <option value="transferencia">Transferencia</option>
         <option value="crédito">Crédito (fiado)</option>
@@ -165,7 +165,7 @@
     <div class="sep"></div>
     <div class="campo">
       <label>Forma de pago</label>
-      <select id="c-pago" onchange="alCambiarPagoCompra()">
+      <select id="c-pago" onchange="alCambiarPagoCompra(true)">
         <option value="efectivo">Efectivo</option>
         <option value="transferencia">Transferencia</option>
         <option value="crédito">Crédito</option>
@@ -203,44 +203,6 @@
   <div id="cont-proveedores" style="display:none"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
 </div>
 
-<!-- MÁS -->
-<div class="pantalla" id="pantalla-mas">
-  <!-- Gestión -->
-  <div style="font-size:11px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Gestión</div>
-  <div class="grilla" style="margin-bottom:4px">
-    <button class="btn-grande" onclick="irA('productos')">
-      <span class="ico">🧀</span>Productos
-    </button>
-    <button class="btn-grande" onclick="irA('clientes')">
-      <span class="ico">👤</span>Clientes
-    </button>
-    <button class="btn-grande" onclick="irA('proveedores-mgt')">
-      <span class="ico">🏭</span>Proveedores
-    </button>
-    <button class="btn-grande" onclick="irA('reportes')">
-      <span class="ico">📊</span>Reportes
-    </button>
-    <button class="btn-grande" onclick="irA('historial')">
-      <span class="ico">📜</span>Historial
-    </button>
-    <button class="btn-grande" onclick="irA('stock')">
-      <span class="ico">📦</span>Stock
-    </button>
-    <button class="btn-grande" onclick="irA('devoluciones')">
-      <span class="ico">↩️</span>Devoluciones
-    </button>
-  </div>
-  <!-- Operador -->
-  <div style="font-size:11px;font-weight:700;color:var(--gris);text-transform:uppercase;letter-spacing:.8px;margin:16px 0 8px">Operador</div>
-  <div class="card" style="padding:14px 16px;display:flex;justify-content:space-between;align-items:center">
-    <div>
-      <div style="font-size:13px;color:var(--gris);margin-bottom:2px">Usando la app como</div>
-      <div style="font-size:18px;font-weight:700">👤 <span id="chip-operador-mas">—</span></div>
-    </div>
-    <button class="btn btn-s btn-sm" onclick="abrirSelectorOperador(false)">Cambiar</button>
-  </div>
-</div>
-
 <!-- HISTORIAL DEVOLUCIONES -->
 <div class="pantalla" id="pantalla-devoluciones">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -261,7 +223,10 @@
 <div class="pantalla" id="pantalla-proveedores-mgt">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <div class="titulo-sec" style="margin:0">Proveedores</div>
-    <button class="btn btn-p btn-sm" onclick="abrirModalProveedor(null)">+ Agregar</button>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-s btn-sm" onclick="abrirFusion('proveedor')">🔗 Fusionar</button>
+      <button class="btn btn-p btn-sm" onclick="abrirModalProveedor(null)">+ Agregar</button>
+    </div>
   </div>
   <div id="cont-proveedores-mgt"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
 </div>
@@ -279,7 +244,10 @@
 <div class="pantalla" id="pantalla-clientes">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <div class="titulo-sec" style="margin:0">Clientes</div>
-    <button class="btn btn-p btn-sm" onclick="abrirModalCliente(null)">+ Agregar</button>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-s btn-sm" onclick="abrirFusion('cliente')">🔗 Fusionar</button>
+      <button class="btn btn-p btn-sm" onclick="abrirModalCliente(null)">+ Agregar</button>
+    </div>
   </div>
   <input type="text" id="buscar-clientes" placeholder="Buscar cliente..." autocomplete="off" oninput="filtrarClientes(this.value)" style="margin-bottom:12px"/>
   <div id="cont-clientes"><div class="vacio"><span class="ico">⏳</span>Cargando...</div></div>
@@ -406,20 +374,6 @@
 </div>
 
 <!-- LEDGER CLIENTE (historial de deuda) -->
-<div class="modal-fondo" id="modal-ledger">
-  <div class="modal">
-    <div class="modal-titulo" id="ledger-titulo">Cuenta corriente</div>
-    <div id="ledger-tabla" style="margin-bottom:16px"></div>
-    <div style="background:var(--azul-s);border-radius:var(--radio);padding:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <span style="font-weight:600;color:var(--azul)">Saldo actual</span>
-      <span style="font-size:22px;font-weight:700;color:var(--rojo)" id="ledger-saldo"></span>
-    </div>
-    <input type="hidden" id="ledger-cliente-nombre"/>
-    <button class="btn btn-p" id="btn-liquidar-todo" onclick="liquidarTodo()" style="margin-bottom:8px"></button>
-    <button class="btn btn-s" onclick="abrirAbono()">Registrar abono parcial</button>
-    <button class="btn btn-s" onclick="cerrarModal('modal-ledger')" style="margin-top:8px">Cerrar</button>
-  </div>
-</div>
 
 <!-- ABONO CLIENTE -->
 <div class="modal-fondo" id="modal-abono">
@@ -430,7 +384,7 @@
     <div class="campo"><label>Fecha</label><input type="date" id="ab-fecha"/></div>
     <div class="campo"><label>Nota (opcional)</label><input type="text" id="ab-nota" placeholder="Ej: pago en cuotas"/></div>
     <div class="fila" style="gap:10px;margin-top:8px">
-      <button class="btn btn-s" onclick="cerrarModal('modal-abono');document.getElementById('modal-ledger').classList.add('visible')">Cancelar</button>
+      <button class="btn btn-s" onclick="cerrarModal('modal-abono')">Cancelar</button>
       <button class="btn btn-p" onclick="guardarAbono()">Guardar abono</button>
     </div>
   </div>
@@ -632,20 +586,6 @@
 </div>
 
 <!-- LEDGER PROVEEDOR -->
-<div class="modal-fondo" id="modal-ledger-prov">
-  <div class="modal">
-    <div class="modal-titulo" id="ledger-prov-titulo">Cuenta proveedor</div>
-    <div id="ledger-prov-tabla" style="margin-bottom:16px"></div>
-    <div style="background:var(--rojo-s);border-radius:var(--radio);padding:12px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <span style="font-weight:600;color:var(--rojo)">Deuda actual</span>
-      <span style="font-size:22px;font-weight:700;color:var(--rojo)" id="ledger-prov-saldo"></span>
-    </div>
-    <input type="hidden" id="ledger-prov-nombre"/>
-    <button class="btn btn-r" id="btn-pago-total-prov" onclick="abrirPagoTotalProv()" style="margin-bottom:8px"></button>
-    <button class="btn btn-s" onclick="abrirPagoParcialProv()">Registrar pago parcial</button>
-    <button class="btn btn-s" onclick="cerrarModal('modal-ledger-prov')" style="margin-top:8px">Cerrar</button>
-  </div>
-</div>
 
 <!-- SELECTOR OPERADOR -->
 <div class="modal-fondo" id="modal-operador">
@@ -750,7 +690,9 @@
       <button class="btn btn-p btn-sm" data-r="30d" onclick="setCuentaRango('30d')" style="flex:1">30 días</button>
       <button class="btn btn-s btn-sm" data-r="todo" onclick="setCuentaRango('todo')" style="flex:1">Todo</button>
     </div>
-    <button class="btn btn-s" onclick="ticketEstadoCuenta()" style="margin-bottom:12px">🎟️ Ticket de estado de cuenta</button>
+    <button class="btn btn-s" id="btn-ticket-cuenta" onclick="ticketEstadoCuenta()" style="margin-bottom:8px">🎟️ Ticket de estado de cuenta</button>
+    <button class="btn btn-s" id="btn-boleta-ventas" onclick="abrirSeleccion('venta')" style="margin-bottom:8px;display:none">🧾 Boleta: elegir ventas</button>
+    <button class="btn btn-s" id="btn-registro-compras" onclick="abrirSeleccion('compra')" style="margin-bottom:12px;display:none">📦 Registro: elegir compras</button>
     <button class="btn btn-p" id="btn-cuenta-total" onclick="cuentaSaldarTotal()" style="margin-bottom:8px"></button>
     <button class="btn btn-s" id="btn-cuenta-parcial" onclick="cuentaSaldarParcial()">Registrar pago parcial</button>
     <button class="btn btn-s" onclick="cerrarModal('modal-contacto')" style="margin-top:8px">Cerrar</button>
@@ -758,6 +700,35 @@
 </div>
 
 <!-- VISTA PREVIA DE TICKET (compartir / imprimir) -->
+<!-- SELECCIÓN DE VENTAS / COMPRAS PARA UN SOLO COMPROBANTE -->
+<div class="modal-fondo" id="modal-seleccion">
+  <div class="modal">
+    <div class="modal-titulo" id="sel-titulo">Elegir</div>
+    <div id="sel-ayuda" style="font-size:12px;color:var(--gris);margin-bottom:10px"></div>
+    <div class="fila" style="gap:6px;margin-bottom:10px">
+      <button class="btn btn-s btn-sm" onclick="selMarcarTodas(true)" style="flex:1">Marcar todas</button>
+      <button class="btn btn-s btn-sm" onclick="selMarcarTodas(false)" style="flex:1">Desmarcar todas</button>
+    </div>
+    <div id="sel-lista" style="max-height:46vh;overflow-y:auto;margin-bottom:10px"></div>
+    <div id="sel-resumen" style="background:var(--gris-c);border-radius:var(--radio);padding:10px 12px;font-size:13px;margin-bottom:12px"></div>
+    <button class="btn btn-p" id="btn-sel-generar" onclick="selGenerar()" style="margin-bottom:8px">Generar</button>
+    <button class="btn btn-s" onclick="cerrarModal('modal-seleccion')">Cerrar</button>
+  </div>
+</div>
+
+<!-- FUSIONAR CUENTAS DUPLICADAS -->
+<div class="modal-fondo" id="modal-fusion">
+  <div class="modal">
+    <div class="modal-titulo" id="fus-titulo">Fusionar duplicados</div>
+    <div id="fus-paso" style="font-size:12px;color:var(--gris);margin-bottom:10px"></div>
+    <input type="text" id="fus-buscar" placeholder="Buscar..." autocomplete="off" oninput="filtrarFusion()" style="margin-bottom:10px"/>
+    <div id="fus-lista" style="max-height:44vh;overflow-y:auto;margin-bottom:10px"></div>
+    <div id="fus-resumen" style="background:var(--gris-c);border-radius:var(--radio);padding:10px 12px;margin-bottom:12px"></div>
+    <button class="btn btn-r" id="btn-fus-confirmar" onclick="confirmarFusion()" style="margin-bottom:8px;display:none">Fusionar</button>
+    <button class="btn btn-s" onclick="cerrarModal('modal-fusion')">Cerrar</button>
+  </div>
+</div>
+
 <div class="modal-fondo" id="modal-ticket-view">
   <div class="modal">
     <div class="modal-titulo" style="text-align:center">🎟️ Ticket</div>
