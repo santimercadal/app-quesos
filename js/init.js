@@ -31,7 +31,6 @@ function init(){
 
   if(localStorage.getItem('quesos-dark')==='1'){
     document.body.classList.add('dark');
-    document.getElementById('btn-modo').textContent='☀️';
   }
   aplicarColorBarra();
 

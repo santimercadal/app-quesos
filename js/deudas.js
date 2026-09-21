@@ -44,12 +44,13 @@ function renderTeDeben(lista){
        <div class="card-valor" style="color:var(--azul)">${$$(total)}</div>
      </div>`+
     lista.map((d,i)=>`
-      <div class="item" style="cursor:pointer" onclick="abrirCuentaContacto(_contTeDeben[${i}].contacto)">
-        <div class="item-info" style="flex:1">
+      <div class="venta-row" style="cursor:pointer" onclick="abrirCuentaContacto(_contTeDeben[${i}].contacto)">
+        <div class="avatar">${esc(iniciales(d.contacto))}</div>
+        <div class="venta-main">
           <div class="item-nombre">${esc(d.contacto)}</div>
-          <div class="item-det">${d.total_compras>0?'🔁 También le comprás · ':''}Ventas: ${$$(d.total_ventas)}</div>
+          <div class="item-det">${d.total_compras>0?'También le comprás · ':''}Ventas: ${$$(d.total_ventas)}</div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div class="venta-right">
           <div class="item-val rojo">${$$(d.neto)}</div>
           <div style="font-size:12px;color:var(--gris)">Ver cuenta →</div>
         </div>
@@ -67,12 +68,13 @@ function renderLeDebes(lista){
        <div class="card-valor" style="color:var(--rojo)">${$$(total)}</div>
      </div>`+
     lista.map((d,i)=>`
-      <div class="item" style="cursor:pointer" onclick="abrirCuentaContacto(_contLeDebes[${i}].contacto)">
-        <div class="item-info" style="flex:1">
+      <div class="venta-row" style="cursor:pointer" onclick="abrirCuentaContacto(_contLeDebes[${i}].contacto)">
+        <div class="avatar">${esc(iniciales(d.contacto))}</div>
+        <div class="venta-main">
           <div class="item-nombre">${esc(d.contacto)}</div>
-          <div class="item-det">${d.total_ventas>0?'🔁 También te compra · ':''}Compras: ${$$(d.total_compras)}</div>
+          <div class="item-det">${d.total_ventas>0?'También te compra · ':''}Compras: ${$$(d.total_compras)}</div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+        <div class="venta-right">
           <div class="item-val rojo">${$$(Math.abs(d.neto))}</div>
           <div style="font-size:12px;color:var(--gris)">Ver cuenta →</div>
         </div>
@@ -134,7 +136,7 @@ function renderCuentaContacto(h){
       <div style="flex:1">
         <div style="font-weight:500">${fmtFecha(m.fecha)}</div>
         <div style="font-size:12px;color:var(--gris)">${esc(m.descripcion)}</div>
-        ${(m.tipo==='pago_cli'||m.tipo==='pago_prov')?`<div style="margin-top:4px;display:flex;gap:6px"><button class="btn btn-s btn-sm" onclick="editarPagoMov(${i})">✏️</button><button class="btn btn-s btn-sm" onclick="borrarPagoMov(${i})">🗑️</button></div>`:''}
+        ${(m.tipo==='pago_cli'||m.tipo==='pago_prov')?`<div style="margin-top:4px;display:flex;gap:6px"><button class="btn btn-s btn-sm btn-ico" aria-label="Editar pago" onclick="editarPagoMov(${i})">${svgIcon('edit',16)}</button><button class="btn btn-s btn-sm btn-ico" aria-label="Eliminar pago" onclick="borrarPagoMov(${i})">${svgIcon('trash',16)}</button></div>`:''}
       </div>
       <div style="text-align:right;color:${colorMonto};font-weight:600;white-space:nowrap">${pos?'+':'−'}${$$(Math.abs(m.delta))}</div>
       <div class="ledger-saldo" style="width:84px;text-align:right;color:${colorSaldo}">${$$(Math.abs(m.saldo))}</div>
@@ -247,8 +249,6 @@ let _selLista = [];        // movimientos ofrecidos, del más nuevo al más viej
 let _selMarcadas = {};
 
 const SEL_AVISO_LARGO = 40;   // arriba de esto el comprobante ya es incómodo de leer
-
-function _selPendiente(m){ return (Number(m.total) || 0) - (Number(m.pagado) || 0) > 0.01; }
 
 function abrirSeleccion(tipo){
   if(!_cuentaListo) return;

@@ -28,7 +28,7 @@ function _pintarProductos(){
           <div class="item-info" style="flex:1">
             <div class="item-nombre">${esc(p.nombre)}</div>
             <div class="item-det">Costo: ${$$(p.precio_costo)} · ${esc(p.unidad)}${margen?' · Margen: '+margen:''}${(p.stock!==undefined&&p.stock!=='')?' · Stock: '+Number(p.stock).toLocaleString('es-AR')+' '+esc(p.unidad):''}</div>
-            ${p.proveedor?`<div class="item-det" style="color:var(--verde-c)">🏭 ${esc(p.proveedor)}</div>`:''}
+            ${p.proveedor?`<div class="item-det" style="color:var(--verde-c);display:flex;align-items:center;gap:4px">${svgIcon('package',13)} ${esc(p.proveedor)}</div>`:''}
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
             <div class="item-val">${$$(p.precio)}</div>
@@ -126,16 +126,15 @@ function renderClientesLista(q){
   _clientesRender = term ? clientesCache.filter(c=>nombreCompleto(c).toLowerCase().includes(term)||String(c.celular||'').toLowerCase().includes(term)) : clientesCache;
   if(!_clientesRender.length){cont.innerHTML='<div class="vacio"><span class="ico">🔎</span>Sin resultados</div>';return;}
   cont.innerHTML=_clientesRender.map((c,i)=>`
-      <div class="item">
-        <div class="item-head">
-          <div class="item-info" style="flex:1">
-            <div class="item-nombre">${esc(nombreCompleto(c))}</div>
-            <div class="item-det">${esc(c.celular||'Sin celular')}</div>
-          </div>
-          <div style="display:flex;gap:6px;flex-shrink:0">
-            <button class="btn btn-s btn-sm" onclick="abrirCuentaContacto(nombreCompleto(_clientesRender[${i}]))">Ver cuenta</button>
-            <button class="btn btn-s btn-sm" onclick="abrirModalCliente(_clientesRender[${i}])">Editar</button>
-          </div>
+      <div class="venta-row">
+        <div class="avatar">${esc(iniciales(nombreCompleto(c)))}</div>
+        <div class="venta-main">
+          <div class="item-nombre">${esc(nombreCompleto(c))}</div>
+          <div class="item-det">${esc(c.celular||'Sin celular')}</div>
+        </div>
+        <div class="venta-right">
+          <button class="btn btn-s btn-sm" onclick="abrirCuentaContacto(nombreCompleto(_clientesRender[${i}]))">Ver cuenta</button>
+          <button class="btn btn-s btn-sm" onclick="abrirModalCliente(_clientesRender[${i}])">Editar</button>
         </div>
       </div>`).join('');
 }

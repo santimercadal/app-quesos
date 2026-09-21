@@ -131,8 +131,8 @@ function renderHistVentas(pedidos){
             ${itemsHtml}
             ${deuda>0?`<div class="item-det" style="font-size:12px"><span style="color:var(--rojo)">Deuda al emitir: ${$$(deuda)}</span> · <span onclick="abrirCuentaContacto(_histVR[${idx}].cliente)" style="color:var(--azul-c);text-decoration:underline;cursor:pointer">Ver cuenta actual</span></div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
             <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-              <button class="btn btn-s btn-sm" onclick="ticketVenta(_histVR[${idx}])">🎟️ Ticket</button>
-              <button class="btn btn-s btn-sm" onclick="abrirEdicionPedido(_histVR[${idx}])">✏️ Editar</button>
+              <button class="btn btn-s btn-sm" onclick="ticketVenta(_histVR[${idx}])">${svgIcon('ticket',15)} Ticket</button>
+              <button class="btn btn-s btn-sm" onclick="abrirEdicionPedido(_histVR[${idx}])">${svgIcon('edit',15)} Editar</button>
             </div>
           </div>
           <div class="item-val">${$$(p.total)}</div>
@@ -167,8 +167,8 @@ function renderHistCompras(compras){
             ${itemsHtml}
             ${deuda>0?`<div class="item-det" style="font-size:12px"><span style="color:var(--rojo)">Deuda al emitir: ${$$(deuda)}</span> · <span onclick="abrirCuentaContacto(_histCR[${idx}].proveedor)" style="color:var(--azul-c);text-decoration:underline;cursor:pointer">Ver cuenta actual</span></div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
             <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-              <button class="btn btn-s btn-sm" onclick="ticketCompra(_histCR[${idx}])">🎟️ Ticket</button>
-              <button class="btn btn-s btn-sm" onclick="abrirEdicionCompraObj(_histCR[${idx}])">✏️ Editar</button>
+              <button class="btn btn-s btn-sm" onclick="ticketCompra(_histCR[${idx}])">${svgIcon('ticket',15)} Ticket</button>
+              <button class="btn btn-s btn-sm" onclick="abrirEdicionCompraObj(_histCR[${idx}])">${svgIcon('edit',15)} Editar</button>
             </div>
           </div>
           <div class="item-val" style="color:var(--rojo)">−${$$(c.total)}</div>
@@ -267,7 +267,7 @@ async function guardarAjusteStock(){
 // ==========================================
 function toggleModo(){
   const dark=document.body.classList.toggle('dark');
-  document.getElementById('btn-modo').textContent=dark?'☀️':'🌙';
+  // El ícono sol/luna lo alterna el CSS según body.dark (ver .ico-sun/.ico-moon)
   localStorage.setItem('quesos-dark',dark?'1':'0');
   aplicarColorBarra();
 }

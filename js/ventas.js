@@ -34,29 +34,30 @@ function _pintarInicio(d, rc){
     const hayVentas=d.pedidos&&d.pedidos.length>0;
     const hayAbonos=d.pagos_clientes&&d.pagos_clientes.length>0;
     const hayCompras=_comprasHoy.length>0;
+    // Contador operativo de ventas del día (sin montos, por decisión de diseño)
+    const mc=document.getElementById('mov-count');
+    if(mc) mc.textContent = hayVentas ? (d.pedidos.length+(d.pedidos.length===1?' venta hoy':' ventas hoy')) : '';
     if(!hayVentas&&!hayAbonos&&!hayCompras){
       lista.innerHTML='<div class="vacio"><span class="ico">🧀</span>Sin movimientos hoy todavía</div>';return;
     }
 
     const htmlVentas=hayVentas
-      ? `<div style="font-size:12px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px">🛒 Ventas</div>`+
-        d.pedidos.map((p,idx)=>{
+      ? d.pedidos.map((p,idx)=>{
           const badge=p.forma_pago==='efectivo'?'badge-efectivo':p.forma_pago==='transferencia'?'badge-trans':'badge-credito';
           const deudaOriginal=Number(p.total)-Number(p.monto_pagado);
-          return `<div class="item">
-            <div class="item-head">
-              <div class="item-info" style="flex:1">
-                <div class="item-nombre">${esc(p.cliente||'(sin nombre)')} <span class="badge ${badge}">${esc(p.forma_pago)}</span></div>
-                <div class="item-det">${esc(p.descripcion||'')}</div>
-                <div class="item-det" style="font-size:12px;color:var(--gris)">👤 ${esc(p.operador||'—')}</div>
-                ${deudaOriginal>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deudaOriginal)}</div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
-              </div>
-              <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-                <div class="item-val">${$$(p.total)}</div>
-                <div style="display:flex;gap:6px">
-                  <button class="btn btn-s btn-sm" onclick="ticketVenta(_pedidosHoy[${idx}])">🎟️</button>
-                  <button class="btn btn-s btn-sm" onclick="abrirEdicionPedido(_pedidosHoy[${idx}])">Editar</button>
-                </div>
+          return `<div class="venta-row">
+            <div class="avatar">${esc(iniciales(p.cliente))}</div>
+            <div class="venta-main">
+              <div class="item-nombre">${esc(p.cliente||'(sin nombre)')}</div>
+              <div style="margin:3px 0"><span class="badge ${badge}">${esc(p.forma_pago)}</span> <span class="item-det">${esc(p.descripcion||'')}</span></div>
+              ${deudaOriginal>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deudaOriginal)}</div>`:`<div class="item-det" style="color:var(--verde-c);font-size:12px">Pagado</div>`}
+              <div class="item-det" style="font-size:12px;color:var(--gris);display:flex;align-items:center;gap:4px">${svgIcon('user',13)} ${esc(p.operador||'—')}</div>
+            </div>
+            <div class="venta-right">
+              <div class="item-val">${$$(p.total)}</div>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-s btn-sm btn-ico" aria-label="Ticket de venta" onclick="ticketVenta(_pedidosHoy[${idx}])">${svgIcon('ticket',16)}</button>
+                <button class="btn btn-s btn-sm" onclick="abrirEdicionPedido(_pedidosHoy[${idx}])">${svgIcon('edit',15)} Editar</button>
               </div>
             </div>
           </div>`;
@@ -64,7 +65,7 @@ function _pintarInicio(d, rc){
       : '';
 
     const htmlCompras=hayCompras
-      ? `<div style="font-size:12px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px">📦 Compras</div>`+
+      ? `<div style="font-size:12px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px;display:inline-flex;align-items:center;gap:6px">${svgIcon('package',14)} Compras</div>`+
         _comprasHoy.map((c,idx)=>{
           const badge=c.forma_pago==='efectivo'?'badge-efectivo':c.forma_pago==='transferencia'?'badge-trans':'badge-credito';
           const deuda=Number(c.total)-Number(c.monto_pagado);
@@ -74,13 +75,13 @@ function _pintarInicio(d, rc){
               <div class="item-info" style="flex:1">
                 <div class="item-nombre">${esc(c.proveedor||'(sin proveedor)')} <span class="badge ${badge}">${esc(c.forma_pago||'')}</span></div>
                 <div class="item-det">${itemsTxt}</div>
-                ${deuda>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deuda)}</div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">✅ Pagado</div>'}
+                ${deuda>0?`<div class="item-det" style="color:var(--rojo);font-size:12px">Pendiente: ${$$(deuda)}</div>`:'<div class="item-det" style="color:var(--verde-c);font-size:12px">Pagado</div>'}
               </div>
               <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
                 <div class="item-val" style="color:var(--rojo)">−${$$(c.total)}</div>
                 <div style="display:flex;gap:6px">
-                  <button class="btn btn-s btn-sm" onclick="ticketCompra(_comprasHoy[${idx}])">🎟️</button>
-                  <button class="btn btn-s btn-sm" onclick="abrirEdicionCompraObj(_comprasHoy[${idx}])">Editar</button>
+                  <button class="btn btn-s btn-sm btn-ico" aria-label="Ticket de compra" onclick="ticketCompra(_comprasHoy[${idx}])">${svgIcon('ticket',16)}</button>
+                  <button class="btn btn-s btn-sm" onclick="abrirEdicionCompraObj(_comprasHoy[${idx}])">${svgIcon('edit',15)} Editar</button>
                 </div>
               </div>
             </div>
@@ -89,7 +90,7 @@ function _pintarInicio(d, rc){
       : '';
 
     const htmlAbonos=hayAbonos
-      ? `<div style="font-size:12px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px">💰 Pagos recibidos</div>`+
+      ? `<div style="font-size:12px;font-weight:600;color:var(--gris);text-transform:uppercase;letter-spacing:.5px;margin:12px 0 6px;display:inline-flex;align-items:center;gap:6px">${svgIcon('dollar',14)} Pagos recibidos</div>`+
         d.pagos_clientes.map(pago=>`
           <div class="item">
             <div class="item-head">
@@ -125,6 +126,7 @@ async function cargarDatosVenta(){
     ]);
     productos=prods; clientesCache=clis;
     _pintarDatalistClientes();
+    renderClientesRapidos();
     renderPreciosInicio();
     // Redibujar el carrito solo si la lista de productos cambió de verdad:
     // si no, le robaríamos el foco a quien esté tipeando el peso.
@@ -143,7 +145,7 @@ function renderPreciosInicio() {
   const visibles = productos.filter(p => !_ocultoEnPrecios(p.nombre));
   const conStock = visibles.filter(p => Number(p.stock) > 0).length;
   cont.innerHTML = `
-    <button class="btn btn-s" onclick="ticketListaPrecios()" style="margin-bottom:6px">📤 Compartir lista de precios</button>
+    <button class="btn btn-s" onclick="ticketListaPrecios()" style="margin-bottom:6px">${svgIcon('share',15)} Compartir lista de precios</button>
     <div style="font-size:11px;color:var(--gris);text-align:center;margin-bottom:10px">Se comparten los ${conStock} productos con stock cargado. Los que están sin stock se ven acá pero no salen en la lista.</div>
   ` + visibles.map(p => {
     const sinStock = !(Number(p.stock) > 0);
@@ -216,7 +218,7 @@ function renderCarrito(){
           </div>
           <div class="hint" id="hint-${i}">${_hintVenta(item)}</div>
         </div>
-        <button onclick="quitarDelCarrito(${i})" style="background:none;border:none;font-size:24px;cursor:pointer;color:var(--rojo);padding:24px 0 0;line-height:1">×</button>
+        <button onclick="quitarDelCarrito(${i})" aria-label="Quitar producto" style="background:none;border:none;cursor:pointer;color:var(--gris);padding:6px 0 0;line-height:1">${svgIcon('trash',18)}</button>
       </div>
     </div>`;
   }).join('');
@@ -266,6 +268,31 @@ function alCambiarPagoVenta(desdeSelect){
   else if(desdeSelect) campo.value='';
 }
 
+// Forma de pago como tarjetas (el valor vive en el input oculto #v-pago)
+function setPagoVenta(v){
+  const inp=document.getElementById('v-pago'); if(!inp) return;
+  inp.value=v;
+  document.querySelectorAll('#pantalla-venta .pay-opt').forEach(b=>b.classList.toggle('activo', b.dataset.v===v));
+  alCambiarPagoVenta(true);
+}
+
+// Banda deslizante de clientes frecuentes (acceso directo)
+function renderClientesRapidos(){
+  const cont=document.getElementById('v-clientes-rapidos');
+  if(!cont) return;
+  const lista=(clientesCache||[]).slice(0,15);
+  cont.innerHTML=lista.map(c=>{
+    const n=nombreCompleto(c);
+    return `<button type="button" class="chip-cli" onclick="elegirClienteRapido('${escJS(n)}')">${esc(n)}</button>`;
+  }).join('');
+}
+
+function elegirClienteRapido(nombre){
+  const inp=document.getElementById('v-cliente');
+  if(inp) inp.value=nombre;
+  document.querySelectorAll('#v-clientes-rapidos .chip-cli').forEach(b=>b.classList.toggle('activo', b.textContent===nombre));
+}
+
 function abrirConfirmacion(){
   if(carrito.length===0){toast('Agregá al menos un producto','error');return;}
   if(carrito.some(i=>!i.producto||!(Number(i.kg)>0)||!(Number(i.monto)>0))){toast('Completá producto, kg y monto de cada renglón','error');return;}
@@ -276,7 +303,7 @@ function abrirConfirmacion(){
   if(pagado>total){toast('El monto pagado no puede superar el total','error');return;}
   if(pago==='crédito'&&!cliente){toast('Para ventas a crédito el cliente es obligatorio','error');return;}
   document.getElementById('conf-items').innerHTML=carrito.map(i=>
-    `<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #eee">
+    `<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--borde)">
       <span>${esc(i.producto)} <span style="color:var(--gris);font-size:12px">(${Number(i.kg)} ${esc(i.unidad)})</span></span>
       <strong>${$$(i.monto)}</strong>
     </div>`
@@ -284,7 +311,7 @@ function abrirConfirmacion(){
   document.getElementById('conf-total').textContent=$$(total);
   document.getElementById('conf-pagado').textContent=$$(pagado);
   const resta=total-pagado;
-  document.getElementById('conf-resta').textContent=resta>0?$$(resta)+' queda debiendo':'Pagado completo ✅';
+  document.getElementById('conf-resta').textContent=resta>0?$$(resta)+' queda debiendo':'Pagado completo';
   document.getElementById('conf-resta').style.color=resta>0?'var(--rojo)':'var(--verde-c)';
   document.getElementById('conf-cliente').textContent=cliente||'(sin nombre)';
   document.getElementById('conf-pago').textContent=pago;

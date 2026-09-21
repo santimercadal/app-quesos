@@ -52,9 +52,9 @@ function _pintarHistorialCompras(compras){
       <div class="item-det">${itemsTxt} · ${fmtFecha(c.fecha)}</div>
       ${deuda>0?`<div class="item-det" style="color:var(--rojo)">Pendiente: ${$$(deuda)}</div>`:''}
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
-        <button class="btn btn-s btn-sm" onclick="ticketCompra(_histCompras[${i}])">🎟️</button>
-        <button class="btn btn-s btn-sm" onclick="abrirEdicionCompra(${i})">✏️ Editar</button>
-        <button class="btn btn-s btn-sm" onclick="abrirModalDevolucion('${escJS(c.compra_id||c.id)}','proveedor')">↩️ Devolver</button>
+        <button class="btn btn-s btn-sm btn-ico" aria-label="Ticket de compra" onclick="ticketCompra(_histCompras[${i}])">${svgIcon('ticket',16)}</button>
+        <button class="btn btn-s btn-sm" onclick="abrirEdicionCompra(${i})">${svgIcon('edit',15)} Editar</button>
+        <button class="btn btn-s btn-sm" onclick="abrirModalDevolucion('${escJS(c.compra_id||c.id)}','proveedor')">${svgIcon('undo',15)} Devolver</button>
       </div>
       </div>
       <div class="item-val">${$$(c.total)}</div>
@@ -162,6 +162,14 @@ function alCambiarPagoCompra(desdeSelect){
   const campo=document.getElementById('c-pagado');
   if(pago!=='crédito') campo.value=total>0?Math.round(total):'';
   else if(desdeSelect) campo.value='';
+}
+
+// Forma de pago como tarjetas (valor en el input oculto #c-pago)
+function setPagoCompra(v){
+  const inp=document.getElementById('c-pago'); if(!inp) return;
+  inp.value=v;
+  document.querySelectorAll('#pantalla-compra .pay-opt').forEach(b=>b.classList.toggle('activo', b.dataset.v===v));
+  alCambiarPagoCompra(true);
 }
 
 // Abre modal de confirmación antes de guardar

@@ -18,12 +18,13 @@ async function cargarProveedoresMgt(){
     proveedoresCache=lista;
     if(!lista.length){cont.innerHTML='<div class="vacio"><span class="ico">🏭</span>No hay proveedores todavía.</div>';return;}
     cont.innerHTML=lista.map((p,i)=>`
-      <div class="item">
-        <div class="item-head">
-          <div class="item-info" style="flex:1">
-            <div class="item-nombre">${esc(p.nombre)}</div>
-            <div class="item-det">${esc(p.contacto||'Sin contacto')}</div>
-          </div>
+      <div class="venta-row">
+        <div class="avatar">${esc(iniciales(p.nombre))}</div>
+        <div class="venta-main">
+          <div class="item-nombre">${esc(p.nombre)}</div>
+          <div class="item-det">${esc(p.contacto||'Sin contacto')}</div>
+        </div>
+        <div class="venta-right">
           <button class="btn btn-s btn-sm" onclick="abrirModalProveedor(proveedoresCache[${i}])">Editar</button>
         </div>
       </div>`).join('');
@@ -194,12 +195,12 @@ function filtrarDevoluciones(filtro){
   resumen.innerHTML = devs.length === 0 ? '' :
     `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
        <div class="card" style="margin:0;padding:10px">
-         <div class="card-titulo" style="font-size:11px">⏳ Pendiente</div>
+         <div class="card-titulo" style="font-size:11px">Pendiente</div>
          <div style="font-weight:700;font-size:18px;color:var(--rojo)">${$$(totalPend)}</div>
          <div style="font-size:11px;color:var(--gris)">${pendientes.length} devolución/es</div>
        </div>
        <div class="card" style="margin:0;padding:10px">
-         <div class="card-titulo" style="font-size:11px">✅ Resuelto</div>
+         <div class="card-titulo" style="font-size:11px">Resuelto</div>
          <div style="font-weight:700;font-size:18px;color:var(--verde-c)">${$$(totalRes)}</div>
          <div style="font-size:11px;color:var(--gris)">${resueltas.length} devolución/es</div>
        </div>
@@ -210,14 +211,14 @@ function filtrarDevoluciones(filtro){
     return;
   }
 
-  const iconTipo = { proveedor:'🏭', cliente:'👤' };
-  const labelRes = { pendiente:'⏳ Pendiente', acreditado:'✅ Acreditado', devuelto_dinero:'💰 Dinero devuelto' };
+  const iconTipo = { proveedor:'package', cliente:'user' };
+  const labelRes = { pendiente:'Pendiente', acreditado:'Acreditado', devuelto_dinero:'Dinero devuelto' };
   const colorRes = { pendiente:'var(--rojo)', acreditado:'var(--verde-c)', devuelto_dinero:'var(--verde-c)' };
 
   lista.innerHTML = devs.map((d,i) => `
     <div class="item">
       <div class="item-head">
-        <div style="font-size:22px;margin-right:10px;flex-shrink:0">${iconTipo[d.tipo]||'↩️'}</div>
+        <div class="avatar" style="margin-right:10px">${svgIcon(iconTipo[d.tipo]||'undo',20)}</div>
         <div style="flex:1;min-width:0">
           <div class="item-nombre">${esc(d.contraparte)}</div>
           <div class="item-det">${esc(d.producto)} · ${esc(d.cantidad)} · ${fmtFecha(d.fecha)}</div>
@@ -229,9 +230,9 @@ function filtrarDevoluciones(filtro){
               <button class="btn btn-s btn-sm" onclick="resolverDevolucion('${escJS(d.id)}','acreditado')">Acreditado</button>
               <button class="btn btn-s btn-sm" onclick="resolverDevolucion('${escJS(d.id)}','devuelto_dinero')">Devolvieron $$</button>
             `:''}
-            <button class="btn btn-s btn-sm" onclick="ticketDevolucion(_devsRender[${i}])">🎟️</button>
-            <button class="btn btn-s btn-sm" onclick="abrirEditarDevolucion(${i})">✏️ Editar</button>
-            <button class="btn btn-s btn-sm" onclick="borrarDevolucion('${escJS(d.id)}')">🗑️</button>
+            <button class="btn btn-s btn-sm btn-ico" aria-label="Ticket de devolución" onclick="ticketDevolucion(_devsRender[${i}])">${svgIcon('ticket',16)}</button>
+            <button class="btn btn-s btn-sm" onclick="abrirEditarDevolucion(${i})">${svgIcon('edit',15)} Editar</button>
+            <button class="btn btn-s btn-sm btn-ico" aria-label="Eliminar devolución" onclick="borrarDevolucion('${escJS(d.id)}')">${svgIcon('trash',16)}</button>
           </div>
         </div>
         <div class="item-val" style="color:var(--rojo);flex-shrink:0">${$$(d.monto)}</div>

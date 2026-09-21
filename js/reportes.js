@@ -324,11 +324,11 @@ function _htmlReporte(r, desde, hasta){
       <div class="rep-grid" style="margin-top:10px">
         <div style="text-align:center">
           <div style="font-size:12px;color:var(--gris)">Pendiente de cobro</div>
-          <div style="font-size:22px;font-weight:800;color:${pendienteCobro > 0 ? 'var(--rojo)' : 'var(--verde-c)'}">${pendienteCobro > 0 ? $$(pendienteCobro) : '✅ Al día'}</div>
+          <div style="font-size:22px;font-weight:800;color:${pendienteCobro > 0 ? 'var(--rojo)' : 'var(--verde-c)'}">${pendienteCobro > 0 ? $$(pendienteCobro) : 'Al día'}</div>
         </div>
         <div style="text-align:center">
           <div style="font-size:12px;color:var(--gris)">Pendiente de pago</div>
-          <div style="font-size:22px;font-weight:800;color:${pendientePago > 0 ? 'var(--rojo)' : 'var(--verde-c)'}">${pendientePago > 0 ? $$(pendientePago) : '✅ Al día'}</div>
+          <div style="font-size:22px;font-weight:800;color:${pendientePago > 0 ? 'var(--rojo)' : 'var(--verde-c)'}">${pendientePago > 0 ? $$(pendientePago) : 'Al día'}</div>
         </div>
       </div>
       <div style="font-size:11px;color:var(--gris);text-align:center;margin-top:6px">Lo que te deben y lo que debés, total y actualizado</div>
