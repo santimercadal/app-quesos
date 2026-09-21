@@ -1,48 +1,58 @@
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+/* ==========================================================================
+   TOKENS — ÚNICA FUENTE DE VERDAD (consolidado de style.css + tema.css)
+   Identidad "Crema & Ámbar": crema #fbf6ea · ámbar #e4a228 · pizarra #47677d
+   Los valores son los EFECTIVOS que ya producía la app; no cambia la apariencia.
+   ========================================================================== */
 :root{
-  /* Identidad quesería: turquesa + azul marino + verde gramilla + blanco */
-  --turquesa:#12b2ac; --turquesa-d:#0e928d; --turquesa-s:#e1f6f4;
-  --navy:#16324a; --navy-d:#0f2436; --navy-s:#eaf1f6; --titulo:#16324a;
-  --gramilla:#5da22e; --gramilla-s:#eef6e1;
-  --coral:#e25141; --coral-s:#fcebe8;
+  --crema:#fbf6ea; --crema-h:#f4ecdb;
+  --ambar:#e4a228; --ambar-c:#f2c550; --ambar-s:#fdf1d6;
+  --pizarra:#47677d; --pizarra-d:#375568; --pizarra-s:#e9eff3;
 
-  /* Mapeo a los nombres que ya usa la app */
-  --azul:#12b2ac; --azul-m:#0e928d; --azul-c:#12b2ac; --azul-s:#e1f6f4;
-  --verde:#5da22e; --verde-c:#5da22e; --verde-s:#eef6e1;
-  --rojo:#e25141; --rojo-s:#fcebe8;
-  --amarillo:#f2b100;
-  --gris:#6b7785; --gris-c:#f3f6f8;
+  /* nombres heredados que usa la app */
+  --azul:#47677d; --azul-m:#375568; --azul-c:#47677d; --azul-s:#e9eff3;
+  --navy:#2b3f4d; --navy-d:#22323d; --navy-s:#eaf0f3;
+  --verde:#4e9b45; --verde-c:#4e9b45; --verde-s:#edf6e8;
+  --gramilla:#5da22e; --gramilla-s:#eef6e1;
+  --rojo:#d8564a; --rojo-s:#fcecea;
+  --coral:#d8564a; --coral-s:#fcecea;
+  --amarillo:#e8a72b;
+
+  --gris:#5f6b78; --gris-c:#f2ede2;
   --blanco:#ffffff;
-  --texto:#1b2a36;
-  --radio:14px;
-  --sombra:0 4px 16px rgba(20,40,60,.08);
-  --sombra-sm:0 2px 8px rgba(20,40,60,.06);
-  --borde:#e6ebef;
-  --modal-bg:#ffffff;
-  --header-bg:#16324a;
+  --texto:#23323c; --titulo:#22303b;
+  --borde:#efe6d6;
+  --radio:18px;
+  /* Escala de radios unificada (#4) */
+  --r-sm:10px; --r:14px; --r-lg:18px; --r-xl:24px; --r-pill:999px;
+  --sombra:0 8px 26px rgba(120,90,45,.10);
+  --sombra-sm:0 4px 16px rgba(120,90,45,.07);
+  --modal-bg:#fffdf8; --header-bg:#fbf6ea;
 }
 body.dark{
-  --turquesa:#2bd0c9; --turquesa-d:#23b3ad; --turquesa-s:#0f3a39;
-  --navy:#0f2436; --navy-d:#0a1a28; --navy-s:#13263a; --titulo:#eaf1f6;
-  --gramilla:#8cc63f; --gramilla-s:#23320f;
-  --coral:#ff6f5e; --coral-s:#3a1612;
+  --crema:#171c21; --crema-h:#1d242a;
+  --ambar:#f5c24d; --ambar-c:#ffd77a; --ambar-s:#3b3013;
+  --pizarra:#8fbcd8; --pizarra-d:#6c9cbb; --pizarra-s:#1c2c39;
 
-  --azul:#2bd0c9; --azul-m:#23b3ad; --azul-c:#2bd0c9; --azul-s:#0f3a39;
-  --verde:#8cc63f; --verde-c:#8cc63f; --verde-s:#23320f;
-  --rojo:#ff6f5e; --rojo-s:#3a1612;
-  --amarillo:#ffc53d;
-  --gris:#9aa7b4; --gris-c:#1b2a38;
-  --blanco:#22323f;
-  --texto:#e8eef2;
-  --sombra:0 4px 18px rgba(0,0,0,.4);
-  --sombra-sm:0 2px 8px rgba(0,0,0,.35);
-  --borde:#33485a;
-  --modal-bg:#22323f;
-  --header-bg:#0f2436;
-  background:#14222e;
+  --azul:#8fbcd8; --azul-m:#6c9cbb; --azul-c:#8fbcd8; --azul-s:#1c2c39;
+  --navy:#0c141c; --navy-d:#080f15; --navy-s:#16222d;
+  --verde:#7ecb84; --verde-c:#7ecb84; --verde-s:#16291b;
+  --gramilla:#8cc63f; --gramilla-s:#23320f;
+  --rojo:#ff8577; --rojo-s:#33201f;
+  --coral:#ff8577; --coral-s:#33201f;
+  --amarillo:#f5c24d;
+
+  --gris:#93a5b3; --gris-c:#16222d;
+  --blanco:#182531;
+  --texto:#e7eff5; --titulo:#f6fafc;
+  --borde:#28394a;
+  --modal-bg:#182531; --header-bg:#101a24;
+  --sombra:0 2px 8px rgba(0,0,0,.35);
+  --sombra-sm:none;
+  background:#0d151d;
 }
+/* ===== COMPONENTES (base, de style.css) ===== */
 body.dark input,body.dark select{background:#1b2a38;color:#e8eef2;border-color:#3a5064}
-body.dark .nav-bar{background:#1a2935;border-top-color:#2a3e4f}
 body.dark .modal{background:var(--modal-bg)}
 body.dark .carrito-item{background:#1b2a38;border-color:#33485a}
 body.dark .tab{background:#1b2a38;border-color:#33485a;color:#9aa7b4}
@@ -63,7 +73,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica N
 .btn-modo{background:rgba(255,255,255,.12);border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1;display:inline-flex;align-items:center;justify-content:center;gap:4px;border-radius:20px;padding:5px 10px;max-width:140px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:background .15s}
 .btn-modo:active{background:rgba(255,255,255,.25)}
 #btn-modo{width:34px;height:34px;border-radius:50%;padding:0;flex-shrink:0}
-.pantalla{display:none;padding:16px;max-width:600px;margin:0 auto;animation:fadeIn .25s ease}
+.pantalla{display:none;padding:16px;max-width:600px;margin:0 auto}
 .pantalla.activa{display:block}
 /* SIDEBAR */
 .btn-hamburguesa{background:none;border:none;color:#fff;cursor:pointer;padding:8px 0;width:34px;display:flex;align-items:center;justify-content:center}
@@ -98,8 +108,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica N
 .card-titulo{font-size:11px;color:var(--gris);margin-bottom:4px;text-transform:uppercase;letter-spacing:.6px;font-weight:700}
 .card-valor{font-size:31px;font-weight:800;color:var(--azul);letter-spacing:-.5px}
 
-/* GRILLA */
-.grilla{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
 .btn-grande{background:var(--blanco);border:none;border-radius:20px;padding:24px 12px;text-align:center;cursor:pointer;box-shadow:0 8px 24px rgba(20,40,60,.06), 0 2px 8px rgba(20,40,60,.04);font-size:15px;font-weight:800;color:var(--titulo);transition:transform .15s cubic-bezier(0.4, 0, 0.2, 1), box-shadow .15s;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;overflow:hidden}
 .btn-grande::after{content:'';position:absolute;inset:0;background:rgba(0,0,0,.03);opacity:0;transition:opacity .2s}
 .btn-grande:active::after{opacity:1}
@@ -114,7 +122,6 @@ label{display:block;font-size:11px;font-weight:700;color:var(--gris);margin-bott
 input,select{width:100%;padding:13px 14px;border:2px solid var(--borde);border-radius:12px;font-size:16px;color:var(--texto);background:var(--blanco);-webkit-appearance:none;appearance:none;transition:background .2s,color .2s,border-color .15s,box-shadow .15s}
 input:focus,select:focus{outline:none;border-color:var(--azul-c);box-shadow:0 0 0 3px var(--azul-s)}
 select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath fill='%236b7785' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
-.campo-auto input{background:var(--gris-c);font-weight:700;color:var(--azul)}
 .hint{font-size:13px;color:var(--azul-c);margin-top:5px;font-weight:600}
 .hint.gris{color:var(--gris);font-weight:500}
 .fila{display:flex;gap:10px}
@@ -170,7 +177,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 
 /* MODAL */
 .modal-fondo{position:fixed;inset:0;background:rgba(15,36,54,.5);z-index:300;display:none;align-items:flex-end;justify-content:center;backdrop-filter:blur(2px)}
-.modal-fondo.visible{display:flex;animation:fadeIn .2s ease}
+.modal-fondo.visible{display:flex}
 .modal{background:var(--blanco);border-radius:22px 22px 0 0;padding:24px 16px 36px;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;animation:slideUp .28s cubic-bezier(.2,.9,.3,1)}
 @keyframes slideUp{from{transform:translateY(100%)}to{transform:none}}
 .modal-titulo{font-size:18px;font-weight:800;margin-bottom:16px;text-align:center;color:var(--titulo)}
@@ -185,8 +192,6 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 /* LEDGER */
 .ledger-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--borde);font-size:14px}
 .ledger-row:last-child{border-bottom:none}
-.ledger-debe{color:var(--coral);font-weight:700}
-.ledger-haber{color:var(--gramilla);font-weight:700}
 .ledger-saldo{font-weight:800}
 
 /* SEPARADOR */
@@ -207,7 +212,556 @@ body.dark .badge-efectivo{background:#23320f;color:#a9d96a}
 .skel-line{height:12px;margin:9px 0}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
 
-/* MÉTRICAS EXTRA EN REPORTES */
-.rep-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px}
-@media(max-width:400px){.rep-grid-3{grid-template-columns:1fr 1fr}}
-@media(max-width:360px){.nav-btn{font-size:9px}.card-valor{font-size:26px}}
+@media(max-width:360px){.card-valor{font-size:26px}}
+
+
+/* ===== SUPERFICIES Y ACENTOS (tema Crema & Ambar) ===== */
+/* ==========================================================================
+   TEMA "CREMA & AMBAR" — identidad visual derivada del logo
+   Se carga DESPUES de style.css. Solo redefine color y superficie:
+   ninguna regla de layout, ninguna linea de logica.
+
+   Paleta tomada del logo: crema #F8F3E0 · ambar #E4A228 · pizarra #527287
+   Criterio: el ambar es el acento (nunca el fondo de un dato), la pizarra
+   manda en acciones y titulos, y los montos van casi negros a maximo
+   contraste. Vidrio esmerilado solo en marcos: header, menu y modales.
+   ========================================================================== */
+
+
+/* --- Fondo: crema con luz calida, para que el vidrio tenga que refractar -- */
+body{ background:var(--crema); color:var(--texto) }
+/* La luz de fondo va en una capa fija propia: asi el degradado se pinta una
+   sola vez y el scroll no lo recalcula (background-attachment:fixed es el
+   mayor freno de scroll en celulares). */
+body::before{
+  content:''; position:fixed; inset:0; z-index:-1; pointer-events:none;
+  background:
+    radial-gradient(1000px 640px at 92% -8%, rgba(228,162,40,.16), transparent 62%),
+    radial-gradient(880px 620px at -10% 8%, rgba(71,103,125,.10), transparent 60%),
+    linear-gradient(172deg, #fdf9f0 0%, #fbf6ea 48%, #f7f0e2 100%);
+}
+
+/* --- Header claro con la marca ------------------------------------------- */
+.header{
+  background:rgba(251,246,234,.80);
+  -webkit-backdrop-filter:blur(12px);
+          backdrop-filter:blur(12px);
+  color:var(--titulo);
+  border-bottom:1px solid rgba(120,90,45,.12);
+  box-shadow:0 1px 18px rgba(120,90,45,.08);
+}
+body.dark .header{ background:rgba(27,34,40,.78); border-bottom-color:rgba(255,255,255,.08) }
+.btn-hamburguesa{ color:var(--titulo) }
+.header-title{ font-weight:800; letter-spacing:-.2px }
+#btn-modo,.btn-modo{ background:rgba(71,103,125,.12); color:var(--titulo) }
+body.dark #btn-modo, body.dark .btn-modo{ background:rgba(255,255,255,.10) }
+/* marca en el header */
+.marca-header{ display:flex; align-items:center; gap:9px; min-width:0 }
+.marca-header img{ width:30px; height:30px; object-fit:contain; filter:drop-shadow(0 2px 4px rgba(120,90,45,.28)) }
+.marca-header .header-title{ white-space:nowrap }
+.header{ padding-left:12px; padding-right:12px }
+
+/* --- Menu lateral --------------------------------------------------------- */
+.sidebar{
+  background:rgba(253,250,243,.80);
+  -webkit-backdrop-filter:blur(16px);
+          backdrop-filter:blur(16px);
+  border-right:1px solid rgba(255,255,255,.6);
+  box-shadow:6px 0 24px rgba(90,70,40,.18), inset 1px 0 0 rgba(255,255,255,.7);
+}
+body.dark .sidebar{
+  background:rgba(30,38,45,.82);
+  border-right-color:rgba(255,255,255,.08);
+  box-shadow:10px 0 44px rgba(0,0,0,.5), inset 1px 0 0 rgba(255,255,255,.07);
+}
+.sidebar-header{ border-bottom:1px solid var(--borde) }
+.sidebar-btn.activo{
+  background:linear-gradient(180deg, rgba(228,162,40,.24), rgba(228,162,40,.12));
+  color:var(--titulo);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
+}
+.sidebar-btn.activo svg{ color:var(--ambar) }
+body.dark .sidebar-btn.activo{ background:linear-gradient(180deg, rgba(245,194,77,.22), rgba(245,194,77,.08)) }
+.sidebar-operador{
+  background:rgba(255,255,255,.6);
+  border:1px solid var(--borde);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.85);
+}
+body.dark .sidebar-operador{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.09) }
+.op-icono{ background:var(--ambar-s) }
+.sidebar-backdrop{
+  background:rgba(52,40,22,.34);
+  -webkit-backdrop-filter:blur(6px);
+          backdrop-filter:blur(6px);
+}
+
+/* --- Modales -------------------------------------------------------------- */
+.modal-fondo{
+  background:rgba(52,40,22,.32);
+  -webkit-backdrop-filter:blur(12px);
+          backdrop-filter:blur(12px);
+}
+/* El modal NO desenfoca: su contenido scrollea, y desenfocar detras de una
+   lista que se mueve obliga a recalcular el fondo en cada cuadro. El vidrio
+   lo aporta la capa de atras (.modal-fondo), que si esta quieta. */
+.modal{
+  background:rgba(255,253,248,.97);
+  border:1px solid rgba(255,255,255,.7);
+  border-bottom:0;
+  border-radius:30px 30px 0 0;
+  box-shadow:0 -8px 30px rgba(90,70,40,.20), inset 0 1px 0 rgba(255,255,255,.9);
+}
+body.dark .modal{
+  background:rgba(33,42,49,.97);
+  border-color:rgba(255,255,255,.09);
+  box-shadow:0 -12px 54px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.09);
+}
+
+/* --- Accesos grandes del inicio ------------------------------------------- */
+.btn-grande{
+  background:linear-gradient(180deg, rgba(255,255,255,.95), rgba(255,255,255,.80));
+  border:1px solid rgba(255,255,255,.85);
+  border-radius:24px;
+  box-shadow:0 8px 20px rgba(120,90,45,.10), inset 0 1px 0 rgba(255,255,255,.95);
+}
+body.dark .btn-grande{
+  background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+  border-color:rgba(255,255,255,.12);
+  box-shadow:0 12px 30px rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.12);
+}
+/* El ambar entra solo en el trazo del icono: sin pastilla de fondo. */
+.btn-grande .ico{ background:none; box-shadow:none; width:auto; height:auto; margin-bottom:14px }
+.btn-grande .ico svg{ color:var(--ambar); width:40px; height:40px; stroke-width:1.9 }
+body.dark .btn-grande .ico{ background:none; box-shadow:none }
+
+/* --- Tarjetas y datos: solidos, sin desenfoque ---------------------------- */
+.card, .item, .rep-card{
+  background:var(--blanco);
+  border:1px solid var(--borde);
+  border-radius:var(--radio);
+  box-shadow:var(--sombra-sm);
+}
+/* los montos, casi negros: maxima legibilidad al sol */
+.card-valor, .item-val, .rep-card .rv{ color:var(--titulo) }
+.card-valor.rojo, .item-val.rojo, .rep-card .rv.rojo{ color:var(--coral) }
+.rep-card.grande{
+  background:linear-gradient(140deg, var(--ambar-s), #fffaf0 60%, var(--pizarra-s));
+  border-color:rgba(228,162,40,.28);
+}
+body.dark .rep-card.grande{ background:linear-gradient(140deg, rgba(245,194,77,.14), rgba(33,42,49,.9) 60%, rgba(143,178,199,.12)) }
+
+/* --- Controles ------------------------------------------------------------ */
+.btn-p{
+  background:linear-gradient(180deg, var(--pizarra), var(--pizarra-d));
+  color:#fff;
+  box-shadow:0 6px 18px rgba(71,103,125,.32), inset 0 1px 0 rgba(255,255,255,.28);
+}
+body.dark .btn-p{ background:linear-gradient(180deg,#5d88a1,#4a7189); color:#fff }
+.btn-s{
+  background:rgba(255,255,255,.72);
+  color:var(--texto);
+  border:1px solid var(--borde);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.85);
+}
+body.dark .btn-s{ background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.11); box-shadow:none }
+.btn-r{ background:linear-gradient(180deg,#e0685c,var(--coral)); box-shadow:0 6px 18px rgba(216,86,74,.30) }
+.tab{ background:rgba(255,255,255,.7); border-color:var(--borde); color:var(--gris) }
+.tab.activo{ background:var(--ambar-s); border-color:var(--ambar); color:#8a5c05 }
+body.dark .tab{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.1) }
+body.dark .tab.activo{ background:rgba(245,194,77,.16); border-color:var(--ambar); color:var(--ambar-c) }
+
+input,select,textarea{ background:rgba(255,255,255,.8); border:2px solid var(--borde); border-radius:14px }
+input:focus,select:focus{ border-color:var(--ambar); box-shadow:0 0 0 3px rgba(228,162,40,.22) }
+body.dark input, body.dark select, body.dark textarea{ background:rgba(255,255,255,.06); border-color:rgba(255,255,255,.12) }
+
+#toast{
+  background:rgba(43,63,77,.86);
+  -webkit-backdrop-filter:blur(10px);
+          backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.16);
+}
+#toast.exito{ background:rgba(78,155,69,.92) }
+#toast.error{ background:rgba(216,86,74,.94) }
+#toast.guardando{ background:rgba(228,162,40,.95); color:#3d2a00 }
+
+.titulo-sec{ letter-spacing:-.4px }
+.hint{ color:var(--pizarra) }
+
+/* --- Red de seguridad ----------------------------------------------------- */
+
+/* ==========================================================================
+   MODO OSCURO — "Pizarra profunda"
+   Azul noche tomado del color de las letras del logo. El ambar queda como
+   acento (pestañas, item activo del menu) y los iconos de los accesos
+   grandes van en blanco, que es lo que mejor se lee de noche.
+   ========================================================================== */
+body.dark{ background:#0d151d }
+body.dark::before{
+  background:
+    radial-gradient(900px 620px at 90% -10%, rgba(245,194,77,.10), transparent 60%),
+    radial-gradient(820px 600px at -8% 8%, rgba(90,150,190,.18), transparent 62%),
+    linear-gradient(172deg,#101a24 0%,#0d151d 55%,#0a1118 100%);
+}
+body.dark .header{ background:rgba(16,26,36,.80); border-bottom-color:rgba(143,188,216,.18) }
+body.dark .sidebar{ background:rgba(24,37,49,.86); border-right-color:rgba(143,188,216,.16) }
+body.dark .modal{ background:rgba(24,37,49,.97); border-color:rgba(143,188,216,.16) }
+body.dark .card, body.dark .item, body.dark .rep-card{
+  background:#182531; border-color:#28394a;
+  box-shadow:0 8px 24px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.06);
+}
+body.dark .btn-grande{
+  background:linear-gradient(180deg, rgba(160,205,235,.12), rgba(160,205,235,.04));
+  border-color:rgba(143,188,216,.22);
+  box-shadow:0 12px 30px rgba(0,0,0,.42), inset 0 1px 0 rgba(200,230,250,.16);
+}
+body.dark .btn-p{ background:linear-gradient(180deg,#5f93b4,#4b7a99); color:#fff; box-shadow:0 6px 18px rgba(80,130,165,.35) }
+body.dark .rep-card.grande{ background:linear-gradient(140deg, rgba(245,194,77,.14), #182531 60%, rgba(143,188,216,.14)) }
+
+/* Iconos de los cuatro accesos grandes: blancos en oscuro, ambar en claro. */
+body.dark .btn-grande .ico svg{ color:#f2f7fa }
+body.dark .btn-grande{ border-color:rgba(255,255,255,.10) }
+
+/* ==========================================================================
+   1) CONTROLES NATIVOS EN MODO NOCHE
+   --------------------------------------------------------------------------
+   El bug: un <select> con fondo oscuro y texto claro por CSS abre, en el
+   celular, el desplegable NATIVO del sistema. Ese desplegable lo pinta el
+   sistema operativo, no nosotros, y sin declarar color-scheme lo pinta BLANCO
+   — con el texto casi blanco que hereda del select. Blanco sobre blanco.
+
+   color-scheme le avisa al sistema en qué modo está la página. Con esto el
+   desplegable de productos, el autocompletado de clientes, el calendario de
+   los <input type="date"> y las barras de scroll salen en oscuro solos.
+   El <option> explícito es el cinturón de seguridad para Android viejos que
+   ignoran color-scheme.
+   ========================================================================== */
+:root{ color-scheme: light }
+body.dark{ color-scheme: dark }
+
+option, optgroup{ background: var(--blanco); color: var(--texto) }
+body.dark option, body.dark optgroup{ background:#1b2a38; color:#e8eef2 }
+select:disabled, input:disabled{ opacity:.6 }
+
+/* ==========================================================================
+   2) VIDRIO ESMERILADO IMITADO
+   --------------------------------------------------------------------------
+   backdrop-filter obliga al navegador a re-fotografiar y re-desenfocar lo que
+   hay detrás del elemento EN CADA CUADRO del scroll. Con un header sticky eso
+   son 60 recálculos por segundo mientras se scrollea una lista larga: es la
+   causa de los tirones en el celular.
+
+   Acá lo imitamos: degradado vertical (la caída de luz del vidrio), una línea
+   de luz arriba y un borde claro (el canto del vidrio), más la sombra que ya
+   estaba. Se pinta UNA vez y no se vuelve a tocar mientras se scrollea.
+   ========================================================================== */
+.header,
+.sidebar,
+.modal,
+.modal-fondo,
+.sidebar-backdrop,
+#toast{
+  -webkit-backdrop-filter: none !important;
+          backdrop-filter: none !important;
+}
+
+/* --- Header --- */
+.header{
+  background:linear-gradient(180deg,#fdfaf3 0%,#f8f1e1 100%);
+  border-bottom:1px solid rgba(120,90,45,.15);
+  box-shadow:0 1px 14px rgba(120,90,45,.10), inset 0 1px 0 rgba(255,255,255,.92);
+}
+body.dark .header{
+  background:linear-gradient(180deg,#16222e 0%,#101a24 100%);
+  border-bottom-color:rgba(143,188,216,.18);
+  box-shadow:0 1px 16px rgba(0,0,0,.45), inset 0 1px 0 rgba(200,230,250,.09);
+}
+
+/* --- Menú lateral --- */
+.sidebar{
+  background:linear-gradient(180deg,#fefcf7 0%,#f9f3e6 100%);
+  border-right:1px solid rgba(120,90,45,.14);
+  box-shadow:6px 0 24px rgba(90,70,40,.18), inset 1px 0 0 rgba(255,255,255,.85);
+}
+body.dark .sidebar{
+  background:linear-gradient(180deg,#1b2a37 0%,#152230 100%);
+  border-right-color:rgba(143,188,216,.16);
+  box-shadow:10px 0 44px rgba(0,0,0,.5), inset 1px 0 0 rgba(200,230,250,.08);
+}
+
+/* --- Modales --- */
+.modal{
+  background:linear-gradient(180deg,#fffdf9 0%,#fbf6ec 100%);
+  border:1px solid rgba(255,255,255,.85);
+  border-bottom:0;
+  box-shadow:0 -8px 30px rgba(90,70,40,.22), inset 0 1px 0 rgba(255,255,255,.95);
+}
+body.dark .modal{
+  background:linear-gradient(180deg,#1d2c3a 0%,#16232f 100%);
+  border-color:rgba(143,188,216,.16);
+  box-shadow:0 -12px 54px rgba(0,0,0,.6), inset 0 1px 0 rgba(200,230,250,.10);
+}
+
+/* --- Fondos que oscurecen (lo que más costaba: desenfocaban la pantalla
+       entera). Sin desenfoque hay que oscurecer un poco más para que el
+       contenido de atrás no compita con el modal. --- */
+.modal-fondo{ background:rgba(52,40,22,.46) }
+.sidebar-backdrop{ background:rgba(52,40,22,.46) }
+body.dark .modal-fondo, body.dark .sidebar-backdrop{ background:rgba(0,0,0,.62) }
+
+/* --- Toast --- */
+#toast{ background:#2b3f4d; border:1px solid rgba(255,255,255,.14) }
+#toast.exito{ background:#4e9b45 }
+#toast.error{ background:#d8564a }
+#toast.guardando{ background:#e4a228; color:#3d2a00 }
+
+/* La red de seguridad de más arriba ya no hace falta: nunca hay desenfoque. */
+
+/* ==========================================================================
+   3) BARRA "HAY UNA VERSIÓN NUEVA"
+   ========================================================================== */
+#barra-update{
+  position:fixed; left:12px; right:12px; bottom:16px; z-index:1200;
+  display:none; align-items:center; gap:10px;
+  padding:12px 14px; border-radius:16px;
+  background:linear-gradient(180deg,#47677d,#375568); color:#fff;
+  font-size:14px; font-weight:600;
+  box-shadow:0 10px 30px rgba(20,40,60,.35);
+  max-width:576px; margin:0 auto;
+}
+#barra-update.visible{ display:flex }
+#barra-update span{ flex:1; min-width:0 }
+#barra-update button{
+  border:none; cursor:pointer; font-weight:700; font-size:14px;
+  padding:8px 14px; border-radius:12px;
+  background:var(--ambar); color:#3d2a00; flex-shrink:0;
+}
+#barra-update button.cerrar{
+  background:rgba(255,255,255,.16); color:#fff; padding:8px 10px;
+}
+
+/* ==========================================================================
+   ÍCONOS SVG EN BOTONES (reemplazo de emojis)
+   ========================================================================== */
+.ico-svg{ vertical-align:-.15em; flex-shrink:0 }
+/* botón de solo ícono: centra el svg y lo hace cuadrado */
+.btn-ico{ display:inline-flex; align-items:center; justify-content:center }
+/* botones con ícono + texto: alinear en fila con separación pareja */
+.btn:not(.btn-ico) .ico-svg{ margin-right:2px }
+
+/* Toggle sol/luna: el CSS decide cuál se ve según el modo */
+#btn-modo{ display:inline-flex; align-items:center; justify-content:center }
+.ico-sun{ display:none }
+body.dark .ico-moon{ display:none }
+body.dark .ico-sun{ display:inline-block }
+
+/* Operador del menú: ahora es <button>, reset para que herede el look */
+.sidebar-operador{ width:100%; border:none; font:inherit; text-align:left; color:inherit }
+.sidebar-operador .op-info{ display:flex; flex-direction:column }
+.sidebar-operador .op-label,
+.sidebar-operador .op-nombre{ display:block }
+
+/* ==========================================================================
+   ESCALA DE RADIOS UNIFICADA (#4)
+   Un solo set de radios en vez de 7 valores sueltos.
+   ========================================================================== */
+.btn{ border-radius:var(--r) }
+.btn-sm{ border-radius:var(--r-sm) }
+input,select,textarea{ border-radius:var(--r) }
+.tab{ border-radius:var(--r) }
+.card,.item,.rep-card,.carrito-item,.skel-item{ border-radius:var(--r-lg) }
+.btn-grande{ border-radius:var(--r-xl) }
+.modal{ border-radius:var(--r-xl) var(--r-xl) 0 0 }
+.badge{ border-radius:var(--r-pill) }
+#toast{ border-radius:var(--r-pill) }
+
+/* ==========================================================================
+   ACCESIBILIDAD (#5)
+   Foco visible para teclado (no molesta al mouse gracias a :focus-visible).
+   ========================================================================== */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible{
+  outline:3px solid var(--ambar);
+  outline-offset:2px;
+}
+
+/* ==========================================================================
+   UTILIDADES DE LAYOUT (reemplazan estilos inline repetidos)
+   ========================================================================== */
+.acciones{ display:flex; gap:10px; margin-top:8px }
+.fila-dato{ display:flex; justify-content:space-between; margin-bottom:6px }
+.fila-dato > span{ color:var(--gris) }
+.sec-head{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px }
+.modal-ico{ text-align:center; margin-bottom:4px; color:var(--ambar) }
+/* Botones "segmentados" (tabs): el JS reescribe su className, por eso el radio
+   va por ID y no por clase (una clase extra se perdería en el reset). */
+#tab-clientes,#tab-proveedores{ border-radius:var(--r-sm) }
+#fdev-todos,#fdev-proveedor,#fdev-cliente{ border-radius:var(--r-sm); font-size:13px }
+
+/* ==========================================================================
+   HOME "Operativa POS" — acceso principal + accesos secundarios + feed
+   ========================================================================== */
+.acciones-titulo{
+  font-size:13px; font-weight:800; color:var(--gris);
+  text-transform:uppercase; letter-spacing:.6px; margin:2px 2px 12px;
+}
+
+/* Acceso principal: Nueva venta */
+.acceso-hero{
+  width:100%; display:flex; align-items:center; gap:14px;
+  padding:18px; border:none; border-radius:var(--r-xl); cursor:pointer;
+  text-align:left; color:#fff;
+  background:linear-gradient(180deg,var(--pizarra),var(--pizarra-d));
+  box-shadow:0 8px 22px rgba(71,103,125,.30), inset 0 1px 0 rgba(255,255,255,.18);
+  transition:transform .12s, filter .12s; margin-bottom:14px;
+}
+.acceso-hero:active{ transform:scale(.985); filter:brightness(.97) }
+body.dark .acceso-hero{ background:linear-gradient(180deg,#5f93b4,#4b7a99) }
+.acceso-hero-ico{
+  width:52px; height:52px; flex-shrink:0; border-radius:16px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(255,255,255,.15);
+}
+.acceso-hero-ico svg{ width:28px; height:28px; color:var(--ambar) }
+.acceso-hero-txt{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px }
+.acceso-hero-tit{ font-size:20px; font-weight:800; letter-spacing:-.2px }
+.acceso-hero-sub{ font-size:13px; font-weight:500; opacity:.85 }
+.acceso-hero-chev{ display:flex; opacity:.9 }
+.acceso-hero-chev svg{ width:24px; height:24px }
+
+/* Accesos secundarios (3 en fila) */
+.grilla-3{ display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:22px }
+.btn-grande--sm{ padding:16px 6px; border-radius:var(--r-lg); font-size:12.5px }
+.btn-grande--sm .ico{ margin-bottom:8px }
+.btn-grande--sm .ico svg{ width:26px; height:26px }
+
+/* Lista de precios (encabezado plegable tipo tarjeta) */
+.precios-wrap{ margin-bottom:22px }
+.precios-head{
+  width:100%; display:flex; align-items:center; justify-content:space-between;
+  padding:14px 16px; background:var(--blanco); border:1px solid var(--borde);
+  border-radius:var(--r-lg); box-shadow:var(--sombra-sm); cursor:pointer; color:var(--texto);
+}
+.precios-head-l{ display:flex; align-items:center; gap:11px }
+.precios-head-l > svg{ width:22px; height:22px; color:var(--ambar); flex-shrink:0 }
+.precios-head-tit{ display:block; font-size:15px; font-weight:700; color:var(--titulo) }
+.precios-head-sub{ display:block; font-size:12px; color:var(--gris); font-weight:500 }
+.precios-arrow{ font-size:12px; color:var(--gris); transition:transform .2s }
+
+/* Encabezado de "Movimientos de hoy" + contador */
+.mov-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; gap:10px }
+.chip-count{
+  font-size:12px; font-weight:700; color:var(--azul); background:var(--azul-s);
+  border-radius:var(--r-pill); padding:5px 12px; white-space:nowrap;
+}
+.chip-count:empty{ display:none }
+
+/* Fila de venta con avatar de iniciales */
+.venta-row{
+  display:flex; gap:12px; align-items:flex-start;
+  background:var(--blanco); border:1px solid var(--borde);
+  border-radius:var(--r-lg); box-shadow:var(--sombra-sm);
+  padding:14px; margin-bottom:10px;
+}
+.avatar{
+  width:40px; height:40px; flex-shrink:0; border-radius:50%;
+  background:var(--ambar-s); color:var(--pizarra);
+  font-weight:800; font-size:14px;
+  display:flex; align-items:center; justify-content:center;
+}
+.venta-main{ flex:1; min-width:0 }
+.venta-right{ display:flex; flex-direction:column; align-items:flex-end; gap:8px; flex-shrink:0 }
+
+/* Enlace "Ver todas las ventas de la fecha" */
+.ver-todas{
+  width:100%; display:flex; align-items:center; justify-content:center; gap:8px;
+  padding:14px; background:var(--blanco); border:1px solid var(--borde);
+  border-radius:var(--r-lg); box-shadow:var(--sombra-sm);
+  color:var(--azul); font-weight:700; font-size:14px; cursor:pointer; margin-top:2px;
+}
+.ver-todas svg{ width:18px; height:18px; flex-shrink:0 }
+
+/* ==========================================================================
+   NUEVA VENTA / COMPRA — forma de pago en tarjetas + banda de clientes
+   ========================================================================== */
+.pay-seg{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px }
+.pay-opt{
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px;
+  padding:12px 6px; min-height:66px; border:1.5px solid var(--borde); border-radius:var(--r);
+  background:var(--blanco); color:var(--texto); font-size:12.5px; font-weight:700;
+  cursor:pointer; text-align:center; transition:background .15s, border-color .15s, box-shadow .15s;
+}
+.pay-opt svg{ width:22px; height:22px; color:var(--ambar); flex-shrink:0 }
+.pay-opt.activo{
+  background:linear-gradient(180deg,var(--pizarra),var(--pizarra-d));
+  border-color:var(--pizarra); color:#fff;
+  box-shadow:0 4px 12px rgba(71,103,125,.25);
+}
+.pay-opt.activo svg{ color:#fff }
+body.dark .pay-opt.activo{ background:linear-gradient(180deg,#5f93b4,#4b7a99); border-color:#5f93b4 }
+
+/* Banda deslizante de clientes frecuentes */
+.chips-band{
+  display:flex; gap:8px; overflow-x:auto; padding:10px 2px 4px; margin:0 -2px;
+  -webkit-overflow-scrolling:touch; scrollbar-width:none;
+}
+.chips-band::-webkit-scrollbar{ display:none }
+.chips-band:empty{ display:none }
+.chip-cli{
+  flex:0 0 auto; white-space:nowrap; padding:8px 14px; border-radius:var(--r-pill);
+  border:1px solid var(--borde); background:var(--blanco); color:var(--texto);
+  font-size:13px; font-weight:600; cursor:pointer; transition:background .15s, border-color .15s;
+}
+.chip-cli.activo{ background:var(--ambar-s); border-color:var(--ambar); color:var(--titulo) }
+
+/* Tarjetas del pedido (carrito): sobrias, blancas */
+.carrito-item{ background:var(--blanco); border:1px solid var(--borde); box-shadow:var(--sombra-sm); border-radius:var(--r-lg); padding:14px }
+
+/* Barra de TOTAL en sólido (pizarra en venta, coral en compra) */
+.total-bar{ display:flex; justify-content:space-between; align-items:center; gap:12px; border-radius:var(--r-lg); padding:16px 18px; margin-bottom:4px; color:#fff }
+.total-bar .tb-label{ font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; opacity:.92 }
+.total-bar .tb-val{ font-size:26px; font-weight:800; letter-spacing:-.5px; white-space:nowrap }
+.total-bar--venta{ background:linear-gradient(180deg,var(--pizarra),var(--pizarra-d)); box-shadow:0 6px 18px rgba(71,103,125,.28) }
+.total-bar--compra{ background:linear-gradient(180deg,var(--coral),#c0453b); box-shadow:0 6px 18px rgba(216,86,74,.28) }
+body.dark .total-bar--venta{ background:linear-gradient(180deg,#5f93b4,#4b7a99) }
+
+/* ==========================================================================
+   MODO OSCURO SOBRIO — superficies planas, sin luces artificiales
+   (fondo sin degradados radiales, tarjetas sin highlight interno,
+    sombras al mínimo; la separación la dan los bordes)
+   ========================================================================== */
+body.dark::before{ background:#0d151d }
+body.dark .header{ background:#101a24; box-shadow:none }
+body.dark .sidebar{ background:#152230; box-shadow:none }
+body.dark .modal{ background:#16232f; box-shadow:0 -6px 24px rgba(0,0,0,.45) }
+body.dark .card,
+body.dark .item,
+body.dark .rep-card,
+body.dark .venta-row,
+body.dark .carrito-item,
+body.dark .precios-head,
+body.dark .ver-todas{
+  background:#182531; border-color:#28394a; box-shadow:none;
+}
+body.dark .btn-grande{ background:#182531; border-color:#28394a; box-shadow:none }
+body.dark .btn-grande .ico svg{ color:#f2f7fa }
+body.dark .btn-p{ box-shadow:none }
+body.dark .acceso-hero{ box-shadow:none }
+body.dark .total-bar--venta,
+body.dark .total-bar--compra{ box-shadow:none }
+body.dark .pay-opt.activo{ box-shadow:none }
+
+/* ==========================================================================
+   BARRA LATERAL SOBRIA — ítem activo plano (sin degradado ámbar ni brillos)
+   ========================================================================== */
+.sidebar-btn.activo{ background:var(--ambar-s); color:var(--titulo); box-shadow:none }
+.sidebar-btn.activo svg,
+.sidebar-btn.activo .sidebar-ico svg{ color:var(--ambar) }
+body.dark .sidebar-btn.activo{ background:rgba(245,194,77,.12) }
+.sidebar-operador{ box-shadow:none }
+body.dark .sidebar-operador{ background:var(--gris-c); border-color:var(--borde) }
+.op-icono{ box-shadow:none }
+body.dark .sidebar{ box-shadow:none }
